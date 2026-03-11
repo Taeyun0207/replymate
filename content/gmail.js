@@ -29,69 +29,101 @@ function loadReplyMateSettings() {
   });
 }
 
-// Generate a sample reply based on tone + length.
-function generateReplyText({ tone, length }) {
-  const t = (tone || DEFAULT_TONE).toLowerCase();
+// Call the ReplyMate backend to generate an AI reply.
+async function generateAIReply(payload) {
+  try {
+    const response = await fetch("http://localhost:3000/generate-reply", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload || {}),
+    });
+
+    if (!response.ok) {
+      console.error("[ReplyMate] Backend error", response.status, response.statusText);
+      return "";
+    }
+
+    const data = await response.json();
+    if (data && typeof data.reply === "string") {
+      console.log("[ReplyMate] Backend reply received");
+      return data.reply;
+    }
+
+    console.error("[ReplyMate] Unexpected backend response shape", data);
+    return "";
+  } catch (error) {
+    console.error("[ReplyMate] Failed to call backend", error);
+    return "";
+  }
+}
+
+const REPLYMATE_BUTTON_COLOR_NORMAL = "#1a73e8";
+const REPLYMATE_BUTTON_COLOR_HOVER = "#1558b0";
+const REPLYMATE_BUTTON_COLOR_LOADING = "#9aa0a6";
+const REPLYMATE_BUTTON_COLOR_ERROR = "#d93025";
+const REPLYMATE_BUTTON_TEXT_COLOR = "#ffffff";
+
+function setReplyMateButtonState(button, state) {
+  // state: "idle" | "loading" | "error"
+  button.dataset.replymateState = state;
+  console.log("[ReplyMate] setReplyMateButtonState", { state, button });
+
+  if (state === "loading") {
+    button.disabled = true;
+    button.style.cursor = "default";
+    button.textContent = "Generating...";
+    button.style.backgroundColor = REPLYMATE_BUTTON_COLOR_LOADING;
+  } else if (state === "error") {
+    button.disabled = false;
+    button.style.cursor = "pointer";
+    button.textContent = "Try Again";
+    button.style.backgroundColor = REPLYMATE_BUTTON_COLOR_ERROR;
+  } else {
+    // idle
+    button.disabled = false;
+    button.style.cursor = "pointer";
+    button.textContent = "AI Reply";
+    button.style.backgroundColor = REPLYMATE_BUTTON_COLOR_NORMAL;
+  }
+}
+
+function attachReplyMateButtonHoverStyles(button) {
+  button.style.color = REPLYMATE_BUTTON_TEXT_COLOR;
+
+  button.addEventListener("mouseenter", () => {
+    const state = button.dataset.replymateState || "idle";
+    if (state === "idle") {
+      button.style.backgroundColor = REPLYMATE_BUTTON_COLOR_HOVER;
+    }
+  });
+
+  button.addEventListener("mouseleave", () => {
+    const state = button.dataset.replymateState || "idle";
+    if (state === "idle") {
+      button.style.backgroundColor = REPLYMATE_BUTTON_COLOR_NORMAL;
+    } else if (state === "loading") {
+      button.style.backgroundColor = REPLYMATE_BUTTON_COLOR_LOADING;
+    } else if (state === "error") {
+      button.style.backgroundColor = REPLYMATE_BUTTON_COLOR_ERROR;
+    }
+  });
+}
+
+function buildLengthInstruction(length) {
   const l = (length || DEFAULT_LENGTH).toLowerCase();
 
-  const greetings = {
-    professional: "Hello,",
-    polite: "Hello,",
-    friendly: "Hi there,",
-  };
+  if (l === "short") {
+    return "Write a very concise reply that usually fits into 1–2 short sentences. Be practical and direct with minimal padding, and do not add extra small talk beyond what feels natural for this email.";
+  }
 
-  const signoffs = {
-    professional: ["Sincerely,", "Taeyun"],
-    polite: ["Best regards,", "Taeyun"],
-    friendly: ["Thanks again,", "Taeyun"],
-  };
+  if (l === "long") {
+    return "Write a noticeably more developed reply than a medium-length one. When the original email has enough substance, expand with more appreciation, context, clarifications, and a polished closing. Keep it natural and avoid unnecessary fluff if the email itself is very short.";
+  }
 
-  const bodiesByToneAndLength = {
-    professional: {
-      short: ["Thank you for your email. I will follow up soon."],
-      medium: [
-        "Thank you for your email.",
-        "I have received your message and will follow up with you soon.",
-      ],
-      long: [
-        "Thank you for your email.",
-        "I have received your message and will review the details.",
-        "I will follow up with you soon with next steps.",
-      ],
-    },
-    polite: {
-      short: ["Thank you for your email. I will get back to you soon."],
-      medium: [
-        "Thank you for your email.",
-        "I will get back to you soon.",
-      ],
-      long: [
-        "Thank you for your email.",
-        "I appreciate you reaching out.",
-        "I will get back to you soon once I’ve had a chance to review this.",
-      ],
-    },
-    friendly: {
-      short: ["Thanks for your email! I’ll get back to you soon."],
-      medium: [
-        "Thanks for your email!",
-        "I’ll get back to you soon.",
-      ],
-      long: [
-        "Thanks for your email!",
-        "I really appreciate the note.",
-        "I’ll get back to you soon after I take a quick look at the details.",
-      ],
-    },
-  };
-
-  const greeting = greetings[t] || greetings[DEFAULT_TONE];
-  const bodyLines =
-    bodiesByToneAndLength[t]?.[l] ||
-    bodiesByToneAndLength[DEFAULT_TONE][DEFAULT_LENGTH];
-  const signoffLines = signoffs[t] || signoffs[DEFAULT_TONE];
-
-  return [greeting, "", ...bodyLines, "", ...signoffLines].join("\n");
+  // medium / default
+  return "Write a balanced, natural reply that feels clearly fuller than a short reply but lighter than a long one. Aim for moderate detail and politeness without sounding verbose, adapting the length to what feels appropriate for this email.";
 }
 
 
@@ -134,33 +166,114 @@ function isReplyEditor(editor) {
 }
 
 function createReplyMateButton() {
+  // Create a container for both button and input
+  const container = document.createElement("div");
+  container.style.display = "inline-flex";
+  container.style.alignItems = "center";
+  container.style.gap = "8px";
+  container.style.pointerEvents = "auto";
+  container.style.position = "relative";
+  container.style.zIndex = "1";
+  
   const button = document.createElement("button");
-  button.textContent = "AI Reply";
   button.className = "replymate-generate-button";
 
-  button.style.marginLeft = "8px";
   button.style.padding = "6px 10px";
-  button.style.backgroundColor = "#1a73e8";
-  button.style.color = "white";
+  button.style.backgroundColor = REPLYMATE_BUTTON_COLOR_NORMAL;
+  button.style.color = REPLYMATE_BUTTON_TEXT_COLOR;
   button.style.border = "none";
   button.style.borderRadius = "6px";
   button.style.cursor = "pointer";
   button.style.fontSize = "12px";
 
-  // When clicked, load settings and insert a generated reply into the correct editor.
+  // Create the additional instruction input
+  const instructionInput = document.createElement("input");
+  instructionInput.type = "text";
+  instructionInput.placeholder = "Add optional instruction (e.g. mention tomorrow)";
+  instructionInput.className = "replymate-instruction-input";
+  instructionInput.style.padding = "4px 8px";
+  instructionInput.style.border = "1px solid #ccc";
+  instructionInput.style.borderRadius = "4px";
+  instructionInput.style.fontSize = "12px";
+  instructionInput.style.width = "200px";
+  instructionInput.style.minWidth = "150px";
+  instructionInput.style.maxWidth = "300px";
+  instructionInput.style.pointerEvents = "auto";
+  instructionInput.style.userSelect = "auto";
+  instructionInput.style.webkitUserSelect = "auto";
+  instructionInput.style.outline = "none";
+  instructionInput.style.backgroundColor = "#fff";
+  instructionInput.style.color = "#000";
+
+  // Prevent event bubbling but allow normal text selection
+  instructionInput.addEventListener("mousedown", (e) => {
+    e.stopPropagation();
+    // Don't preventDefault to allow text selection
+    instructionInput.focus();
+  });
+  
+  instructionInput.addEventListener("click", (e) => {
+    e.stopPropagation();
+    // Don't preventDefault to allow text selection
+    instructionInput.focus();
+  });
+  
+  instructionInput.addEventListener("focus", (e) => {
+    e.stopPropagation();
+  });
+
+  attachReplyMateButtonHoverStyles(button);
+  setReplyMateButtonState(button, "idle");
+
+  // When clicked, call backend and insert generated reply into the correct editor.
   button.addEventListener("click", async (event) => {
+    // Duplicate click prevention: ignore if already loading.
+    if (button.dataset.replymateState === "loading") {
+      console.log("[ReplyMate] Compose button click ignored (already loading)");
+      return;
+    }
+
+    setReplyMateButtonState(button, "loading");
+
     const targetButton = event.currentTarget;
     const editor = findEditorForButton(targetButton);
     if (!editor) {
+      setReplyMateButtonState(button, "idle");
       return;
     }
 
     const settings = await loadReplyMateSettings();
-    const replyText = generateReplyText(settings);
+    const threadContext = extractThreadContext();
+
+    const payload = {
+      subject: threadContext.subject || "",
+      latestMessage: threadContext.latestMessage || "",
+      previousMessages: threadContext.previousMessages || [],
+      recipientName: threadContext.recipientName || "",
+      userName: settings.userName || threadContext.inferredUserName || "",
+      tone: settings.tone || DEFAULT_TONE,
+      length: settings.length || DEFAULT_LENGTH,
+      lengthInstruction: buildLengthInstruction(settings.length || DEFAULT_LENGTH),
+      additionalInstruction: instructionInput.value || "",
+    };
+
+    const replyText = await generateAIReply(payload);
+    if (!replyText) {
+      setReplyMateButtonState(button, "error");
+      setTimeout(() => setReplyMateButtonState(button, "idle"), 2000);
+      return;
+    }
+
     insertReplyIntoEditor(editor, replyText);
+    setReplyMateButtonState(button, "idle");
+    // Note: We do NOT clear the instruction input - it persists for repeated use
   });
 
-  return button;
+  // Add both elements to container
+  container.appendChild(button);
+  container.appendChild(instructionInput);
+  
+  return container;
 }
 
 // Insert the provided reply text into a Gmail rich-text editor (contenteditable).
@@ -233,6 +346,7 @@ function extractThreadContext() {
     let latestMessage = "";
     let previousMessages = [];
     let recipientName = "";
+    let inferredUserName = "";
 
     if (visibleMessages.length > 0) {
       const latest = visibleMessages[visibleMessages.length - 1];
@@ -252,6 +366,24 @@ function extractThreadContext() {
       if (nameElInLatest && nameElInLatest.textContent) {
         recipientName = nameElInLatest.textContent.trim();
       }
+
+      // Try to infer user's name from how they were addressed in the latest message
+      const messageText = latest.text.toLowerCase();
+      const greetings = ["hi ", "hello ", "dear ", "hey ", "good morning ", "good afternoon "];
+      
+      for (const greeting of greetings) {
+        const index = messageText.indexOf(greeting);
+        if (index !== -1) {
+          const afterGreeting = messageText.substring(index + greeting.length);
+          // Look for name up to 3 words after greeting
+          const words = afterGreeting.split(/\s+/).slice(0, 3);
+          const potentialName = words.join(" ").replace(/[,.!?;:]/g, "").trim();
+          if (potentialName && potentialName.length > 1 && potentialName.length < 30) {
+            inferredUserName = potentialName.charAt(0).toUpperCase() + potentialName.slice(1);
+            break;
+          }
+        }
+      }
     }
 
     // Fallback: try to find any visible sender/recipient name in the thread.
@@ -269,6 +401,7 @@ function extractThreadContext() {
       latestMessage: latestMessage || "",
       previousMessages: previousMessages || [],
       recipientName: recipientName || "",
+      inferredUserName: inferredUserName || "",
     };
   } catch {
     // Always return a safe object even if the DOM structure is unexpected.
@@ -277,6 +410,7 @@ function extractThreadContext() {
       latestMessage: "",
       previousMessages: [],
       recipientName: "",
+      inferredUserName: "",
     };
   }
 }
@@ -466,11 +600,22 @@ function openThreadForRow(row) {
 // 2) wait for thread UI, find & click Reply
 // 3) wait for reply editor
 // 4) insert the sample reply
-async function runHoverGenerateReplyWorkflow(row) {
+async function runHoverGenerateReplyWorkflow(row, sourceButton) {
     if (!(row instanceof Element)) return;
   
     if (row.dataset.replymateWorkflowRunning === "1") return;
     row.dataset.replymateWorkflowRunning = "1";
+  
+    if (sourceButton) {
+      // If already loading, prevent duplicate requests.
+      if (sourceButton.dataset.replymateState === "loading") {
+        console.log("[ReplyMate] Hover button workflow already running for this row");
+        return;
+      }
+      setReplyMateButtonState(sourceButton, "loading");
+      // Mark button so hide logic can keep it visible during workflow.
+      sourceButton.dataset.replymateGenerating = "1";
+    }
   
     try {
       openThreadForRow(row);
@@ -494,6 +639,11 @@ async function runHoverGenerateReplyWorkflow(row) {
   
       if (!replyButton) {
         console.log("[ReplyMate] Reply button not found");
+        const inEmailButton = document.querySelector(".replymate-generate-button");
+        if (inEmailButton) {
+          setReplyMateButtonState(inEmailButton, "error");
+          setTimeout(() => setReplyMateButtonState(inEmailButton, "idle"), 2000);
+        }
         return;
       }
   
@@ -516,6 +666,15 @@ async function runHoverGenerateReplyWorkflow(row) {
   
       if (!replyEditor) {
         console.log("[ReplyMate] Reply editor not found");
+        if (sourceButton) {
+          setReplyMateButtonState(sourceButton, "error");
+          setTimeout(() => setReplyMateButtonState(sourceButton, "idle"), 2000);
+        }
+        const inEmailButton = document.querySelector(".replymate-generate-button");
+        if (inEmailButton) {
+          setReplyMateButtonState(inEmailButton, "error");
+          setTimeout(() => setReplyMateButtonState(inEmailButton, "idle"), 2000);
+        }
         return;
       }
   
@@ -529,46 +688,84 @@ async function runHoverGenerateReplyWorkflow(row) {
   
       await sleep(200);
 
-      // Load user settings (tone, length, and user name).
-      const settings = await loadReplyMateSettings();
+      try {
+        // Find and update the in-email AI Reply button to show loading state
+        const inEmailButton = document.querySelector(".replymate-generate-button");
+        if (inEmailButton) {
+          setReplyMateButtonState(inEmailButton, "loading");
+        }
 
-      // Extract context from the currently opened Gmail thread.
-      const threadContext = extractThreadContext();
+        // Load user settings (tone, length, and user name).
+        const settings = await loadReplyMateSettings();
 
-      // Build the payload that would be sent to an AI backend.
-      const payload = {
-        subject: threadContext.subject || "",
-        latestMessage: threadContext.latestMessage || "",
-        recipientName: threadContext.recipientName || "",
-        userName: settings.userName || "",
-        tone: settings.tone || DEFAULT_TONE,
-        length: settings.length || DEFAULT_LENGTH,
-      };
+        // Extract context from the currently opened Gmail thread.
+        const threadContext = extractThreadContext();
 
-      // Only include previousMessages when we actually have some.
-      if (Array.isArray(threadContext.previousMessages) && threadContext.previousMessages.length > 0) {
-        payload.previousMessages = threadContext.previousMessages;
+        // Build the payload that would be sent to an AI backend.
+        const payload = {
+          subject: threadContext.subject || "",
+          latestMessage: threadContext.latestMessage || "",
+          recipientName: threadContext.recipientName || "",
+          userName: settings.userName || "",
+          tone: settings.tone || DEFAULT_TONE,
+          length: settings.length || DEFAULT_LENGTH,
+          lengthInstruction: buildLengthInstruction(settings.length || DEFAULT_LENGTH),
+        };
+
+        // Only include previousMessages when we actually have some.
+        if (Array.isArray(threadContext.previousMessages) && threadContext.previousMessages.length > 0) {
+          payload.previousMessages = threadContext.previousMessages;
+        }
+
+        console.log("[ReplyMate payload]", payload);
+  
+        const replyText = await generateAIReply(payload);
+  
+        if (!replyText) {
+          if (sourceButton) {
+            setReplyMateButtonState(sourceButton, "error");
+          }
+          if (inEmailButton) {
+            setReplyMateButtonState(inEmailButton, "error");
+            setTimeout(() => setReplyMateButtonState(inEmailButton, "idle"), 2000);
+          }
+          return;
+        }
+  
+        insertReplyIntoEditor(replyEditor, replyText);
+        if (sourceButton) {
+          setReplyMateButtonState(sourceButton, "idle");
+        }
+        if (inEmailButton) {
+          setReplyMateButtonState(inEmailButton, "idle");
+        }
+      } finally {
+        row.dataset.replymateWorkflowRunning = "0";
+        if (sourceButton) {
+          delete sourceButton.dataset.replymateGenerating;
+        }
       }
-
-      console.log("[ReplyMate payload]", payload);
-
-      // For now, still insert a locally generated sample reply.
-      const replyText = generateReplyText(settings);
-      insertReplyIntoEditor(replyEditor, replyText);
-    } finally {
-      row.dataset.replymateWorkflowRunning = "0";
+    } catch (error) {
+      console.error("[ReplyMate] Error generating reply:", error);
+      if (sourceButton) {
+        setReplyMateButtonState(sourceButton, "error");
+        setTimeout(() => setReplyMateButtonState(sourceButton, "idle"), 2000);
+      }
+      if (inEmailButton) {
+        setReplyMateButtonState(inEmailButton, "error");
+        setTimeout(() => setReplyMateButtonState(inEmailButton, "idle"), 2000);
+      }
     }
   }
   
   function createHoverGenerateButton(row) {
     const button = document.createElement("button");
     button.type = "button";
-    button.textContent = "AI Reply";
     button.className = REPLYMATE_HOVER_BUTTON_CLASS;
 
     button.style.padding = "4px 10px";
-    button.style.backgroundColor = "#1a73e8";
-    button.style.color = "white";
+    button.style.backgroundColor = REPLYMATE_BUTTON_COLOR_NORMAL;
+    button.style.color = REPLYMATE_BUTTON_TEXT_COLOR;
     button.style.border = "none";
     button.style.borderRadius = "6px";
     button.style.cursor = "pointer";
@@ -577,10 +774,18 @@ async function runHoverGenerateReplyWorkflow(row) {
     button.style.height = "28px";
     button.style.whiteSpace = "nowrap";
 
+    attachReplyMateButtonHoverStyles(button);
+    setReplyMateButtonState(button, "idle");
+
     button.addEventListener("click", (e) => {
       e.stopPropagation();
       e.preventDefault();
-      runHoverGenerateReplyWorkflow(row);
+      // Duplicate click prevention: ignore if already loading.
+      if (button.dataset.replymateState === "loading") {
+        console.log("[ReplyMate] Hover button click ignored (already loading)");
+        return;
+      }
+      runHoverGenerateReplyWorkflow(row, button);
     });
 
     return button;
@@ -743,9 +948,25 @@ async function runHoverGenerateReplyWorkflow(row) {
     if (!(row instanceof Element)) return;
   
     const existingButton = row.querySelector(`.${REPLYMATE_HOVER_BUTTON_CLASS}`);
-    if (existingButton) {
-      existingButton.remove();
+    if (!existingButton) return;
+
+    // If a generation workflow is running for this row/button, keep it visible
+    // so the user can see the loading / error state, even if the mouse leaves.
+    if (
+      row.dataset.replymateWorkflowRunning === "1" ||
+      existingButton.dataset.replymateGenerating === "1"
+    ) {
+      console.log("[ReplyMate] hideHoverButtonForRow skipped (generating)");
+      return;
     }
+
+    // If the instruction input is focused, keep the button visible so user can type
+    if (document.activeElement && document.activeElement.classList && document.activeElement.classList.contains("replymate-instruction-input")) {
+      console.log("[ReplyMate] hideHoverButtonForRow skipped (input focused)");
+      return;
+    }
+
+    existingButton.remove();
   }  
 
 // Use event delegation so we don't have to attach listeners to every row instance.
@@ -798,8 +1019,9 @@ function injectButtonIntoComposeAreas() {
     const composeContainer = editor.closest("div[role='dialog']") || editor.parentElement;
     if (!composeContainer) return;
 
-    // Skip if this compose already has a ReplyMate button.
-    if (composeContainer.querySelector(".replymate-generate-button")) {
+    // Skip if this compose already has a ReplyMate button or instruction input.
+    if (composeContainer.querySelector(".replymate-generate-button") || 
+        composeContainer.querySelector(".replymate-instruction-input")) {
       return;
     }
 
@@ -807,6 +1029,9 @@ function injectButtonIntoComposeAreas() {
 
     const buttonWrapper = document.createElement("div");
     buttonWrapper.style.marginTop = "8px";
+    buttonWrapper.style.pointerEvents = "auto";
+    buttonWrapper.style.position = "relative";
+    buttonWrapper.style.zIndex = "1";
     buttonWrapper.appendChild(button);
 
     editor.parentElement.appendChild(buttonWrapper);
@@ -815,6 +1040,10 @@ function injectButtonIntoComposeAreas() {
 
 // Observe the Gmail DOM so that buttons are injected for new compose windows.
 const observer = new MutationObserver(() => {
+  // Skip if user is typing in instruction input to avoid UI disruption
+  if (document.activeElement && document.activeElement.classList && document.activeElement.classList.contains("replymate-instruction-input")) {
+    return;
+  }
   injectButtonIntoComposeAreas();
 });
 
