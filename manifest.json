@@ -1,0 +1,23 @@
+{
+  "manifest_version": 3,
+  "name": "ReplyMate (Gmail AI Reply)",
+  "version": "0.0.1",
+  "description": "Draft AI-assisted replies in Gmail (starter scaffold).",
+  "permissions": [],
+  "host_permissions": [],
+  "background": {
+    "service_worker": "background/service-worker.js"
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://mail.google.com/*"],
+      "js": ["content/gmail.js"]
+    }
+  ],
+  "action": {
+    "default_title": "ReplyMate",
+    "default_popup": "popup/popup.html"
+  },
+  "options_page": "options/options.html"
+}
+
