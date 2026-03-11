@@ -33,15 +33,9 @@ function isReplyEditor(editor) {
   const dialog = editor.closest("div[role='dialog']");
 
   if (dialog) {
-    const label = (dialog.getAttribute("aria-label") || "").toLowerCase();
-
-    // Standalone compose windows are usually labeled like "New message".
-    if (label.includes("new message")) {
-      return false;
-    }
-
-    // If it's a dialog but not explicitly a "new message", treat it as a reply/forward.
-    return true;
+    // For this project, we want to focus on reply areas inside opened threads,
+    // and avoid standalone compose dialogs as much as possible.
+    return false;
   }
 
   // Inline reply areas often live directly inside the conversation region.
@@ -76,7 +70,16 @@ function createReplyMateButton() {
       return;
     }
 
-    // Convert the sample reply into HTML with <br> to preserve line breaks.
+    insertSampleReplyIntoEditor(editor);
+  });
+
+  return button;
+}
+
+// Insert the sample reply into a Gmail rich-text editor (contenteditable).
+function insertSampleReplyIntoEditor(editor) {
+    if (!(editor instanceof HTMLElement)) return;
+  
     const html = REPLYMATE_SAMPLE_REPLY.split("\n")
       .map((line) => {
         if (line === "") return "<br>";
@@ -86,12 +89,143 @@ function createReplyMateButton() {
           .replace(/>/g, "&gt;");
       })
       .join("<br>");
-
+  
     editor.focus();
     editor.innerHTML = html;
-  });
+  
+    // Gmail이 입력 변화를 인식하도록 이벤트도 발생
+    editor.dispatchEvent(new InputEvent("input", { bubbles: true }));
+    editor.dispatchEvent(new Event("change", { bubbles: true }));
+  }
 
-  return button;
+// Small polling helper for dynamic Gmail UI: repeatedly tries `getValue()` until
+// it returns a truthy value or times out.
+function poll(getValue, { timeoutMs = 8000, intervalMs = 200 } = {}) {
+  return new Promise((resolve) => {
+    const start = Date.now();
+
+    const tick = () => {
+      let value = null;
+      try {
+        value = getValue();
+      } catch {
+        value = null;
+      }
+
+      if (value) {
+        resolve(value);
+        return;
+      }
+
+      if (Date.now() - start >= timeoutMs) {
+        resolve(null);
+        return;
+      }
+
+      setTimeout(tick, intervalMs);
+    };
+
+    tick();
+  });
+}
+
+function sleep(ms) {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+  }
+  
+  function scrollMainThreadDown() {
+    const main = document.querySelector("div[role='main']");
+    if (!main) return;
+  
+    // Gmail 읽기 화면을 아래로 조금씩 내려서 Reply 버튼이 보이게 유도
+    main.scrollBy({
+      top: 800,
+      left: 0,
+      behavior: "instant",
+    });
+  }
+  
+  function getVisibleReplyCandidates() {
+    const main = document.querySelector("div[role='main']") || document.body;
+  
+    const candidates = Array.from(
+      main.querySelectorAll("div[role='button'], span[role='button'], td[role='button'], button, span, div")
+    );
+  
+    return candidates.filter((el) => {
+      if (!(el instanceof HTMLElement)) return false;
+      if (el.offsetParent === null) return false;
+  
+      const ariaLabel = (el.getAttribute("aria-label") || "").trim().toLowerCase();
+      const dataTooltip = (el.getAttribute("data-tooltip") || "").trim().toLowerCase();
+      const text = (el.textContent || "").trim().toLowerCase();
+  
+      const looksLikeReply =
+        ariaLabel === "reply" ||
+        ariaLabel.startsWith("reply") ||
+        dataTooltip === "reply" ||
+        dataTooltip.startsWith("reply") ||
+        text === "reply";
+  
+      if (!looksLikeReply) return false;
+  
+      const looksWrong =
+        ariaLabel.includes("forward") ||
+        ariaLabel.includes("reply all") ||
+        dataTooltip.includes("forward") ||
+        dataTooltip.includes("reply all") ||
+        text === "forward" ||
+        text === "reply all";
+  
+      if (looksWrong) return false;
+  
+      return true;
+    });
+  }
+
+// Find a "Reply" action button in the currently opened thread view.
+// Gmail is heavily dynamic, so we try a few reasonable selectors.
+function findReplyButtonInThread() {
+    const candidates = getVisibleReplyCandidates();
+  
+    if (!candidates.length) return null;
+  
+    // 화면 아래쪽에 있는 Reply 버튼이 실제로 우리가 원하는 inline reply일 가능성이 큼
+    candidates.sort((a, b) => {
+      const rectA = a.getBoundingClientRect();
+      const rectB = b.getBoundingClientRect();
+      return rectB.top - rectA.top; // 더 아래에 있는 버튼 우선
+    });
+  
+    return candidates[0] || null;
+  }
+
+  function clickElementLikeUser(element) {
+    if (!(element instanceof Element)) return;
+  
+    const eventInit = { bubbles: true, cancelable: true, view: window };
+  
+    element.dispatchEvent(new MouseEvent("mouseover", eventInit));
+    element.dispatchEvent(new MouseEvent("mousedown", eventInit));
+    element.dispatchEvent(new MouseEvent("mouseup", eventInit));
+    element.dispatchEvent(new MouseEvent("click", eventInit));
+  }
+
+// Find the reply editor that appears after clicking Reply.
+function findActiveReplyEditor() {
+  const main = document.querySelector("div[role='main']") || document.body;
+  const editors = main.querySelectorAll(
+    'div[aria-label="Message Body"], div[role="textbox"][g_editable="true"]'
+  );
+
+  for (const editor of editors) {
+    if (!(editor instanceof HTMLElement)) continue;
+    if (editor.offsetParent === null) continue;
+    if (!isReplyEditor(editor)) continue;
+    return editor;
+  }
+
+  return null;
 }
 
 // ------------------------------
@@ -123,10 +257,16 @@ function openThreadForRow(row) {
   if (!(row instanceof Element)) return;
 
   // Prefer a direct link if one exists (more deterministic than clicking the whole row).
-  const link = row.querySelector("a[href]");
-  if (link) {
-    link.click();
-    return;
+  const links = row.querySelectorAll("a[href]");
+  for (const link of links) {
+    const href = link.getAttribute("href") || "";
+
+    // Gmail thread links typically use a hash route (e.g. "/mail/u/0/#inbox/...").
+    // Avoid mailto and other non-navigation links that might exist in the row.
+    if (href.includes("#") && !href.startsWith("mailto:")) {
+      link.click();
+      return;
+    }
   }
 
   // Fallback: dispatch a small sequence of mouse events on the row.
@@ -135,6 +275,79 @@ function openThreadForRow(row) {
   row.dispatchEvent(new MouseEvent("mouseup", eventInit));
   row.dispatchEvent(new MouseEvent("click", eventInit));
 }
+
+// Full workflow for the hover button:
+// 1) open the email thread
+// 2) wait for thread UI, find & click Reply
+// 3) wait for reply editor
+// 4) insert the sample reply
+async function runHoverGenerateReplyWorkflow(row) {
+    if (!(row instanceof Element)) return;
+  
+    if (row.dataset.replymateWorkflowRunning === "1") return;
+    row.dataset.replymateWorkflowRunning = "1";
+  
+    try {
+      openThreadForRow(row);
+  
+      // 메일 열리는 시간 잠깐 대기
+      await sleep(1200);
+  
+      // Reply 버튼이 스레드 아래쪽에 있을 수 있어서 스크롤 보정
+      for (let i = 0; i < 4; i++) {
+        scrollMainThreadDown();
+        await sleep(400);
+      }
+  
+      const replyButton = await poll(() => {
+        scrollMainThreadDown();
+        return findReplyButtonInThread();
+      }, {
+        timeoutMs: 12000,
+        intervalMs: 400,
+      });
+  
+      if (!replyButton) {
+        console.log("[ReplyMate] Reply button not found");
+        return;
+      }
+  
+      console.log("[ReplyMate] Reply button found:", replyButton);
+  
+      // 화면에 잘 보이게 한 뒤 클릭
+      replyButton.scrollIntoView({
+        behavior: "instant",
+        block: "center",
+        inline: "nearest",
+      });
+  
+      await sleep(300);
+      clickElementLikeUser(replyButton);
+  
+      const replyEditor = await poll(() => findActiveReplyEditor(), {
+        timeoutMs: 12000,
+        intervalMs: 300,
+      });
+  
+      if (!replyEditor) {
+        console.log("[ReplyMate] Reply editor not found");
+        return;
+      }
+  
+      console.log("[ReplyMate] Reply editor found:", replyEditor);
+  
+      replyEditor.scrollIntoView({
+        behavior: "instant",
+        block: "center",
+        inline: "nearest",
+      });
+  
+      await sleep(200);
+      insertSampleReplyIntoEditor(replyEditor);
+    } finally {
+      row.dataset.replymateWorkflowRunning = "0";
+    }
+  }
 
 function createHoverGenerateButton(row) {
   const button = document.createElement("button");
@@ -162,7 +375,9 @@ function createHoverGenerateButton(row) {
     // Prevent Gmail's row click handler from firing twice; we will open the thread ourselves.
     e.stopPropagation();
     e.preventDefault();
-    openThreadForRow(row);
+
+    // Run the full workflow: open thread -> click Reply -> insert sample reply.
+    runHoverGenerateReplyWorkflow(row);
   });
 
   return button;
