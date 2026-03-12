@@ -9,6 +9,85 @@ const DEFAULT_TONE = "polite";
 const DEFAULT_LENGTH = "medium";
 const DEFAULT_LANGUAGE = "english";
 
+// Language translations
+const TRANSLATIONS = {
+  english: {
+    settings: "ReplyMate Settings",
+    replyTone: "Reply Tone",
+    replyLength: "Reply Length",
+    yourName: "Your Name",
+    language: "Language",
+    save: "Save",
+    saved: "Saved!",
+    loading: "Loading...",
+    usageUnavailable: "Usage unavailable",
+    upgradeMore: "Unlock more replies with Pro",
+    upgradeUnlimited: "Unlock unlimited replies with Pro+",
+    enjoyReplyMate: "Enjoy your ReplyMate!",
+    upgradeToPro: "Upgrade to Pro",
+    upgradeToProPlus: "Upgrade to Pro+",
+    manageSubscription: "Manage subscription",
+    planNames: {
+      free: "Free Plan",
+      pro: "Pro Plan",
+      pro_plus: "Pro+ Plan"
+    },
+    repliesLeft: "replies left"
+  },
+  korean: {
+    settings: "ReplyMate 설정",
+    replyTone: "답장 톤",
+    replyLength: "답장 길이",
+    yourName: "사용자 이름",
+    language: "언어",
+    save: "저장",
+    saved: "저장됨!",
+    loading: "로딩 중...",
+    usageUnavailable: "사용량을 사용할 수 없음",
+    upgradeMore: "Pro로 더 많은 답장 잠금 해제",
+    upgradeUnlimited: "Pro+로 무제한 답장 잠금 해제",
+    enjoyReplyMate: "ReplyMate를 즐기세요!",
+    upgradeToPro: "Pro로 업그레이드",
+    upgradeToProPlus: "Pro+로 업그레이드",
+    manageSubscription: "구독 관리",
+    planNames: {
+      free: "무료 플랜",
+      pro: "Pro 플랜",
+      pro_plus: "Pro+ 플랜"
+    },
+    repliesLeft: "답장 남음"
+  },
+  japanese: {
+    settings: "ReplyMate設定",
+    replyTone: "返信トーン",
+    replyLength: "返信長さ",
+    yourName: "あなたの名前",
+    language: "言語",
+    save: "保存",
+    saved: "保存されました！",
+    loading: "読み込み中...",
+    usageUnavailable: "使用量を利用できません",
+    upgradeMore: "Proでより多くの返信をアンロック",
+    upgradeUnlimited: "Pro+で無制限の返信をアンロック",
+    enjoyReplyMate: "ReplyMateをお楽しみください！",
+    upgradeToPro: "Proにアップグレード",
+    upgradeToProPlus: "Pro+にアップグレード",
+    manageSubscription: "サブスクリプション管理",
+    planNames: {
+      free: "無料プラン",
+      pro: "Proプラン",
+      pro_plus: "Pro+プラン"
+    },
+    repliesLeft: "返信残り"
+  }
+};
+
+// Get translation for current language
+function getTranslation(key, language = DEFAULT_LANGUAGE) {
+  const lang = TRANSLATIONS[language] || TRANSLATIONS.english;
+  return lang[key] || TRANSLATIONS.english[key] || key;
+}
+
 // Get or create a persistent ReplyMate user ID (reused from gmail.js)
 function getReplyMateUserId() {
   return new Promise((resolve) => {
@@ -105,38 +184,34 @@ async function getUsageData() {
   return await fetchUsageFromBackend();
 }
 
-// Update plan and usage display
-function updatePlanUsageDisplay(usageData) {
+// Update plan and usage display with language support
+function updatePlanUsageDisplay(usageData, language = DEFAULT_LANGUAGE) {
   const planUsageEl = document.querySelector(".plan-usage");
   
   if (!planUsageEl) return;
 
   if (!usageData) {
-    planUsageEl.textContent = "Usage unavailable";
+    planUsageEl.textContent = getTranslation("usageUnavailable", language);
     return;
   }
 
-  const planNames = {
-    'free': 'Free Plan',
-    'pro': 'Pro Plan',
-    'pro_plus': 'Pro+ Plan'
-  };
-
-  const planName = planNames[usageData.plan] || 'Free Plan';
+  const planTranslations = TRANSLATIONS[language]?.planNames || TRANSLATIONS.english.planNames;
+  const planName = planTranslations[usageData.plan] || planTranslations.free || "Free Plan";
   const limit = usageData.limit; // Only use backend limit, no fallback
   const remaining = usageData.remaining !== undefined ? usageData.remaining : 0;
+  const repliesLeft = getTranslation("repliesLeft", language);
 
   // If no limit from backend, don't display anything
   if (limit === undefined) {
-    planUsageEl.textContent = "Usage unavailable";
+    planUsageEl.textContent = getTranslation("usageUnavailable", language);
     return;
   }
 
-  planUsageEl.textContent = `${planName} · ${remaining} / ${limit} replies left`;
+  planUsageEl.textContent = `${planName} · ${remaining} / ${limit} ${repliesLeft}`;
 }
 
-// Update upgrade link based on current plan
-function updateUpgradeLink(plan) {
+// Update upgrade link based on current plan with language support
+function updateUpgradeLink(plan, language = DEFAULT_LANGUAGE) {
   const upgradeLink = document.getElementById("upgradeLink");
   const upgradeTitle = document.querySelector(".upgrade-title");
   const upgradeBox = document.querySelector(".upgrade-box");
@@ -144,26 +219,98 @@ function updateUpgradeLink(plan) {
   if (!upgradeLink || !upgradeTitle || !upgradeBox) return;
 
   if (plan === 'pro_plus') {
-    upgradeTitle.textContent = "Enjoy your ReplyMate!";
-    upgradeLink.textContent = "Manage subscription";
+    upgradeTitle.textContent = getTranslation("enjoyReplyMate", language);
+    upgradeLink.textContent = getTranslation("manageSubscription", language);
     upgradeBox.style.display = "none"; // Hide upgrade box for highest plan
   } else if (plan === 'pro') {
-    upgradeTitle.textContent = "Unlock unlimited replies with Pro+";
-    upgradeLink.textContent = "Upgrade to Pro+";
+    upgradeTitle.textContent = getTranslation("upgradeUnlimited", language);
+    upgradeLink.textContent = getTranslation("upgradeToProPlus", language);
     upgradeBox.style.display = "block";
   } else {
-    upgradeTitle.textContent = "Unlock more replies with Pro";
-    upgradeLink.textContent = "Upgrade to Pro";
+    upgradeTitle.textContent = getTranslation("upgradeMore", language);
+    upgradeLink.textContent = getTranslation("upgradeToPro", language);
     upgradeBox.style.display = "block";
+  }
+}
+
+// Apply language to all UI elements
+function applyLanguageToUI(language = DEFAULT_LANGUAGE) {
+  // Update labels and static text
+  document.querySelector('label[for="toneSelect"]').textContent = getTranslation("replyTone", language);
+  document.querySelector('label[for="lengthSelect"]').textContent = getTranslation("replyLength", language);
+  document.querySelector('label[for="userNameInput"]').textContent = getTranslation("yourName", language);
+  document.querySelector('label[for="languageSelect"]').textContent = getTranslation("language", language);
+  document.getElementById("saveButton").textContent = getTranslation("save", language);
+  document.querySelector(".header-title").textContent = getTranslation("settings", language);
+  
+  // Update placeholders
+  document.getElementById("userNameInput").placeholder = getTranslation("yourName", language);
+  
+  // Update option labels for tone and length
+  const toneOptions = {
+    professional: language === "korean" ? "전문적" : language === "japanese" ? "専門的" : "Professional",
+    polite: language === "korean" ? "정중함" : language === "japanese" ? "丁寧" : "Polite", 
+    friendly: language === "korean" ? "친근함" : language === "japanese" ? "親切" : "Friendly",
+    direct: language === "korean" ? "직접적" : language === "japanese" ? "直接的" : "Direct"
+  };
+  
+  const lengthOptions = {
+    short: language === "korean" ? "짧음" : language === "japanese" ? "短い" : "Short",
+    medium: language === "korean" ? "보통" : language === "japanese" ? "普通" : "Medium",
+    long: language === "korean" ? "김" : language === "japanese" ? "長い" : "Long"
+  };
+  
+  // Update language select options with native language names
+  const languageSelect = document.getElementById("languageSelect");
+  if (languageSelect) {
+    languageSelect.innerHTML = "";
+    const languageOptions = [
+      { value: "english", label: "English" },
+      { value: "korean", label: "한국어" },
+      { value: "japanese", label: "日本語" }
+    ];
+    languageOptions.forEach(({ value, label }) => {
+      const option = document.createElement("option");
+      option.value = value;
+      option.textContent = label;
+      languageSelect.appendChild(option);
+    });
+  }
+  
+  // Update tone select options
+  const toneSelect = document.getElementById("toneSelect");
+  if (toneSelect) {
+    toneSelect.innerHTML = "";
+    Object.entries(toneOptions).forEach(([value, label]) => {
+      const option = document.createElement("option");
+      option.value = value;
+      option.textContent = label;
+      toneSelect.appendChild(option);
+    });
+  }
+  
+  // Update length select options
+  const lengthSelect = document.getElementById("lengthSelect");
+  if (lengthSelect) {
+    lengthSelect.innerHTML = "";
+    Object.entries(lengthOptions).forEach(([value, label]) => {
+      const option = document.createElement("option");
+      option.value = value;
+      option.textContent = label;
+      lengthSelect.appendChild(option);
+    });
   }
 }
 
 // Listen for usage updates from Gmail content script
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === "USAGE_UPDATED" && message.data) {
-    // Update popup display with fresh data from Gmail
-    updatePlanUsageDisplay(message.data);
-    updateUpgradeLink(message.data.plan);
+    // Get current language and update popup display
+    chrome.storage.local.get([LANGUAGE_KEY], (result) => {
+      const language = result[LANGUAGE_KEY] || DEFAULT_LANGUAGE;
+      updatePlanUsageDisplay(message.data, language);
+      updateUpgradeLink(message.data.plan, language);
+    });
   }
 });
 
@@ -199,21 +346,38 @@ document.addEventListener("DOMContentLoaded", () => {
     lengthSelect.value = length;
     userNameInput.value = userName;
     languageSelect.value = language;
+    
+    // Apply language to all UI elements
+    applyLanguageToUI(language);
+    
+    // Re-set select values after applying language (since options were recreated)
+    toneSelect.value = tone;
+    lengthSelect.value = length;
+    languageSelect.value = language;
+    // Load usage data with language
+    loadUsageData(language);
   });
 
-  // Load usage data when popup opens
-  loadUsageData();
+  // Handle language change - don't apply immediately, wait for save
+  languageSelect.addEventListener("change", () => {
+    // Don't apply language immediately - wait for save button
+    // Just update the language selection value
+    const selectedLanguage = languageSelect.value;
+    console.log("[ReplyMate] Language selected but not applied yet:", selectedLanguage);
+  });
 
   // Save all settings together when the user clicks Save.
   saveButton.addEventListener("click", () => {
     const originalText = saveButton.textContent;
     saveButton.disabled = true;
-    saveButton.textContent = "Saved!";
+    
+    const language = languageSelect.value;
+    saveButton.textContent = getTranslation("saved", language);
+    saveButton.style.color = "#188038"; // Make text green
 
     const tone = toneSelect.value;
     const length = lengthSelect.value;
     const userName = userNameInput.value || "";
-    const language = languageSelect.value;
 
     chrome.storage.local.set(
       {
@@ -223,26 +387,38 @@ document.addEventListener("DOMContentLoaded", () => {
         [LANGUAGE_KEY]: language,
       },
       () => {
+        // Apply the new language to UI after saving
+        applyLanguageToUI(language);
+        
+        // Re-set select values after applying language (since options were recreated)
+        toneSelect.value = tone;
+        lengthSelect.value = length;
+        languageSelect.value = language;
+        
+        // Update usage display with new language
+        loadUsageData(language);
+        
         // Reset button after 1 second
         setTimeout(() => {
-          saveButton.textContent = originalText;
+          saveButton.textContent = getTranslation("save", language);
           saveButton.disabled = false;
+          saveButton.style.color = ""; // Reset to original color
         }, 1000);
       }
     );
   });
 });
 
-// Load usage data and update UI
-async function loadUsageData() {
+// Load usage data and update UI with language
+async function loadUsageData(language = DEFAULT_LANGUAGE) {
   const usageData = await getUsageData();
   
   if (usageData) {
-    updatePlanUsageDisplay(usageData);
-    updateUpgradeLink(usageData.plan);
+    updatePlanUsageDisplay(usageData, language);
+    updateUpgradeLink(usageData.plan, language);
   } else {
     // Fallback display
-    updatePlanUsageDisplay(null);
-    updateUpgradeLink('free');
+    updatePlanUsageDisplay(null, language);
+    updateUpgradeLink('free', language);
   }
 }
