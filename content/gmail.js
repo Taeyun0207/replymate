@@ -51,6 +51,18 @@ function getReplyMateUserId() {
   });
 }
 
+// Format usage display text with plan name and limit
+function formatUsageDisplay(plan, remaining, limit) {
+  const planNames = {
+    'free': 'Free Plan',
+    'pro': 'Pro Plan', 
+    'pro_plus': 'Pro+ Plan'
+  };
+  
+  const planName = planNames[plan] || 'Free Plan';
+  return `${planName} · ${remaining} / ${limit} replies left`;
+}
+
 function showReplyMateMessage(message) {
   const box = document.createElement("div");
 
@@ -104,12 +116,12 @@ async function generateAIReply(payload) {
         console.warn("[ReplyMate] Monthly limit reached");
 
         showReplyMateMessage(
-  "⚠ Monthly ReplyMate limit reached. Upgrade to generate more replies."
+  "⚠️ You've reached your monthly ReplyMate limit. Upgrade to generate more replies."
 );
 
         const usageDisplay = document.querySelector(".replymate-usage-display");
         if (usageDisplay) {
-          usageDisplay.textContent = "Remaining: 0 replies";
+          usageDisplay.textContent = formatUsageDisplay('free', 0, 50);
         }
 
         return "";
@@ -150,14 +162,20 @@ async function updateUsageDisplay(usageDisplay) {
     const data = await response.json();
 
     if (data && typeof data.remaining !== "undefined") {
-      usageDisplay.textContent = `Remaining: ${data.remaining} replies`;
+      const planLimits = {
+        'free': 50,
+        'pro': 300,
+        'pro_plus': 1000
+      };
+      const limit = planLimits[data.plan] || 50;
+      usageDisplay.textContent = formatUsageDisplay(data.plan, data.remaining, limit);
     } else {
-      usageDisplay.textContent = "Remaining: -";
+      usageDisplay.textContent = formatUsageDisplay('free', 0, 50);
     }
 
   } catch (error) {
     console.error("[ReplyMate] Failed to fetch usage", error);
-    usageDisplay.textContent = "Remaining: -";
+    usageDisplay.textContent = formatUsageDisplay('free', 0, 50);
   }
 }
 
@@ -373,7 +391,19 @@ function createReplyMateButton() {
     if (replyData && replyData.usage) {
       const usageDisplay = container.querySelector(".replymate-usage-display");
       if (usageDisplay) {
-        usageDisplay.textContent = `Remaining: ${replyData.usage.remaining} replies`;
+        const planLimits = {
+          'free': 50,
+          'pro': 300,
+          'pro_plus': 1000
+        };
+        const limit = planLimits[replyData.usage.plan] || 50;
+        usageDisplay.textContent = formatUsageDisplay(replyData.usage.plan, replyData.usage.remaining, limit);
+      }
+    } else {
+      // Fallback: refresh usage display if no usage info in response
+      const usageDisplay = container.querySelector(".replymate-usage-display");
+      if (usageDisplay) {
+        updateUsageDisplay(usageDisplay);
       }
     }
     // Note: We do NOT clear the instruction input - it persists for repeated use
@@ -867,7 +897,19 @@ async function runHoverGenerateReplyWorkflow(row, sourceButton) {
         if (replyData && replyData.usage) {
           const usageDisplay = document.querySelector(".replymate-usage-display");
           if (usageDisplay) {
-            usageDisplay.textContent = `Remaining: ${replyData.usage.remaining} replies`;
+            const planLimits = {
+              'free': 50,
+              'pro': 300,
+              'pro_plus': 1000
+            };
+            const limit = planLimits[replyData.usage.plan] || 50;
+            usageDisplay.textContent = formatUsageDisplay(replyData.usage.plan, replyData.usage.remaining, limit);
+          }
+        } else {
+          // Fallback: refresh usage display if no usage info in response
+          const usageDisplay = document.querySelector(".replymate-usage-display");
+          if (usageDisplay) {
+            updateUsageDisplay(usageDisplay);
           }
         }
       } finally {
