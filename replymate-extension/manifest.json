@@ -13,7 +13,7 @@
 
   "permissions": ["storage", "tabs"],
   "host_permissions": [
-    "http://localhost:3000/*",
+    "https://mail.google.com/*",
     "https://replymate-backend-bot8.onrender.com/*"
   ], 
   "background": {
