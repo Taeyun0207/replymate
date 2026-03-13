@@ -140,26 +140,145 @@ app.post("/generate-reply", async (req, res) => {
         });
       }
 
+      // Validate request payload
+      if (!req.body || typeof req.body !== 'object') {
+        console.error("[DEBUG] Invalid request body: not an object");
+        return res.status(400).json({
+          error: "Invalid request body: expected object"
+        });
+      }
+
       const {
         subject,
         latestMessage,
         previousMessages,
         recipientName,
         userName,
-        inferredUserName,
         tone,
         lengthInstruction,
         additionalInstruction,
+        language,
       } = req.body;
   
       console.log("Incoming request:");
       console.log(req.body);
-  
-      const previousThreadText =
-        Array.isArray(previousMessages) && previousMessages.length > 0
-          ? previousMessages.join("\n\n")
-          : "No previous messages.";
-  
+      
+      // Validate required fields
+      if (!latestMessage || typeof latestMessage !== 'string') {
+        console.error("[DEBUG] Invalid payload: missing or invalid latestMessage");
+        return res.status(400).json({
+          error: "Invalid payload: latestMessage is required and must be a string"
+        });
+      }
+
+      // Validate previousMessages format
+      if (previousMessages && !Array.isArray(previousMessages)) {
+        console.error("[DEBUG] Invalid payload: previousMessages must be an array");
+        return res.status(400).json({
+          error: "Invalid payload: previousMessages must be an array"
+        });
+      }
+
+      // Validate previousMessages items if they exist
+      if (previousMessages && Array.isArray(previousMessages)) {
+        for (let i = 0; i < previousMessages.length; i++) {
+          const msg = previousMessages[i];
+          if (!msg || typeof msg !== 'object') {
+            console.error(`[DEBUG] Invalid previousMessages[${i}]: must be an object`);
+            return res.status(400).json({
+              error: `Invalid payload: previousMessages[${i}] must be an object with text and speakerName`
+            });
+          }
+          
+          if (!msg.text || typeof msg.text !== 'string') {
+            console.error(`[DEBUG] Invalid previousMessages[${i}].text: must be a string`);
+            return res.status(400).json({
+              error: `Invalid payload: previousMessages[${i}].text is required and must be a string`
+            });
+          }
+        }
+      }
+      
+      // Auto length determination logic
+      let effectiveLengthInstruction = lengthInstruction;
+      const length = req.body.length || "auto";
+      
+      if (length.toLowerCase() === "auto") {
+        console.log("[DEBUG] Auto length mode: analyzing message to determine appropriate length");
+        
+        // Step 1: Acknowledgement Detection (highest priority)
+        const acknowledgements = [
+          // English
+          "thanks", "thank you", "ok", "okay", "got it", "sounds good", "yes", "sure",
+          // Korean
+          "네", "알겠습니다", "감사합니다", "고맙습니다", "예", "좋습니다",
+          // Japanese
+          "はい", "了解", "ありがとう", "ありがとうございます", "分かりました"
+        ];
+        
+        const latestMessageLower = (latestMessage || "").toLowerCase().trim();
+        const isAcknowledgement = acknowledgements.some(ack => 
+          latestMessageLower === ack || 
+          latestMessageLower.includes(ack) ||
+          latestMessageLower.startsWith(ack)
+        );
+        
+        if (isAcknowledgement) {
+          console.log("[DEBUG] Auto length: Detected acknowledgement message → Short");
+          effectiveLengthInstruction = "Strict Short mode: Write exactly 1–2 sentences (maximum ~25 words). Be concise and direct with minimal padding.";
+        } else {
+          // Step 2: Message Length Analysis
+          const messageLength = (latestMessage || "").length;
+          let determinedLength = "medium"; // default
+          
+          if (messageLength < 20) {
+            determinedLength = "short";
+          } else if (messageLength > 120) {
+            determinedLength = "long";
+          }
+          
+          // Step 3: Question Detection
+          const questionCount = (latestMessage || "").split('?').length - 1;
+          if (questionCount >= 2) {
+            console.log("[DEBUG] Auto length: Detected multiple questions → Long");
+            determinedLength = "long";
+          }
+          
+          // Step 4: Request Detection
+          const requestWords = [
+            "please", "could you", "can you", "would you", "let me know", 
+            "send", "confirm", "제발", "부탁", "해주세요", "주세요",
+            "お願い", "ください", "できますか", "お願いします"
+          ];
+          
+          const hasRequest = requestWords.some(word => 
+            latestMessageLower.includes(word.toLowerCase())
+          );
+          
+          if (hasRequest && determinedLength === "short") {
+            console.log("[DEBUG] Auto length: Detected request → at least Medium");
+            determinedLength = "medium";
+          }
+          
+          // Apply determined length
+          switch (determinedLength) {
+            case "short":
+              console.log("[DEBUG] Auto length: Message length < 20 chars → Short");
+              effectiveLengthInstruction = "Strict Short mode: Write exactly 1–2 sentences (maximum ~25 words). Be concise and direct with minimal padding.";
+              break;
+            case "long":
+              console.log("[DEBUG] Auto length: Message length > 120 chars or multiple questions → Long");
+              effectiveLengthInstruction = "Strict Long mode: Write exactly 4–8 sentences (70–150 words). Expand with appreciation, context, clarifications, and a polished closing.";
+              break;
+            default:
+              console.log("[DEBUG] Auto length: Message length 20-120 chars → Medium");
+              effectiveLengthInstruction = "Strict Medium mode: Write exactly 2–4 sentences (25–70 words). Aim for balanced detail and politeness without sounding verbose.";
+          }
+        }
+        
+        console.log("[DEBUG] Auto length determined instruction:", effectiveLengthInstruction);
+      }
+      
       // Generate tone-specific instructions
       let toneInstructions = "";
       switch ((tone || "").toLowerCase()) {
@@ -176,39 +295,79 @@ app.post("/generate-reply", async (req, res) => {
           toneInstructions = "Write in a polite, balanced tone. Be courteous and respectful while maintaining natural warmth and professionalism.";
       }
 
+      // Build structured email thread with speaker labels
+      let emailThreadText = "";
+      
+      if (Array.isArray(previousMessages) && previousMessages.length > 0) {
+        emailThreadText = previousMessages.map((msg, index) => {
+          const speakerLabel = msg.speakerName || "Other";
+          return `Previous message ${index + 1} (${speakerLabel}):\n${msg.text}`;
+        }).join('\n\n') + '\n\n';
+      }
+      
+      // Add latest message with speaker label
+      const userDisplayName = userName || "";
+      let latestSpeakerName = recipientName || "Other";
+      
+      // Try to determine if latest message is from user
+      if (userDisplayName && recipientName) {
+        const normalizedUser = userDisplayName.toLowerCase().trim();
+        const normalizedRecipient = recipientName.toLowerCase().trim();
+        
+        if (normalizedRecipient === normalizedUser || 
+            normalizedRecipient.includes(normalizedUser) || 
+            normalizedUser.includes(normalizedRecipient)) {
+          latestSpeakerName = "You";
+        }
+      }
+      
+      emailThreadText += `Latest message (${latestSpeakerName}):\n${latestMessage || ""}`;
+
       const prompt = `
-  You are an AI assistant for ReplyMate, a Gmail reply generator.
-  
-  Write an email reply.
-  
-  Context:
-  - Email subject: ${subject || ""}
-  - Recipient name: ${recipientName || "there"}
-  - Sender name: ${userName || ""}
-  
-  Previous thread:
-  ${previousThreadText}
-  
-  Latest message:
-  ${latestMessage || ""}
-  
-  Instructions:
-  - Write only the email body.
-  - Do not include a subject line.
-  - ${toneInstructions}
-  - ${lengthInstruction || "Keep the reply length appropriate for the message."}
-  ${additionalInstruction ? `- Additional instruction: ${additionalInstruction}` : ""}
-  - If recipient name is known, use it naturally.
-  - End with an appropriate closing using the sender name if available.
-  `;
-  
+Subject: ${subject || ""}
+
+Email thread:
+
+${emailThreadText}
+
+Task:
+Write a natural, human-like email reply from You to the latest message.
+
+Core Quality Rules:
+- Write replies that sound natural, human, and context-aware
+- Do not sound overly formal unless the thread clearly requires it
+- Do not over-explain or be unnecessarily verbose
+- Do not unnecessarily restate or paraphrase the other person's message
+- Prioritize replying directly to the latest message while staying consistent with thread context
+- If the latest message is short or simple, keep the reply short and natural
+- If the latest message is only an acknowledgement (thanks, okay, yes, 네, 알겠습니다, はい), write a brief acknowledgement reply instead of a full email
+- If the latest message does not ask a question or request action, avoid adding unnecessary follow-up lines
+- Avoid generic AI-style phrases like "Thank you for your prompt response" or "I appreciate your confirmation" unless truly appropriate
+- Avoid sounding like a customer service script or formal template generator
+- Keep the reply conversational and authentic, like how a real person would respond
+
+Instructions:
+- Write only the email body.
+- Do not include a subject line.
+- ${toneInstructions}
+- ${effectiveLengthInstruction || "Keep the reply length appropriate for the message."}
+${additionalInstruction ? `- Additional instruction: ${additionalInstruction}` : ""}
+- End with an appropriate closing using the sender name if available.
+`;
+
+      // Generate language-specific system prompts
+      const languageSystemPrompts = {
+        english: "You generate natural, human-like email replies in English for Gmail users. Write like a real person would respond - conversational, authentic, and context-aware. Avoid overly formal or robotic language.",
+        korean: "You generate natural, human-like email replies in Korean (한국어) for Gmail users. Write like a real person would respond - conversational, authentic, and context-aware. Avoid overly formal or robotic language.",
+        japanese: "You generate natural, human-like email replies in Japanese (日本語) for Gmail users. Write like a real person would respond - conversational, authentic, and context-aware. Avoid overly formal or robotic language."
+      };
+
       const completion = await openai.chat.completions.create({
         model: process.env.OPENAI_MODEL || "gpt-4o-mini",
         messages: [
           {
             role: "system",
-            content:
-              "You generate polished email replies for Gmail users.",
+            content: languageSystemPrompts[language] || languageSystemPrompts.english,
           },
           {
             role: "user",

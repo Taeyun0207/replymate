@@ -1,5 +1,61 @@
 console.log("ReplyMate Gmail script loaded");
 
+// Email message cleaning function
+function cleanEmailMessage(text) {
+  if (!text || typeof text !== 'string') return '';
+  
+  let cleaned = text;
+  const originalLength = cleaned.length;
+  
+  // Remove quoted email headers (From:, Sent:, To:, Subject:, Cc:, Bcc:)
+  cleaned = cleaned.replace(/^(From:|Sent:|To:|Subject:|Cc:|Bcc:).*$/gm, '');
+  
+  // Remove quoted reply lines starting with >
+  cleaned = cleaned.replace(/^>.*$/gm, '');
+  
+  // Remove common Gmail quoted message separators
+  cleaned = cleaned.replace(/^--*[\s\S]*?On .*(wrote|writes):$/gm, '');
+  
+  // Remove signature patterns (common indicators) - be more conservative for short messages
+  // Only apply signature removal if message is reasonably long
+  if (cleaned.length > 100) {
+    cleaned = cleaned.replace(/^--*[\s\S]*$/gm, '');
+    cleaned = cleaned.replace(/^Best regards,[\s\S]*$/mi, '');
+    cleaned = cleaned.replace(/^Regards,[\s\S]*$/mi, '');
+    cleaned = cleaned.replace(/^Sincerely,[\s\S]*$/mi, '');
+    cleaned = cleaned.replace(/^Thanks,[\s\S]*$/mi, '');
+    cleaned = cleaned.replace(/^Thank you,[\s\S]*$/mi, '');
+  }
+  
+  // Remove common footer patterns
+  cleaned = cleaned.replace(/^---*[\s\S]*?---*$/gm, '');
+  cleaned = cleaned.replace(/^\[.*\]$/gm, '');
+  
+  // Normalize whitespace
+  cleaned = cleaned.replace(/\n\s*\n\s*\n/g, '\n\n'); // Reduce multiple blank lines to max 2
+  cleaned = cleaned.replace(/[ \t]+/g, ' '); // Normalize spaces and tabs
+  cleaned = cleaned.replace(/^\s+|\s+$/g, ''); // Trim leading/trailing whitespace
+  
+  // CRITICAL FIX: If cleaning removed ALL content but original had content, fall back to original
+  if (cleaned.length === 0 && originalLength > 0) {
+    console.warn("[ReplyMate DEBUG] Cleaning removed all content, using original text:", {
+      originalLength,
+      originalPreview: text.substring(0, 100) + (text.length > 100 ? "..." : "")
+    });
+    
+    // Apply minimal cleaning only for very short content that was over-cleaned
+    let fallbackCleaned = text;
+    // Only remove obvious headers/quotes for short messages
+    fallbackCleaned = fallbackCleaned.replace(/^(From:|Sent:|To:|Subject:|Cc:|Bcc:).*$/gm, '');
+    fallbackCleaned = fallbackCleaned.replace(/^>.*$/gm, '');
+    fallbackCleaned = fallbackCleaned.replace(/^\s+|\s+$/g, '');
+    
+    return fallbackCleaned;
+  }
+  
+  return cleaned.trim();
+}
+
 // ReplyMate Configuration
 const REPLYMATE_CONFIG = {
   // Backend configuration - can be overridden by environment variables in development
@@ -38,7 +94,7 @@ const REPLYMATE_LANGUAGE_KEY = "replymateLanguage";
 
 // Default values if nothing has been saved yet.
 const DEFAULT_TONE = "polite";
-const DEFAULT_LENGTH = "medium";
+const DEFAULT_LENGTH = "auto";
 const DEFAULT_LANGUAGE = "english";
 
 // Language translations for Gmail UI
@@ -120,6 +176,12 @@ async function getCurrentLanguage() {
       }
       
       chrome.storage.local.get([REPLYMATE_LANGUAGE_KEY], (result) => {
+        // Check for extension context invalidation
+        if (chrome.runtime.lastError) {
+          console.warn("[ReplyMate] Chrome storage error:", chrome.runtime.lastError.message);
+          resolve(DEFAULT_LANGUAGE);
+          return;
+        }
         resolve(result[REPLYMATE_LANGUAGE_KEY] || DEFAULT_LANGUAGE);
       });
     } catch (error) {
@@ -143,14 +205,22 @@ function loadReplyMateSettings() {
       chrome.storage.local.get(
         [REPLYMATE_TONE_KEY, REPLYMATE_LENGTH_KEY, REPLYMATE_USER_NAME_KEY],
         (result) => {
-        const tone = result?.[REPLYMATE_TONE_KEY] || DEFAULT_TONE;
-        const length = result?.[REPLYMATE_LENGTH_KEY] || DEFAULT_LENGTH;
+          // Check for extension context invalidation
+          if (chrome.runtime.lastError) {
+            console.warn("[ReplyMate] Chrome storage error:", chrome.runtime.lastError.message);
+            resolve({ tone: DEFAULT_TONE, length: DEFAULT_LENGTH, userName: "" });
+            return;
+          }
+          
+          const tone = result?.[REPLYMATE_TONE_KEY] || DEFAULT_TONE;
+          const length = result?.[REPLYMATE_LENGTH_KEY] || DEFAULT_LENGTH;
           const userName = result?.[REPLYMATE_USER_NAME_KEY] || "";
           resolve({ tone, length, userName });
         }
       );
-    } catch {
+    } catch (error) {
       // If chrome.storage isn't available for any reason, fall back to defaults.
+      console.warn("[ReplyMate] Settings load error, using defaults:", error);
       resolve({ tone: DEFAULT_TONE, length: DEFAULT_LENGTH, userName: "" });
     }
   });
@@ -169,17 +239,29 @@ function getReplyMateUserId() {
       }
       
       chrome.storage.local.get(["replymate_user_id"], (result) => {
+        // Check for extension context invalidation
+        if (chrome.runtime.lastError) {
+          console.warn("[ReplyMate] Chrome storage error:", chrome.runtime.lastError.message);
+          const fallbackId = "fallback_" + Date.now() + "_" + Math.random().toString(36).substr(2, 9);
+          resolve(fallbackId);
+          return;
+        }
+        
         if (result.replymate_user_id) {
           resolve(result.replymate_user_id);
         } else {
           const newUserId = crypto.randomUUID();
           chrome.storage.local.set({ replymate_user_id: newUserId }, () => {
+            if (chrome.runtime.lastError) {
+              console.warn("[ReplyMate] Failed to save user ID:", chrome.runtime.lastError.message);
+            }
             resolve(newUserId);
           });
         }
       });
-    } catch {
+    } catch (error) {
       // Fallback to a simple ID if crypto.randomUUID() or storage fails
+      console.warn("[ReplyMate] User ID generation error, using fallback:", error);
       const fallbackId = "fallback_" + Date.now() + "_" + Math.random().toString(36).substr(2, 9);
       resolve(fallbackId);
     }
@@ -379,64 +461,127 @@ async function updateUsageDisplay(usageDisplay) {
 
 // Call the ReplyMate backend to generate an AI reply.
 async function generateAIReply(payload) {
-  const userId = await getReplyMateUserId();
-  
-  return fetch(`${REPLYMATE_CONFIG.backend.baseUrl}${REPLYMATE_CONFIG.backend.endpoints.generate}`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "X-User-ID": userId
-    },
-    body: JSON.stringify(payload || {}),
-  })
-  .then(async (response) => {
+  try {
+    const userId = await getReplyMateUserId();
+    
+    // Log payload shape without sensitive content
+    const payloadShape = {
+      hasSubject: !!payload.subject,
+      subjectLength: payload.subject?.length || 0,
+      hasLatestMessage: !!payload.latestMessage,
+      latestMessageLength: payload.latestMessage?.length || 0,
+      previousMessagesCount: Array.isArray(payload.previousMessages) ? payload.previousMessages.length : 0,
+      hasRecipientName: !!payload.recipientName,
+      hasUserName: !!payload.userName,
+      hasTone: !!payload.tone,
+      hasLengthInstruction: !!payload.lengthInstruction,
+      hasLanguage: !!payload.language
+    };
+    console.log("[ReplyMate] Request payload shape:", payloadShape);
+    
+    // Validate payload before sending
+    if (!payload || typeof payload !== 'object') {
+      console.error("[ReplyMate] Invalid payload: not an object");
+      return "";
+    }
+    
+    if (!payload.latestMessage || typeof payload.latestMessage !== 'string') {
+      console.error("[ReplyMate] Invalid payload: missing or invalid latestMessage");
+      return "";
+    }
+    
+    const url = `${REPLYMATE_CONFIG.backend.baseUrl}${REPLYMATE_CONFIG.backend.endpoints.generate}`;
+    console.log("[ReplyMate] Calling backend URL:", url);
+    
+    return fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-User-ID": userId
+      },
+      body: JSON.stringify(payload || {}),
+    })
+    .then(async (response) => {
+      console.log("[ReplyMate] Backend response status:", response.status, response.statusText);
+      
+      if (!response.ok) {
+        let errorData = {};
+        let responseText = "";
 
-    if (!response.ok) {
-
-      let errorData = {};
-
-      try {
-        errorData = await response.json();
-      } catch (e) {
-        console.warn("[ReplyMate] Failed to parse error JSON");
-      }
-
-      console.log("[ReplyMate] errorData:", errorData);
-
-      if (response.status === 403 || errorData.error === "usage_limit_exceeded") {
-        console.warn("[ReplyMate] Monthly limit reached");
-        
-        const language = await getCurrentLanguage();
-        showReplyMateMessage(getTranslation("monthlyLimitReached", language));
-
-        // 리밋 도달 시 업그레이드 박스 표시
-        const usageData = await getUsageData();
-        if (usageData) {
-          usageData.remaining = 0; // remaining을 0으로 설정하여 업그레이드 박스 표시
-          await updateUsageDisplayFromData(usageData);
+        try {
+          responseText = await response.text();
+          console.log("[ReplyMate] Error response body:", responseText);
+          
+          if (responseText) {
+            try {
+              errorData = JSON.parse(responseText);
+            } catch (parseError) {
+              console.warn("[ReplyMate] Failed to parse error JSON, raw text:", responseText);
+              errorData = { error: "Invalid JSON response", rawText: responseText };
+            }
+          }
+        } catch (e) {
+          console.warn("[ReplyMate] Failed to read error response body:", e);
         }
 
+        console.log("[ReplyMate] Parsed error data:", errorData);
+
+        if (response.status === 403 || errorData.error === "usage_limit_exceeded") {
+          console.warn("[ReplyMate] Monthly limit reached");
+          
+          const language = await getCurrentLanguage();
+          showReplyMateMessage(getTranslation("monthlyLimitReached", language));
+
+          // 리밋 도달 시 업그레이드 박스 표시
+          const usageData = await getUsageData();
+          if (usageData) {
+            usageData.remaining = 0; // remaining을 0으로 설정하여 업그레이드 박스 표시
+            await updateUsageDisplayFromData(usageData);
+          }
+
+          return "";
+        }
+
+        console.error("[ReplyMate] Backend error:", {
+          status: response.status,
+          statusText: response.statusText,
+          errorData
+        });
         return "";
       }
 
-      console.error("[ReplyMate] Backend error", response.status, response.statusText);
+      const responseText = await response.text();
+      console.log("[ReplyMate] Success response body length:", responseText.length);
+      
+      let data;
+      try {
+        data = JSON.parse(responseText);
+      } catch (parseError) {
+        console.error("[ReplyMate] Failed to parse success response JSON:", parseError);
+        console.log("[ReplyMate] Raw response text:", responseText);
+        return "";
+      }
+
+      if (data && typeof data.reply === "string") {
+        console.log("[ReplyMate] Backend reply received successfully");
+        return data;
+      }
+
+      console.error("[ReplyMate] Unexpected backend response shape:", data);
       return "";
-    }
-
-    const data = await response.json();
-
-    if (data && typeof data.reply === "string") {
-      console.log("[ReplyMate] Backend reply received");
-      return data;
-    }
-
-    console.error("[ReplyMate] Unexpected backend response shape", data);
+    })
+    .catch((error) => {
+      console.error("[ReplyMate] Network/fetch error:", {
+        message: error.message,
+        name: error.name,
+        stack: error.stack
+      });
+      return "";
+    });
+  } catch (error) {
+    console.error("[ReplyMate] generateAIReply function error:", error);
     return "";
-  })
-  .catch((error) => {
-    console.error("[ReplyMate] Failed to call backend", error);
-    return "";
-  });
+  }
 }
 
 // Show ReplyMate message to user (with language support)
@@ -553,29 +698,39 @@ function buildLengthInstruction(length, language = DEFAULT_LANGUAGE) {
 
   const languageInstruction = languageInstructions[language] || languageInstructions.english;
 
+  // Auto mode - let backend determine length
+  if (l === "auto") {
+    const autoInstructions = {
+      english: "Auto-length mode: Determine reply length based on message context. Follow these rules:\n\nShort: 1–2 sentences (max ~25 words)\nMedium: 2–4 sentences (25–70 words)\nLong: 4–8 sentences (70–150 words)\n\nAuto-length determination:\n1. Acknowledgement messages (thanks, ok, yes, 알겠습니다, はい) → Short\n2. Message length: <20 chars → Short, 20-120 chars → Medium, >120 chars → Long\n3. Multiple questions (2+ ?) → Long\n4. Request words (please, could you, can you, send, confirm) → at least Medium",
+      korean: "자동 길이 모드: 메시지 컨텍스트에 따라 답장 길이를 결정하세요. 다음 규칙을 따르세요:\n\nShort: 1–2문장 (최대 ~25단어)\nMedium: 2–4문장 (25-70단어)\nLong: 4–8문장 (70-150단어)\n\n자동 길이 결정:\n1. 확인 메시지 (감사, ok, 예, 알겠습니다, はい) → Short\n2. 메시지 길이: <20자 → Short, 20-120자 → Medium, >120자 → Long\n3. 여러 질문 (2+ ?) → Long\n4. 요청 단어 (제발, 할 수 있나요, 보내, 확인) → 최소 Medium",
+      japanese: "自動長モード：メッセージコンテキストに基づいて返信長を決定してください。以下のルールに従ってください：\n\nShort：1〜2文（最大〜25単語）\nMedium：2〜4文（25-70単語）\nLong：4〜8文（70-150単語）\n\n自動長決定：\n1. 確認メッセージ（ありがとう、OK、はい、알겠습니다、了解）→ Short\n2. メッセージ長：<20文字 → Short、20-120文字 → Medium、>120文字 → Long\n3. 複数の質問（2+ ?）→ Long\n4. 要求単語（お願い、できますか、送信、確認）→ 最低Medium"
+    };
+    return `${languageInstruction} ${autoInstructions[language] || autoInstructions.english}`;
+  }
+
   if (l === "short") {
     const shortInstructions = {
-      english: "Write a very concise reply that usually fits into 1–2 short sentences. Be practical and direct with minimal padding, and do not add extra small talk beyond what feels natural for this email.",
-      korean: "매우 간결한 답장을 작성하세요. 보통 1-2개의 짧은 문장으로 맞춰야 합니다. 실용적이고 직접적으로 작성하고, 불필요한 말을 최소화하며, 이 이메일에 자연스럽게 느껴지는 것 이상의 잡담은 추가하지 마세요.",
-      japanese: "非常に簡潔な返信を書いてください。通常1〜2の短い文に収まるようにしてください。実用的で直接的に、最小限の言葉で、このメールに自然に感じられる以上の世間話を追加しないでください。"
+      english: "Strict Short mode: Write exactly 1–2 sentences (maximum ~25 words). Be concise and direct with minimal padding. Do not add extra small talk beyond what feels natural for this email.",
+      korean: "엄격한 Short 모드: 정확히 1-2문장 (최대 ~25단어)으로 작성하세요. 간결하고 직접적으로, 최소한의 말로 작성하고, 이 이메일에 자연스럽게 느껴지는 것 이상의 잡담은 추가하지 마세요.",
+      japanese: "厳格なShortモード：正確に1〜2文（最大〜25単語）で書いてください。簡潔で直接的に、最小限の言葉で、このメールに自然に感じられる以上の世間話を追加しないでください。"
     };
     return `${languageInstruction} ${shortInstructions[language] || shortInstructions.english}`;
   }
 
   if (l === "long") {
     const longInstructions = {
-      english: "Write a noticeably more developed reply than a medium-length one. When the original email has enough substance, expand with more appreciation, context, clarifications, and a polished closing. Keep it natural and avoid unnecessary fluff if the email itself is very short.",
-      korean: "중간 길이보다 눈에 띄게 더 발전된 답장을 작성하세요. 원본 이메일에 충분한 내용이 있을 때, 더 많은 감사 표현, 맥락, 명확화, 그리고 세련된 마무리로 확장하세요. 자연스럽게 유지하고 이메일 자체가 매우 짧을 경우 불필요한 미사여구를 피하세요.",
-      japanese: "中程度の長さよりも明らかに発展した返信を書いてください。元のメールに十分な内容がある場合、より多くの感謝、文脈、明確化、そして洗練された結びで拡張してください。自然に保ち、メール自体が非常に短い場合は不要な飾り言葉を避けてください。"
+      english: "Strict Long mode: Write exactly 4–8 sentences (70–150 words). Expand with appreciation, context, clarifications, and a polished closing. Keep it natural and avoid unnecessary fluff if the email itself is very short.",
+      korean: "엄격한 Long 모드: 정확히 4-8문장 (70-150단어)으로 작성하세요. 더 많은 감사 표현, 맥락, 명확화, 그리고 세련된 마무리로 확장하세요. 자연스럽게 유지하고 이메일 자체가 매우 짧을 경우 불필요한 미사여구를 피하세요.",
+      japanese: "厳格なLongモード：正確に4〜8文（70-150単語）で書いてください。より多くの感謝、文脈、明確化、そして洗練された結びで拡張してください。自然に保ち、メール自体が非常に短い場合は不要な飾り言葉を避けてください。"
     };
     return `${languageInstruction} ${longInstructions[language] || longInstructions.english}`;
   }
 
   // medium / default
   const mediumInstructions = {
-    english: "Write a balanced, natural reply that feels clearly fuller than a short reply but lighter than a long one. Aim for moderate detail and politeness without sounding verbose, adapting the length to what feels appropriate for this email.",
-    korean: "균형 잡히고 자연스러운 답장을 작성하세요. 짧은 답장보다는 명백히 더 충실하게 느껴지지만 긴 답장보다는 가볍게 작성하세요. 이 이메일에 적합하다고 느껴지는 길이에 맞춰 상세함과 예의를 조절하며, 장황하게 들리지 않도록 하세요.",
-    japanese: "バランスの取れた自然な返信を書いてください。短い返信よりも明らかに充実しているが、長い返信よりも軽く感じられるようにしてください。このメールに適切だと感じられる長さに合わせて、適度な詳細と丁寧さを目指し、冗長に聞こえないようにしてください。"
+    english: "Strict Medium mode: Write exactly 2–4 sentences (25–70 words). Aim for balanced detail and politeness without sounding verbose, adapting the length to what feels appropriate for this email.",
+    korean: "엄격한 Medium 모드: 정확히 2-4문장 (25-70단어)으로 작성하세요. 이 이메일에 적합하다고 느껴지는 길이에 맞춰 상세함과 예의를 조절하며, 장황하게 들리지 않도록 하세요.",
+    japanese: "厳格なMediumモード：正確に2〜4文（25-70単語）で書いてください。このメールに適切だと感じられる長さに合わせて、適度な詳細と丁寧さを目指し、冗長に聞こえないようにしてください。"
   };
   return `${languageInstruction} ${mediumInstructions[language] || mediumInstructions.english}`;
 }
@@ -717,6 +872,23 @@ async function createReplyMateButton() {
     const settings = await loadReplyMateSettings();
     const threadContext = extractThreadContext();
     const language = await getCurrentLanguage();
+
+    // Validate thread context before proceeding
+    if (!threadContext.latestMessage || threadContext.latestMessage.length === 0) {
+      console.error("[ReplyMate ERROR] Cannot proceed - no latest message extracted");
+      console.error("[ReplyMate ERROR] Thread context details:", {
+        hasSubject: !!threadContext.subject,
+        subjectLength: threadContext.subject?.length || 0,
+        latestMessageLength: threadContext.latestMessage?.length || 0,
+        previousMessagesCount: threadContext.previousMessages?.length || 0,
+        recipientName: threadContext.recipientName || "NONE"
+      });
+      
+      await setReplyMateButtonState(button, "error");
+      showReplyMateMessage("Unable to extract email content. Please try refreshing the page.");
+      setTimeout(async () => await setReplyMateButtonState(button, "idle"), 3000);
+      return;
+    }
 
     const payload = {
       subject: threadContext.subject || "",
@@ -988,9 +1160,43 @@ function insertReplyIntoEditor(editor, replyText) {
   editor.focus();
   editor.innerHTML = html;
 
-  // Trigger input/change so Gmail notices the content update.
-  editor.dispatchEvent(new InputEvent("input", { bubbles: true }));
-  editor.dispatchEvent(new Event("change", { bubbles: true }));
+}
+
+// Extract sender name from email container
+function extractSenderName(container) {
+  if (!container || !(container instanceof HTMLElement)) return "";
+  
+  // Try to find sender name in various Gmail selectors
+  const selectors = [
+    "span[email]",  // Gmail email spans
+    "span[role='link'][tabindex='-1']",  // Gmail name links
+    "span[data-hovercard-id]",  // Gmail hovercard spans
+    "div[role='gridcell'] span",  // Gmail grid cells with names
+    "td span",  // Gmail table cells with names
+    "div span"  // Generic fallback
+  ];
+  
+  for (const selector of selectors) {
+    const elements = container.querySelectorAll(selector);
+    for (const element of elements) {
+      if (element && element.textContent) {
+        const text = element.textContent.trim();
+        // Skip if it looks like an email address or common UI text
+        if (text && 
+            text.length > 1 && 
+            text.length < 50 && 
+            !text.includes('@') &&
+            !text.toLowerCase().includes('reply') &&
+            !text.toLowerCase().includes('forward') &&
+            !text.toLowerCase().includes('me') &&
+            !text.match(/^\d+$/)) {
+          return text;
+        }
+      }
+    }
+  }
+  
+  return "";
 }
 
 // Extract information about the currently opened Gmail thread (subject, messages, names).
@@ -1016,6 +1222,8 @@ function extractThreadContext() {
       main.querySelectorAll("div[data-message-id], div[role='listitem'], div[role='article']")
     );
 
+    console.log(`[ReplyMate DEBUG] Found ${rawContainers.length} raw message containers`);
+
     const visibleMessages = [];
 
     for (const container of rawContainers) {
@@ -1024,15 +1232,42 @@ function extractThreadContext() {
 
       // Approximate message body: Gmail often uses div[dir="ltr"] for content.
       const bodyEl = container.querySelector("div[dir='ltr']") || container;
-      const text = (bodyEl.innerText || bodyEl.textContent || "").trim();
+      const rawText = (bodyEl.innerText || bodyEl.textContent || "").trim();
 
-      if (!text) continue;
+      if (!rawText) {
+        console.log("[ReplyMate DEBUG] Skipping container with no text content");
+        continue;
+      }
+
+      // Clean message text
+      const cleanedText = cleanEmailMessage(rawText);
+      const cleaned = cleanedText; // Fix: Use the cleanedText variable
+      
+      // DIAGNOSTIC: Log cleaning results
+      if (cleaned.length === 0 && rawText.length > 0) {
+        console.warn("[ReplyMate DEBUG] Cleaning removed all content from message:", {
+          rawLength: rawText.length,
+          rawPreview: rawText.substring(0, 100) + (rawText.length > 100 ? "..." : ""),
+          cleanedLength: cleaned.length
+        });
+      }
+      
+      if (!cleaned) {
+        console.log("[ReplyMate DEBUG] Skipping container due to empty cleaned text");
+        continue;
+      }
+
+      // Extract sender name
+      const senderName = extractSenderName(container);
 
       visibleMessages.push({
         container,
-        text,
+        text: cleanedText,
+        senderName
       });
     }
+
+    console.log(`[ReplyMate DEBUG] Processed ${visibleMessages.length} visible messages`);
 
     let latestMessage = "";
     let previousMessages = [];
@@ -1041,12 +1276,35 @@ function extractThreadContext() {
 
     if (visibleMessages.length > 0) {
       const latest = visibleMessages[visibleMessages.length - 1];
+      
+      // DIAGNOSTIC: Log latest message selection details
+      console.log("[ReplyMate DEBUG] Latest message selection:", {
+        totalMessages: visibleMessages.length,
+        latestIndex: visibleMessages.length - 1,
+        latestTextLength: latest.text ? latest.text.length : 0,
+        latestTextPreview: latest.text ? latest.text.substring(0, 100) + (latest.text.length > 100 ? "..." : "") : "EMPTY",
+        hasSenderName: !!latest.senderName,
+        senderName: latest.senderName || "NONE",
+        // Test cases for short message validation
+        isShortMessage: latest.text ? latest.text.length <= 20 : false,
+        containsThanks: latest.text ? latest.text.toLowerCase().includes('thanks') : false,
+        containsOkay: latest.text ? latest.text.toLowerCase().includes('okay') : false,
+        containsYes: latest.text ? latest.text.toLowerCase().includes('yes') : false,
+        containsKorean: latest.text ? /[가-다]/.test(latest.text) : false,
+        containsJapanese: latest.text ? /[はい]/.test(latest.text) : false
+      });
+      
       latestMessage = latest.text;
 
-      // Up to 3 previous messages, in chronological order.
+      // Up to 8 previous messages, in chronological order.
       const prev = visibleMessages
-        .slice(Math.max(0, visibleMessages.length - 4), visibleMessages.length - 1)
-        .map((item) => item.text);
+        .slice(Math.max(0, visibleMessages.length - 9), visibleMessages.length - 1)
+        .map(function(item) {
+          return {
+            text: item.text,
+            senderName: item.senderName
+          };
+        });
       previousMessages = prev;
 
       // Try to find a display name near the latest message.
@@ -1075,9 +1333,12 @@ function extractThreadContext() {
           }
         }
       }
+    } else {
+      console.warn("[ReplyMate DEBUG] No visible messages found in thread");
     }
+    
 
-    // Fallback: try to find any visible sender/recipient name in the thread.
+    // Fallback: try to find any visible sender/recipient name in thread.
     if (!recipientName) {
       const anyNameEl =
         main.querySelector("span[email]") ||
@@ -1087,14 +1348,30 @@ function extractThreadContext() {
       }
     }
 
-    return {
+    const result = {
       subject: subject || "",
       latestMessage: latestMessage || "",
       previousMessages: previousMessages || [],
       recipientName: recipientName || "",
       inferredUserName: inferredUserName || "",
     };
-  } catch {
+
+    // DIAGNOSTIC: Log final result
+    console.log("[ReplyMate DEBUG] Final thread context:", {
+      hasSubject: !!result.subject,
+      subjectLength: result.subject.length,
+      hasLatestMessage: !!result.latestMessage,
+      latestMessageLength: result.latestMessage.length,
+      previousMessagesCount: result.previousMessages.length,
+      hasRecipientName: !!result.recipientName,
+      recipientName: result.recipientName || "NONE",
+      hasInferredUserName: !!result.inferredUserName,
+      inferredUserName: result.inferredUserName || "NONE"
+    });
+
+    return result;
+  } catch (error) {
+    console.error("[ReplyMate DEBUG] Error in extractThreadContext:", error);
     // Always return a safe object even if the DOM structure is unexpected.
     return {
       subject: "",
@@ -1398,7 +1675,7 @@ async function runHoverGenerateReplyWorkflow(row, sourceButton) {
           subject: threadContext.subject || "",
           latestMessage: threadContext.latestMessage || "",
           recipientName: threadContext.recipientName || "",
-          userName: settings.userName || "",
+          userName: settings.userName || threadContext.inferredUserName || "",
           tone: settings.tone || DEFAULT_TONE,
           length: settings.length || DEFAULT_LENGTH,
           lengthInstruction: buildLengthInstruction(settings.length || DEFAULT_LENGTH, language),
@@ -1406,7 +1683,35 @@ async function runHoverGenerateReplyWorkflow(row, sourceButton) {
 
         // Only include previousMessages when we actually have some.
         if (Array.isArray(threadContext.previousMessages) && threadContext.previousMessages.length > 0) {
-          payload.previousMessages = threadContext.previousMessages;
+          // Add speaker labeling to previous messages
+          const labeledPreviousMessages = threadContext.previousMessages.map(msg => {
+            const userDisplayName = settings.userName || threadContext.inferredUserName || "";
+            let speakerName = "Other";
+            
+            // Check if sender is the user
+            if (msg.senderName && userDisplayName) {
+              // Normalize both names for comparison (case insensitive, remove extra spaces)
+              const normalizedSender = msg.senderName.toLowerCase().trim();
+              const normalizedUser = userDisplayName.toLowerCase().trim();
+              
+              if (normalizedSender === normalizedUser || 
+                  normalizedSender.includes(normalizedUser) || 
+                  normalizedUser.includes(normalizedSender)) {
+                speakerName = "You";
+              } else {
+                speakerName = msg.senderName;
+              }
+            } else if (msg.senderName) {
+              speakerName = msg.senderName;
+            }
+            
+            return {
+              text: msg.text,
+              speakerName: speakerName
+            };
+          });
+          
+          payload.previousMessages = labeledPreviousMessages;
         }
 
         console.log("[ReplyMate payload]", payload);

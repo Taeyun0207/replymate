@@ -6,7 +6,7 @@ const USAGE_CACHE_KEY = "replymate_usage_cache";
 const USAGE_CACHE_TTL = 30000; // 30 seconds
 
 const DEFAULT_TONE = "polite";
-const DEFAULT_LENGTH = "medium";
+const DEFAULT_LENGTH = "auto";
 const DEFAULT_LANGUAGE = "english";
 
 // Language translations
