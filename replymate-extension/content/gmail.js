@@ -218,6 +218,11 @@ function loadReplyMateSettings() {
           const tone = result?.[REPLYMATE_TONE_KEY] || DEFAULT_TONE;
           const length = result?.[REPLYMATE_LENGTH_KEY] || DEFAULT_LENGTH;
           const userName = result?.[REPLYMATE_USER_NAME_KEY] || "";
+          
+          // Debug log for userName
+          console.log("[ReplyMate Debug] Loaded settings.userName:", userName);
+          console.log("[ReplyMate Debug] Storage result for userName key:", result?.[REPLYMATE_USER_NAME_KEY]);
+          
           resolve({ tone, length, userName });
         }
       );
@@ -921,6 +926,10 @@ async function createReplyMateButton() {
       language: language,
     };
 
+    console.log("[ReplyMate Debug] userName sent to backend:", payload.userName);
+    console.log("[ReplyMate Debug] settings.userName:", settings.userName);
+    console.log("[ReplyMate Debug] threadContext.inferredUserName:", threadContext.inferredUserName);
+
     console.log("[ReplyMate DEBUG] Sending API request with payload:", payload);
     const replyData = await generateAIReply(payload);
     console.log("[ReplyMate DEBUG] API response received:", replyData);
@@ -938,7 +947,7 @@ async function createReplyMateButton() {
     console.log("[ReplyMate DEBUG] Editor current content:", editor.innerHTML);
     
     try {
-      insertReplyIntoEditor(editor, replyData.reply);
+      await insertReplyIntoEditor(editor, replyData.reply);
       console.log("[ReplyMate DEBUG] Reply inserted successfully");
     } catch (error) {
       console.error("[ReplyMate DEBUG] Error inserting reply:", error);
@@ -1159,10 +1168,38 @@ function createUpgradeLink(targetPlan, language) {
 }
 
 // Insert the provided reply text into a Gmail rich-text editor (contenteditable).
-function insertReplyIntoEditor(editor, replyText) {
+async function insertReplyIntoEditor(editor, replyText) {
   if (!(editor instanceof HTMLElement)) return;
 
-  const safeText = typeof replyText === "string" ? replyText : "";
+  let safeText = typeof replyText === "string" ? replyText : "";
+  
+  // Get current settings to replace [Your Name] placeholder
+  try {
+    const settings = await loadReplyMateSettings();
+    const userName = settings.userName || "";
+    
+    // Replace [Your Name] placeholder with actual userName in all languages
+    if (userName && userName.trim()) {
+      // Replace various forms of [Your Name] placeholder
+      const placeholderPatterns = [
+        /\[Your Name\]/g,
+        /\[Your name\]/g,
+        /\[your name\]/g,
+        /\[YOUR NAME\]/g
+      ];
+      
+      placeholderPatterns.forEach(pattern => {
+        safeText = safeText.replace(pattern, userName);
+      });
+      
+      console.log("[ReplyMate Debug] Final reply after placeholder replacement:", safeText);
+      console.log("[ReplyMate Debug] userName used for replacement:", userName);
+    } else {
+      console.log("[ReplyMate Debug] No userName available, keeping original text");
+    }
+  } catch (error) {
+    console.warn("[ReplyMate Debug] Error getting userName for replacement:", error);
+  }
 
   // Convert text into HTML with <br> to preserve line breaks.
   const html = safeText
@@ -1781,6 +1818,11 @@ async function runHoverGenerateReplyWorkflow(row, sourceButton) {
           language: language,
         };
 
+        // Debug log for userName in payload
+        console.log("[ReplyMate Debug] Hover mode - userName sent to backend:", payload.userName);
+        console.log("[ReplyMate Debug] Hover mode - settings.userName:", settings.userName);
+        console.log("[ReplyMate Debug] Hover mode - threadContext.inferredUserName:", threadContext.inferredUserName);
+
         // Only include previousMessages when we actually have some.
         if (Array.isArray(threadContext.previousMessages) && threadContext.previousMessages.length > 0) {
           // Add speaker labeling to previous messages
@@ -1830,7 +1872,7 @@ async function runHoverGenerateReplyWorkflow(row, sourceButton) {
           return;
         }
   
-        insertReplyIntoEditor(replyEditor, replyData.reply);
+        await insertReplyIntoEditor(replyEditor, replyData.reply);
         if (sourceButton) {
           await setReplyMateButtonState(sourceButton, "idle");
         }
