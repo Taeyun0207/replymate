@@ -742,20 +742,236 @@ function buildLengthInstruction(length, language = DEFAULT_LANGUAGE) {
 
   if (l === "long") {
     const longInstructions = {
-      english: "Strict Long mode: Write exactly 4–8 sentences (70–150 words). Expand with appreciation, context, clarifications, and a polished closing. Keep it natural and avoid unnecessary fluff if the email itself is very short.",
-      korean: "엄격한 Long 모드: 정확히 4-8문장 (70-150단어)으로 작성하세요. 더 많은 감사 표현, 맥락, 명확화, 그리고 세련된 마무리로 확장하세요. 자연스럽게 유지하고 이메일 자체가 매우 짧을 경우 불필요한 미사여구를 피하세요.",
-      japanese: "厳格なLongモード：正確に4〜8文（70-150単語）で書いてください。より多くの感謝、文脈、明確化、そして洗練された結びで拡張してください。自然に保ち、メール自体が非常に短い場合は不要な飾り言葉を避けてください。"
+      english: "Strict Long mode: Write exactly 6–9 sentences (70–150 words). Expand with appreciation, context, clarifications, and a fuller closing. Keep it natural and avoid unnecessary fluff if the email itself is very short.",
+      korean: "엄격한 Long 모드: 정확히 6-9문장 (70-150단어)으로 작성하세요. 더 많은 감사 표현, 맥락, 명확화, 그리고 세련된 마무리로 확장하세요. 자연스럽게 유지하고 이메일 자체가 매우 짧을 경우 불필요한 미사여구를 피하세요.",
+      japanese: "厳格なLongモード：正確に6〜9文（70-150単語）で書いてください。より多くの感謝、文脈、明確化、そして洗練された結びで拡張してください。自然に保ち、メール自体が非常に短い場合は不要な飾り言葉を避けてください。"
     };
     return `${languageInstruction} ${longInstructions[(language || 'english')] || longInstructions.english}`;
   }
 
   // medium / default
   const mediumInstructions = {
-    english: "Strict Medium mode: Write exactly 2–4 sentences (25–70 words). Aim for balanced detail and politeness without sounding verbose, adapting the length to what feels appropriate for this email.",
-    korean: "엄격한 Medium 모드: 정확히 2-4문장 (25-70단어)으로 작성하세요. 이 이메일에 적합하다고 느껴지는 길이에 맞춰 상세함과 예의를 조절하며, 장황하게 들리지 않도록 하세요.",
-    japanese: "厳格なMediumモード：正確に2〜4文（25-70単語）で書いてください。このメールに適切だと感じられる長さに合わせて、適度な詳細と丁寧さを目指し、冗長に聞こえないようにしてください。"
+    english: "Strict Medium mode: Write exactly 3–5 sentences (25–70 words). Aim for balanced detail and politeness without sounding verbose, adapting the length to what feels appropriate for this email.",
+    korean: "엄격한 Medium 모드: 정확히 3-5문장 (25-70단어)으로 작성하세요. 이 이메일에 적합하다고 느껴지는 길이에 맞춰 상세함과 예의를 조절하며, 장황하게 들리지 않도록 하세요.",
+    japanese: "厳格なMediumモード：正確に3〜5文（25-70単語）で書いてください。このメールに適切だと感じられる長さに合わせて、適度な詳細と丁寧さを目指し、冗長に聞こえないようにしてください。"
   };
   return `${languageInstruction} ${mediumInstructions[(language || 'english')] || mediumInstructions.english}`;
+}
+
+// Auto-detect optimal tone based on email context
+// ...
+function detectOptimalTone(threadContext, latestMessage) {
+  const message = latestMessage.toLowerCase();
+  const subject = (threadContext.subject || "").toLowerCase();
+  
+  // Step 1: Detect message intent
+  let intent = 'unknown';
+  let complexity = 'simple';
+  
+  // Intent detection keywords
+  if (message.includes('thank') || message.includes('감사') || message.includes('ありがとう') || 
+      message.includes('got it') || message.includes('알겠습니다') || 
+      message.includes('received') || message.includes('받았습니다')) {
+    intent = 'acknowledgement';
+    complexity = 'simple';
+  } else if (message.includes('meeting') || message.includes('회의') || message.includes('ミーティング') || 
+             message.includes('schedule') || message.includes('일정') || 
+             subject.includes('meeting') || subject.includes('회의')) {
+    intent = 'scheduling';
+    complexity = 'medium';
+  } else if (message.includes('?') || message.includes('어떻') || message.includes('何时') || 
+             message.includes('what time') || message.includes('몇 시') || 
+             message.includes('when') || message.includes('언제')) {
+    intent = 'scheduling_question';
+    complexity = 'medium';
+  } else if (message.includes('could you') || message.includes('부탁') || message.includes('ください') || 
+             message.includes('would you') || message.includes('해주시겠습니까')) {
+    intent = 'request';
+    complexity = 'medium';
+  } else if (message.includes('let me know') || message.includes('알려주세요') || 
+             message.includes('inform') || message.includes('공유') || 
+             message.includes('update')) {
+    intent = 'information';
+    complexity = 'simple';
+  } else if (message.includes('check') || message.includes('확인') || 
+             message.includes('status') || message.includes('상활') || 
+             message.includes('follow up') || message.includes('진행')) {
+    intent = 'follow_up';
+    complexity = 'simple';
+  }
+  
+  // Step 2: Detect message complexity
+  const messageLength = latestMessage.length;
+  const questionCount = (message.match(/\?/g) || []).length;
+  const hasUrgency = message.includes('urgent') || message.includes('긴급') || 
+                     message.includes('asap') || message.includes('지금');
+  const hasWorkKeywords = message.includes('project') || message.includes('report') || 
+                        message.includes('deadline') || message.includes('마감') || 
+                        message.includes('업무');
+  
+  if (messageLength > 120 || questionCount > 2) {
+    complexity = 'complex';
+  } else if (questionCount > 0 || hasUrgency) {
+    complexity = 'medium';
+  }
+  
+  // Step 3: Auto tone selection
+  let chosenTone = 'auto'; // Default to auto
+  let toneReason = 'auto mode';
+  
+  if (intent === 'acknowledgement') {
+    chosenTone = 'direct';
+    toneReason = 'acknowledgement → direct';
+  } else if (intent === 'scheduling' || intent === 'scheduling_question') {
+    chosenTone = 'professional';
+    toneReason = 'scheduling → professional';
+  } else if (hasWorkKeywords) {
+    chosenTone = 'professional';
+    toneReason = 'work-related → professional';
+  } else if (intent === 'request' || complexity === 'complex') {
+    chosenTone = 'polite';
+    toneReason = 'request/complex → polite';
+  } else if (intent === 'unknown') {
+    chosenTone = 'polite';
+    toneReason = 'unclear context → polite (safe default)';
+  }
+  
+  console.log("[ReplyMate Auto] Tone intent detected:", intent);
+  console.log("[ReplyMate Auto] Tone complexity:", complexity);
+  console.log("[ReplyMate Auto] Chosen tone:", chosenTone, `(${toneReason})`);
+  
+  return {
+    tone: chosenTone,
+    intent: intent,
+    complexity: complexity,
+    reason: toneReason
+  };
+}
+
+// Auto-detect optimal length based on email context
+function detectOptimalLength(threadContext, latestMessage) {
+  const message = latestMessage.toLowerCase();
+  const subject = (threadContext.subject || "").toLowerCase();
+  
+  // Step 1: Detect message intent
+  let intent = 'unknown';
+  let complexity = 'simple';
+  
+  // Intent detection keywords
+  if (message.includes('thank') || message.includes('감사') || message.includes('ありがとう') || 
+      message.includes('got it') || message.includes('알겠습니다') || 
+      message.includes('received') || message.includes('받았습니다')) {
+    intent = 'acknowledgement';
+    complexity = 'simple';
+  } else if (message.includes('meeting') || message.includes('회의') || message.includes('ミーティング') || 
+             message.includes('schedule') || message.includes('일정') || 
+             subject.includes('meeting') || subject.includes('회의')) {
+    intent = 'scheduling';
+    complexity = 'medium';
+  } else if (message.includes('?') || message.includes('어떻') || message.includes('何时') || 
+             message.includes('what time') || message.includes('몇 시') || 
+             message.includes('when') || message.includes('언제')) {
+    intent = 'scheduling_question';
+    complexity = 'medium';
+  } else if (message.includes('could you') || message.includes('부탁') || message.includes('ください') || 
+             message.includes('would you') || message.includes('해주시겠습니까')) {
+    intent = 'request';
+    complexity = 'medium';
+  } else if (message.includes('let me know') || message.includes('알려주세요') || 
+             message.includes('inform') || message.includes('공유') || 
+             message.includes('update')) {
+    intent = 'information';
+    complexity = 'simple';
+  } else if (message.includes('check') || message.includes('확인') || 
+             message.includes('status') || message.includes('상활') || 
+             message.includes('follow up') || message.includes('진행')) {
+    intent = 'follow_up';
+    complexity = 'simple';
+  }
+  
+  // Step 2: Detect message complexity
+  const messageLength = latestMessage.length;
+  const questionCount = (message.match(/\?/g) || []).length;
+  const hasUrgency = message.includes('urgent') || message.includes('긴급') || 
+                     message.includes('asap') || message.includes('지금');
+  const hasWorkKeywords = message.includes('project') || message.includes('report') || 
+                        message.includes('deadline') || message.includes('마감') || 
+                        message.includes('업무');
+  
+  if (messageLength > 120 || questionCount > 2) {
+    complexity = 'complex';
+  } else if (questionCount > 0 || hasUrgency) {
+    complexity = 'medium';
+  }
+  
+  // Step 3: Auto length selection
+  let chosenLength = 'auto'; // Default to auto
+  let lengthReason = 'auto mode';
+  
+  if (intent === 'acknowledgement') {
+    chosenLength = 'short';
+    lengthReason = 'acknowledgement → short (1-2 sentences)';
+  } else if (intent === 'scheduling' || intent === 'scheduling_question') {
+    chosenLength = 'medium';
+    lengthReason = 'scheduling → medium (2-3 sentences)';
+  } else if (intent === 'request' || questionCount > 0) {
+    chosenLength = 'medium';
+    lengthReason = 'question/request → medium (2-3 sentences)';
+  } else if (complexity === 'complex' || messageLength > 120) {
+    chosenLength = 'long';
+    lengthReason = 'complex/long message → long (4-6 sentences)';
+  }
+  
+  console.log("[ReplyMate Auto] Length intent detected:", intent);
+  console.log("[ReplyMate Auto] Length complexity:", complexity);
+  console.log("[ReplyMate Auto] Chosen length:", chosenLength, `(${lengthReason})`);
+  
+  return {
+    length: chosenLength,
+    intent: intent,
+    complexity: complexity,
+    reason: lengthReason
+  };
+}
+
+// Build length instruction with auto-detection and anti-hallucination rules
+function buildLengthInstructionWithAuto(length, language = DEFAULT_LANGUAGE, autoDetectedLength = null) {
+  // If we have auto-detected length, use it; otherwise use provided length
+  const effectiveLength = autoDetectedLength || length || DEFAULT_LENGTH;
+  const baseInstruction = buildLengthInstruction(effectiveLength, language);
+  
+  // Add anti-hallucination rules for all languages
+  const antiHallucinationRules = `
+CRITICAL: Never invent specific facts, times, dates, locations, URLs, or contact information.
+If the incoming email lacks specific information, generate a concise, context-appropriate placeholder instead:
+
+Guidelines for dynamic placeholder generation:
+1. Analyze what specific information is missing from the email context
+2. Create a short, natural placeholder that matches the missing information type
+3. Make it easy for the user to replace with the actual information
+4. Keep placeholders concise and clear: [time], [date], [location], [link], [product name], [event name], [invoice number]
+5. The placeholder should work naturally across all languages
+
+Examples of dynamic placeholder usage:
+- Meeting time missing → "The meeting will be at [time]"
+- Document name missing → "Please send the [document name]"
+- Event date missing → "Let's schedule it for [date]"
+- Location missing → "We can meet at [location]"
+- Product details missing → "The [product name] costs [price]"
+- Contact person missing → "Please contact [contact person] for details"
+- Invoice number missing → "Reference invoice [invoice number]"
+
+Rules:
+1. Generate placeholders ONLY when required information is genuinely missing from email context
+2. Never fabricate specific times, dates, addresses, URLs, names, or numbers
+3. Use concise, context-specific placeholders that match the missing information type
+4. If you have the information, use it directly instead of placeholders
+5. Respond naturally and concisely without making assumptions
+6. This applies to ALL languages (English, Korean, Japanese, etc.)
+7. Placeholders should be easy for users to identify and replace with actual information
+`;
+
+  return `${baseInstruction}\n\n${antiHallucinationRules}`;
 }
 
 // Finds the reply editor associated with a clicked ReplyMate button.
@@ -896,6 +1112,15 @@ async function createReplyMateButton() {
     const threadContext = extractThreadContext();
     const language = await getCurrentLanguage();
 
+    console.log("[ReplyMate Debug] User settings loaded:", {
+      userName: settings.userName,
+      tone: settings.tone,
+      length: settings.length
+    });
+
+    console.log("[ReplyMate Debug] userName:", settings.userName);
+    console.log("[ReplyMate Debug] threadContext.inferredUserName:", threadContext.inferredUserName);
+
     // Validate thread context before proceeding
     if (!threadContext.latestMessage || threadContext.latestMessage.length === 0) {
       console.error("[ReplyMate ERROR] Cannot proceed - no latest message extracted");
@@ -913,15 +1138,51 @@ async function createReplyMateButton() {
       return;
     }
 
+    // Auto-detect optimal tone and length if user selected Auto (independent control)
+    let finalTone = settings.tone || DEFAULT_TONE;
+    let finalLength = settings.length || DEFAULT_LENGTH;
+    let toneReason = "user setting";
+    let lengthReason = "user setting";
+
+    // Case 1: Tone = Auto, Length = Manual
+    if (finalTone === "auto" && finalLength !== "auto") {
+      const toneDetection = detectOptimalTone(threadContext, threadContext.latestMessage);
+      finalTone = toneDetection.tone;
+      toneReason = toneDetection.reason;
+      // Length remains as user selected
+    }
+    // Case 2: Length = Auto, Tone = Manual  
+    else if (finalLength === "auto" && finalTone !== "auto") {
+      const lengthDetection = detectOptimalLength(threadContext, threadContext.latestMessage);
+      finalLength = lengthDetection.length;
+      lengthReason = lengthDetection.reason;
+      // Tone remains as user selected
+    }
+    // Case 3: Both = Auto
+    else if (finalTone === "auto" && finalLength === "auto") {
+      const toneDetection = detectOptimalTone(threadContext, threadContext.latestMessage);
+      const lengthDetection = detectOptimalLength(threadContext, threadContext.latestMessage);
+      finalTone = toneDetection.tone;
+      finalLength = lengthDetection.length;
+      toneReason = toneDetection.reason;
+      lengthReason = lengthDetection.reason;
+    }
+    // Case 4: Both = Manual (no changes needed)
+
+    console.log("[ReplyMate Auto] User selected tone:", settings.tone || DEFAULT_TONE);
+    console.log("[ReplyMate Auto] User selected length:", settings.length || DEFAULT_LENGTH);
+    console.log("[ReplyMate Auto] Final tone:", finalTone, `(${toneReason})`);
+    console.log("[ReplyMate Auto] Final length:", finalLength, `(${lengthReason})`);
+
     const payload = {
       subject: threadContext.subject || "",
       latestMessage: threadContext.latestMessage || "",
       previousMessages: threadContext.previousMessages || [],
       recipientName: threadContext.recipientName || "",
       userName: settings.userName || threadContext.inferredUserName || "",
-      tone: settings.tone || DEFAULT_TONE,
-      length: settings.length || DEFAULT_LENGTH,
-      lengthInstruction: buildLengthInstruction(settings.length || DEFAULT_LENGTH, language),
+      tone: finalTone,
+      length: finalLength,
+      lengthInstruction: buildLengthInstructionWithAuto(finalLength, language, finalLength === "auto" ? autoDetection.length : null),
       additionalInstruction: instructionInput.value || "",
       language: language,
     };
@@ -929,6 +1190,10 @@ async function createReplyMateButton() {
     console.log("[ReplyMate Debug] userName sent to backend:", payload.userName);
     console.log("[ReplyMate Debug] settings.userName:", settings.userName);
     console.log("[ReplyMate Debug] threadContext.inferredUserName:", threadContext.inferredUserName);
+    console.log("[ReplyMate Auto] Final tone:", finalTone, `(${toneReason})`);
+    console.log("[ReplyMate Auto] Final length:", finalLength, `(${lengthReason})`);
+    console.log("[ReplyMate Auto] Final prompt used for AI generation:", payload.lengthInstruction);
+    console.log("[ReplyMate Anti-Hallucination] Anti-hallucination rules applied to prevent fact fabrication");
 
     console.log("[ReplyMate DEBUG] Sending API request with payload:", payload);
     const replyData = await generateAIReply(payload);
@@ -1806,22 +2071,61 @@ async function runHoverGenerateReplyWorkflow(row, sourceButton) {
         // Extract context from the currently opened Gmail thread.
         const threadContext = extractThreadContext();
 
+        // Auto-detect optimal tone and length if user selected Auto (independent control)
+        let finalTone = settings.tone || DEFAULT_TONE;
+        let finalLength = settings.length || DEFAULT_LENGTH;
+        let toneReason = "user setting";
+        let lengthReason = "user setting";
+
+        // Case 1: Tone = Auto, Length = Manual
+        if (finalTone === "auto" && finalLength !== "auto") {
+          const toneDetection = detectOptimalTone(threadContext, threadContext.latestMessage);
+          finalTone = toneDetection.tone;
+          toneReason = toneDetection.reason;
+          // Length remains as user selected
+        }
+        // Case 2: Length = Auto, Tone = Manual  
+        else if (finalLength === "auto" && finalTone !== "auto") {
+          const lengthDetection = detectOptimalLength(threadContext, threadContext.latestMessage);
+          finalLength = lengthDetection.length;
+          lengthReason = lengthDetection.reason;
+          // Tone remains as user selected
+        }
+        // Case 3: Both = Auto
+        else if (finalTone === "auto" && finalLength === "auto") {
+          const toneDetection = detectOptimalTone(threadContext, threadContext.latestMessage);
+          const lengthDetection = detectOptimalLength(threadContext, threadContext.latestMessage);
+          finalTone = toneDetection.tone;
+          finalLength = lengthDetection.length;
+          toneReason = toneDetection.reason;
+          lengthReason = lengthDetection.reason;
+        }
+        // Case 4: Both = Manual (no changes needed)
+
+        console.log("[ReplyMate Auto] Hover mode - User selected tone:", settings.tone || DEFAULT_TONE);
+        console.log("[ReplyMate Auto] Hover mode - User selected length:", settings.length || DEFAULT_LENGTH);
+        console.log("[ReplyMate Auto] Hover mode - Final tone:", finalTone, `(${toneReason})`);
+        console.log("[ReplyMate Auto] Hover mode - Final length:", finalLength, `(${lengthReason})`);
+
         // Build the payload that would be sent to an AI backend.
         const payload = {
           subject: threadContext.subject || "",
           latestMessage: threadContext.latestMessage || "",
           recipientName: threadContext.recipientName || "",
           userName: settings.userName || threadContext.inferredUserName || "",
-          tone: settings.tone || DEFAULT_TONE,
-          length: settings.length || DEFAULT_LENGTH,
-          lengthInstruction: buildLengthInstruction(settings.length || DEFAULT_LENGTH, language),
+          tone: finalTone,
+          length: finalLength,
+          lengthInstruction: buildLengthInstructionWithAuto(finalLength, language, finalLength === "auto" ? autoDetection.length : null),
           language: language,
         };
 
-        // Debug log for userName in payload
         console.log("[ReplyMate Debug] Hover mode - userName sent to backend:", payload.userName);
         console.log("[ReplyMate Debug] Hover mode - settings.userName:", settings.userName);
         console.log("[ReplyMate Debug] Hover mode - threadContext.inferredUserName:", threadContext.inferredUserName);
+        console.log("[ReplyMate Auto] Hover mode - Final tone:", finalTone, `(${toneReason})`);
+        console.log("[ReplyMate Auto] Hover mode - Final length:", finalLength, `(${lengthReason})`);
+        console.log("[ReplyMate Auto] Hover mode - Final prompt used for AI generation:", payload.lengthInstruction);
+        console.log("[ReplyMate Anti-Hallucination] Hover mode - Anti-hallucination rules applied to prevent fact fabrication");
 
         // Only include previousMessages when we actually have some.
         if (Array.isArray(threadContext.previousMessages) && threadContext.previousMessages.length > 0) {
