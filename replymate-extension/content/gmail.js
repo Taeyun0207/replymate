@@ -714,8 +714,23 @@ function mapLanguageToOpenAI(language) {
 function buildLengthInstruction(length, language = DEFAULT_LANGUAGE) {
   const l = (length || DEFAULT_LENGTH).toLowerCase();
   
-  // Convert UI language to OpenAI language code
-  const openAILanguage = mapLanguageToOpenAI(language);
+  // Convert UI language to full language name for explicit instructions
+  const languageNames = {
+    'english': 'English',
+    'korean': 'Korean', 
+    'japanese': 'Japanese'
+  };
+  
+  const userLanguageName = languageNames[language] || 'English';
+  
+  // CRITICAL LANGUAGE RULE - Absolute priority to user setting
+  const criticalLanguageRule = `
+CRITICAL LANGUAGE RULE:
+Write entire reply strictly in ${userLanguageName}.
+Do not use sender's language unless it matches selected setting.
+Even if email is written in another language, reply must remain fully in ${userLanguageName}.
+Never follow email language - only follow user popup language setting.
+`;
 
   // Language-specific base instructions
   const languageInstructions = {
@@ -724,11 +739,11 @@ function buildLengthInstruction(length, language = DEFAULT_LANGUAGE) {
     ja: "Write reply in Japanese (日本語)."
   };
   
-  const languageInstruction = languageInstructions[openAILanguage] || languageInstructions.en;
+  const languageInstruction = languageInstructions[language] || languageInstructions.en;
 
   // Auto mode - let backend determine length
   if (l === "auto") {
-    return `${languageInstruction} ${autoInstructions[(language || 'english')] || autoInstructions.english}`;
+    return `${criticalLanguageRule}\n\n${languageInstruction} ${autoInstructions[language] || autoInstructions.english}`;
   }
 
   if (l === "short") {
@@ -946,20 +961,16 @@ CRITICAL: Never invent specific facts, times, dates, locations, URLs, or contact
 If the incoming email lacks specific information, generate a concise, context-appropriate placeholder instead:
 
 Guidelines for dynamic placeholder generation:
-1. Analyze what specific information is missing from the email context
+1. Analyze what specific information is missing from email context
 2. Create a short, natural placeholder that matches the missing information type
-3. Make it easy for the user to replace with the actual information
-4. Keep placeholders concise and clear: [time], [date], [location], [link], [product name], [event name], [invoice number]
-5. The placeholder should work naturally across all languages
+3. Make it easy for the user to replace with actual information
+4. Keep placeholders concise and clear
+5. IMPORTANT: Generate placeholders in the REPLY language (user's selected language), not email language
 
-Examples of dynamic placeholder usage:
-- Meeting time missing → "The meeting will be at [time]"
-- Document name missing → "Please send the [document name]"
-- Event date missing → "Let's schedule it for [date]"
-- Location missing → "We can meet at [location]"
-- Product details missing → "The [product name] costs [price]"
-- Contact person missing → "Please contact [contact person] for details"
-- Invoice number missing → "Reference invoice [invoice number]"
+Localized placeholder examples:
+- English reply → [time], [date], [location], [link], [price], [name]
+- Korean reply → [시간], [날짜], [장소], [링크], [가격], [이름]
+- Japanese reply → [時間], [日付], [場所], [リンク], [価格], [名前]
 
 Rules:
 1. Generate placeholders ONLY when required information is genuinely missing from email context
@@ -969,6 +980,7 @@ Rules:
 5. Respond naturally and concisely without making assumptions
 6. This applies to ALL languages (English, Korean, Japanese, etc.)
 7. Placeholders should be easy for users to identify and replace with actual information
+8. CRITICAL: Placeholders must be in the same language as the reply (user's selected language)
 `;
 
   return `${baseInstruction}\n\n${antiHallucinationRules}`;
@@ -1139,38 +1151,19 @@ async function createReplyMateButton() {
     }
 
     // Auto-detect optimal tone and length if user selected Auto (independent control)
-    let finalTone = settings.tone || DEFAULT_TONE;
-    let finalLength = settings.length || DEFAULT_LENGTH;
-    let toneReason = "user setting";
-    let lengthReason = "user setting";
+    const userTone = settings.tone || DEFAULT_TONE;
+    const userLength = settings.length || DEFAULT_LENGTH;
+    
+    // Apply correct independent logic
+    const finalTone = userTone === "auto" ? detectOptimalTone(threadContext, threadContext.latestMessage).tone : userTone;
+    const finalLength = userLength === "auto" ? detectOptimalLength(threadContext, threadContext.latestMessage).length : userLength;
+    
+    // Generate reasons for debug logging
+    const toneReason = userTone === "auto" ? detectOptimalTone(threadContext, threadContext.latestMessage).reason : "user setting";
+    const lengthReason = userLength === "auto" ? detectOptimalLength(threadContext, threadContext.latestMessage).reason : "user setting";
 
-    // Case 1: Tone = Auto, Length = Manual
-    if (finalTone === "auto" && finalLength !== "auto") {
-      const toneDetection = detectOptimalTone(threadContext, threadContext.latestMessage);
-      finalTone = toneDetection.tone;
-      toneReason = toneDetection.reason;
-      // Length remains as user selected
-    }
-    // Case 2: Length = Auto, Tone = Manual  
-    else if (finalLength === "auto" && finalTone !== "auto") {
-      const lengthDetection = detectOptimalLength(threadContext, threadContext.latestMessage);
-      finalLength = lengthDetection.length;
-      lengthReason = lengthDetection.reason;
-      // Tone remains as user selected
-    }
-    // Case 3: Both = Auto
-    else if (finalTone === "auto" && finalLength === "auto") {
-      const toneDetection = detectOptimalTone(threadContext, threadContext.latestMessage);
-      const lengthDetection = detectOptimalLength(threadContext, threadContext.latestMessage);
-      finalTone = toneDetection.tone;
-      finalLength = lengthDetection.length;
-      toneReason = toneDetection.reason;
-      lengthReason = lengthDetection.reason;
-    }
-    // Case 4: Both = Manual (no changes needed)
-
-    console.log("[ReplyMate Auto] User selected tone:", settings.tone || DEFAULT_TONE);
-    console.log("[ReplyMate Auto] User selected length:", settings.length || DEFAULT_LENGTH);
+    console.log("[ReplyMate Auto] User selected tone:", userTone);
+    console.log("[ReplyMate Auto] User selected length:", userLength);
     console.log("[ReplyMate Auto] Final tone:", finalTone, `(${toneReason})`);
     console.log("[ReplyMate Auto] Final length:", finalLength, `(${lengthReason})`);
 
@@ -1182,10 +1175,19 @@ async function createReplyMateButton() {
       userName: settings.userName || threadContext.inferredUserName || "",
       tone: finalTone,
       length: finalLength,
-      lengthInstruction: buildLengthInstructionWithAuto(finalLength, language, finalLength === "auto" ? autoDetection.length : null),
+      lengthInstruction: buildLengthInstructionWithAuto(finalLength, language, finalLength === "auto" ? detectOptimalLength(threadContext, threadContext.latestMessage).length : null),
       additionalInstruction: instructionInput.value || "",
       language: language,
     };
+
+    // Add explicit Tone and Length to the prompt
+    const explicitInstructions = `
+Tone: ${finalTone}
+Length: ${finalLength}
+`;
+
+    // Update payload with explicit instructions at the top
+    payload.lengthInstruction = `${explicitInstructions}\n\n${payload.lengthInstruction}`;
 
     console.log("[ReplyMate Debug] userName sent to backend:", payload.userName);
     console.log("[ReplyMate Debug] settings.userName:", settings.userName);
@@ -2072,38 +2074,19 @@ async function runHoverGenerateReplyWorkflow(row, sourceButton) {
         const threadContext = extractThreadContext();
 
         // Auto-detect optimal tone and length if user selected Auto (independent control)
-        let finalTone = settings.tone || DEFAULT_TONE;
-        let finalLength = settings.length || DEFAULT_LENGTH;
-        let toneReason = "user setting";
-        let lengthReason = "user setting";
+        const userTone = settings.tone || DEFAULT_TONE;
+        const userLength = settings.length || DEFAULT_LENGTH;
+        
+        // Apply correct independent logic
+        const finalTone = userTone === "auto" ? detectOptimalTone(threadContext, threadContext.latestMessage).tone : userTone;
+        const finalLength = userLength === "auto" ? detectOptimalLength(threadContext, threadContext.latestMessage).length : userLength;
+        
+        // Generate reasons for debug logging
+        const toneReason = userTone === "auto" ? detectOptimalTone(threadContext, threadContext.latestMessage).reason : "user setting";
+        const lengthReason = userLength === "auto" ? detectOptimalLength(threadContext, threadContext.latestMessage).reason : "user setting";
 
-        // Case 1: Tone = Auto, Length = Manual
-        if (finalTone === "auto" && finalLength !== "auto") {
-          const toneDetection = detectOptimalTone(threadContext, threadContext.latestMessage);
-          finalTone = toneDetection.tone;
-          toneReason = toneDetection.reason;
-          // Length remains as user selected
-        }
-        // Case 2: Length = Auto, Tone = Manual  
-        else if (finalLength === "auto" && finalTone !== "auto") {
-          const lengthDetection = detectOptimalLength(threadContext, threadContext.latestMessage);
-          finalLength = lengthDetection.length;
-          lengthReason = lengthDetection.reason;
-          // Tone remains as user selected
-        }
-        // Case 3: Both = Auto
-        else if (finalTone === "auto" && finalLength === "auto") {
-          const toneDetection = detectOptimalTone(threadContext, threadContext.latestMessage);
-          const lengthDetection = detectOptimalLength(threadContext, threadContext.latestMessage);
-          finalTone = toneDetection.tone;
-          finalLength = lengthDetection.length;
-          toneReason = toneDetection.reason;
-          lengthReason = lengthDetection.reason;
-        }
-        // Case 4: Both = Manual (no changes needed)
-
-        console.log("[ReplyMate Auto] Hover mode - User selected tone:", settings.tone || DEFAULT_TONE);
-        console.log("[ReplyMate Auto] Hover mode - User selected length:", settings.length || DEFAULT_LENGTH);
+        console.log("[ReplyMate Auto] Hover mode - User selected tone:", userTone);
+        console.log("[ReplyMate Auto] Hover mode - User selected length:", userLength);
         console.log("[ReplyMate Auto] Hover mode - Final tone:", finalTone, `(${toneReason})`);
         console.log("[ReplyMate Auto] Hover mode - Final length:", finalLength, `(${lengthReason})`);
 
@@ -2115,9 +2098,18 @@ async function runHoverGenerateReplyWorkflow(row, sourceButton) {
           userName: settings.userName || threadContext.inferredUserName || "",
           tone: finalTone,
           length: finalLength,
-          lengthInstruction: buildLengthInstructionWithAuto(finalLength, language, finalLength === "auto" ? autoDetection.length : null),
+          lengthInstruction: buildLengthInstructionWithAuto(finalLength, language, finalLength === "auto" ? detectOptimalLength(threadContext, threadContext.latestMessage).length : null),
           language: language,
         };
+
+        // Add explicit Tone and Length to the prompt
+        const explicitInstructions = `
+Tone: ${finalTone}
+Length: ${finalLength}
+`;
+
+        // Update payload with explicit instructions at the top
+        payload.lengthInstruction = `${explicitInstructions}\n\n${payload.lengthInstruction}`;
 
         console.log("[ReplyMate Debug] Hover mode - userName sent to backend:", payload.userName);
         console.log("[ReplyMate Debug] Hover mode - settings.userName:", settings.userName);
