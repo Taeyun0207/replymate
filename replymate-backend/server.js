@@ -407,13 +407,10 @@ try {
   });
 } catch (error) {
   console.error("OpenAI generation error:", error);
-
-
-res.status(500).json({
+  res.status(500).json({
     error: "Failed to generate AI reply.",
   });
 }
-  });
 
 // Create Stripe checkout session
 app.post("/billing/create-checkout-session", async (req, res) => {
