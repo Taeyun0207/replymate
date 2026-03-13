@@ -5,7 +5,7 @@ const LANGUAGE_KEY = "replymateLanguage";
 const USAGE_CACHE_KEY = "replymate_usage_cache";
 const USAGE_CACHE_TTL = 30000; // 30 seconds
 
-const DEFAULT_TONE = "polite";
+const DEFAULT_TONE = "auto";
 const DEFAULT_LENGTH = "auto";
 const DEFAULT_LANGUAGE = "english";
 
@@ -29,8 +29,8 @@ const TRANSLATIONS = {
     manageSubscription: "Manage subscription",
     planNames: {
       free: "Free Plan",
-      pro: "Pro Plan",
-      pro_plus: "Pro+ Plan"
+      pro: "Pro",
+      pro_plus: "Pro+"
     },
     repliesLeft: "replies left"
   },
@@ -52,8 +52,8 @@ const TRANSLATIONS = {
     manageSubscription: "구독 관리",
     planNames: {
       free: "무료 플랜",
-      pro: "Pro 플랜",
-      pro_plus: "Pro+ 플랜"
+      pro: "Pro",
+      pro_plus: "Pro+"
     },
     repliesLeft: "답장 남음"
   },
@@ -75,8 +75,8 @@ const TRANSLATIONS = {
     manageSubscription: "サブスクリプション管理",
     planNames: {
       free: "無料プラン",
-      pro: "Proプラン",
-      pro_plus: "Pro+プラン"
+      pro: "Pro",
+      pro_plus: "Pro+"
     },
     repliesLeft: "残り返信可能数"
   }
@@ -226,6 +226,15 @@ function updateUpgradeLink(plan, language = DEFAULT_LANGUAGE) {
     // Pro Plus plan - show enjoy message, hide all upgrade buttons
     upgradeTitle.textContent = getTranslation("enjoyReplyMate", language);
     upgradeButtons.style.display = "none"; // Hide all upgrade buttons
+    
+    // Pro Plus 버튼과 동일한 배경색과 글자색 적용
+    upgradeBox.style.background = "linear-gradient(135deg, #FFD700 0%, #FFD700 50%, #FFFF99 100%)";
+    upgradeBox.style.border = "1px solid #FFFF99";
+    upgradeBox.style.color = "#000000";
+    upgradeTitle.style.color = "#000000";
+    upgradeTitle.style.fontWeight = "600";
+    upgradeBox.style.boxShadow = "0 2px 4px rgba(212, 175, 55, 0.3)";
+    
     console.log("[ReplyMate] Billing UI rendered: Pro Plus plan (enjoy message)");
   } else if (plan === 'pro') {
     // Pro plan - show current plan + upgrade to Pro Plus only
@@ -248,30 +257,75 @@ function updateUpgradeLink(plan, language = DEFAULT_LANGUAGE) {
 }
 
 // Apply language to all UI elements
-function applyLanguageToUI(language = DEFAULT_LANGUAGE) {
+function applyLanguageToUI(language = DEFAULT_LANGUAGE, participants = []) {
+  // Detect if multiple languages are present in participants
+  const hasMultipleLanguages = participants.length > 1 && 
+    new Set(participants.map(p => p.language || '')).size > 1;
+  
+  // Determine best language for UI display
+  let uiLanguage = language;
+  
+  // LANGUAGE AUTO-ADJUSTMENT LOGIC
+  // If multiple languages detected, try to find the best language for UI
+  if (hasMultipleLanguages) {
+    console.log("[ReplyMate] Multiple languages detected:", participants.map(p => p.language));
+    
+    // Count languages by frequency
+    const languageCounts = {};
+    participants.forEach(p => {
+      if (p.language) {
+        languageCounts[p.language] = (languageCounts[p.language] || 0) + 1;
+      }
+    });
+    
+    console.log("[ReplyMate] Language frequency counts:", languageCounts);
+    
+    // Find the most common language
+    let mostCommonLanguage = language;
+    let maxCount = 0;
+    for (const [lang, count] of Object.entries(languageCounts)) {
+      if (count > maxCount) {
+        maxCount = count;
+        mostCommonLanguage = lang;
+      }
+    }
+    
+    // If we have a clear majority, use that language for UI
+    if (maxCount > participants.length / 2) {
+      uiLanguage = mostCommonLanguage;
+      console.log(`[ReplyMate] Auto-adjusting UI to majority language: ${mostCommonLanguage} (${maxCount}/${participants.length} participants)`);
+    } else {
+      // No clear majority - default to English for consistency
+      uiLanguage = "english";
+      console.log("[ReplyMate] No clear language majority, defaulting UI to English for consistency");
+    }
+  }
+  
   // Update labels and static text
-  document.querySelector('label[for="toneSelect"]').textContent = getTranslation("replyTone", language);
-  document.querySelector('label[for="lengthSelect"]').textContent = getTranslation("replyLength", language);
-  document.querySelector('label[for="userNameInput"]').textContent = getTranslation("yourName", language);
-  document.querySelector('label[for="languageSelect"]').textContent = getTranslation("language", language);
-  document.getElementById("saveButton").textContent = getTranslation("save", language);
-  document.querySelector(".header-title").textContent = getTranslation("settings", language);
+  document.querySelector('label[for="toneSelect"]').textContent = getTranslation("replyTone", uiLanguage);
+  document.querySelector('label[for="lengthSelect"]').textContent = getTranslation("replyLength", uiLanguage);
+  document.querySelector('label[for="userNameInput"]').textContent = getTranslation("yourName", uiLanguage);
+  document.querySelector('label[for="languageSelect"]').textContent = getTranslation("language", uiLanguage);
+  document.getElementById("saveButton").textContent = getTranslation("save", uiLanguage);
+  document.querySelector(".header-title").textContent = getTranslation("settings", uiLanguage);
   
   // Update placeholders
-  document.getElementById("userNameInput").placeholder = getTranslation("yourName", language);
+  document.getElementById("userNameInput").placeholder = getTranslation("yourName", uiLanguage);
   
   // Update option labels for tone and length
   const toneOptions = {
-    professional: language === "korean" ? "전문적인" : language === "japanese" ? "ビジネス用に" : "Professional",
-    polite: language === "korean" ? "정중한" : language === "japanese" ? "丁寧に" : "Polite", 
-    friendly: language === "korean" ? "친근한" : language === "japanese" ? "カジュアルに" : "Friendly",
-    direct: language === "korean" ? "직설적인" : language === "japanese" ? "簡潔に" : "Direct"
+    auto: uiLanguage === "korean" ? "자동 (추천)" : uiLanguage === "japanese" ? "自動（推奨）" : "Auto (recommended)",
+    professional: uiLanguage === "korean" ? "전문적인" : uiLanguage === "japanese" ? "ビジネス用に" : "Professional",
+    polite: uiLanguage === "korean" ? "정중한" : uiLanguage === "japanese" ? "丁寧に" : "Polite", 
+    friendly: uiLanguage === "korean" ? "친근한" : uiLanguage === "japanese" ? "カジュアルに" : "Friendly",
+    direct: uiLanguage === "korean" ? "직설적인" : uiLanguage === "japanese" ? "簡潔に" : "Direct"
   };
   
   const lengthOptions = {
-    short: language === "korean" ? "짧음" : language === "japanese" ? "短め" : "Short",
-    medium: language === "korean" ? "보통" : language === "japanese" ? "普通" : "Medium",
-    long: language === "korean" ? "김" : language === "japanese" ? "長め" : "Long"
+    auto: uiLanguage === "korean" ? "자동 (추천)" : uiLanguage === "japanese" ? "自動（推奨）" : "Auto (recommended)",
+    short: uiLanguage === "korean" ? "짧음" : uiLanguage === "japanese" ? "短め" : "Short",
+    medium: uiLanguage === "korean" ? "보통" : uiLanguage === "japanese" ? "普通" : "Medium",
+    long: uiLanguage === "korean" ? "김" : uiLanguage === "japanese" ? "長め" : "Long"
   };
   
   // Update language select options with native language names
@@ -314,6 +368,13 @@ function applyLanguageToUI(language = DEFAULT_LANGUAGE) {
       lengthSelect.appendChild(option);
     });
   }
+  
+  // Log participant detection results
+  if (participants.length > 0) {
+    console.log("[ReplyMate] Participants detected:", participants);
+    console.log("[ReplyMate] Multiple languages detected:", hasMultipleLanguages);
+    console.log("[ReplyMate] UI language set to:", uiLanguage);
+  }
 }
 
 // Listen for usage updates from Gmail content script
@@ -324,6 +385,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       const language = result[LANGUAGE_KEY] || DEFAULT_LANGUAGE;
       updatePlanUsageDisplay(message.data, language);
       updateUpgradeLink(message.data.plan, language);
+    });
+  }
+  
+  // Handle participant detection for multi-language scenarios
+  if (message.type === "PARTICIPANTS_DETECTED" && message.data) {
+    chrome.storage.local.get([LANGUAGE_KEY], (result) => {
+      const language = result[LANGUAGE_KEY] || DEFAULT_LANGUAGE;
+      applyLanguageToUI(language, message.data.participants || []);
     });
   }
 });

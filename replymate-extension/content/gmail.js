@@ -93,7 +93,7 @@ const REPLYMATE_USER_NAME_KEY = "replymateUserName";
 const REPLYMATE_LANGUAGE_KEY = "replymateLanguage";
 
 // Default values if nothing has been saved yet.
-const DEFAULT_TONE = "polite";
+const DEFAULT_TONE = "auto";
 const DEFAULT_LENGTH = "auto";
 const DEFAULT_LANGUAGE = "english";
 
@@ -110,13 +110,14 @@ const TRANSLATIONS = {
     replyLimitReached: "ReplyMate limit reached. Upgrade to generate more replies.",
     planNames: {
       free: "Free Plan",
-      pro: "Pro Plan",
-      pro_plus: "Pro+ Plan"
+      pro: "Pro",
+      pro_plus: "Pro+"
     },
     repliesLeft: "replies left",
     instructionPlaceholder: "Optional instructions (e.g. mention tomorrow)...",
     upgradeToPro: "Upgrade to Pro",
-    upgradeToProPlus: "Upgrade to Pro+"
+    upgradeToProPlus: "Upgrade to Pro+",
+    enjoyReplyMate: "Enjoy ReplyMate!"
   },
   korean: {
     aiReply: "AI Reply",
@@ -129,13 +130,14 @@ const TRANSLATIONS = {
     replyLimitReached: "ReplyMate 한도에 도달했습니다. 더 많은 답장을 생성하려면 업그레이드하세요.",
     planNames: {
       free: "무료 플랜",
-      pro: "Pro 플랜",
-      pro_plus: "Pro+ 플랜"
+      pro: "Pro",
+      pro_plus: "Pro+"
     },
     repliesLeft: "답장 남음",
     instructionPlaceholder: "선택적 지침 추가 (예: 내일 언급해줘)...",
     upgradeToPro: "Pro로 업그레이드",
-    upgradeToProPlus: "Pro+로 업그레이드"
+    upgradeToProPlus: "Pro+로 업그레이드",
+    enjoyReplyMate: "ReplyMate를 즐겨보세요!"
   },
   japanese: {
     aiReply: "AI Reply",
@@ -148,13 +150,14 @@ const TRANSLATIONS = {
     replyLimitReached: "返信回数の上限に達しました。続けて利用するには、プランをアップグレードしてください。",
     planNames: {
       free: "無料プラン",
-      pro: "Proプラン",
-      pro_plus: "Pro+プラン"
+      pro: "Pro",
+      pro_plus: "Pro+"
     },
     repliesLeft: "残り返信可能数",
     instructionPlaceholder: "追加の指示（例：明日について言及してください）...",
     upgradeToPro: "Proにアップグレード",
-    upgradeToProPlus: "Pro+にアップグレード"
+    upgradeToProPlus: "Pro+にアップグレード",
+    enjoyReplyMate: "ReplyMateをお楽しみください！"
   }
 };
 
@@ -686,26 +689,41 @@ function attachReplyMateButtonHoverStyles(button) {
   });
 }
 
+// Auto mode instructions for different languages
+const autoInstructions = {
+  english: "Auto-length mode: Determine reply length based on message context. Follow these rules:\n\nShort: 1–2 sentences (max ~25 words)\nMedium: 2–4 sentences (25–70 words)\nLong: 4–8 sentences (70–150 words)\n\nAuto-length determination:\n1. Acknowledgement messages (thanks, ok, yes, 알겠습니다, はい) → Short\n2. Message length: <20 chars → Short, 20-120 chars → Medium, >120 chars → Long\n3. Multiple questions (2+ ?) → Long\n4. Request words (please, could you, can you, would you, let me know, send, confirm) → at least Medium",
+  korean: "자동 길이 모드: 메시지 컨텍스트에 따라 답장 길이를 결정하세요. 다음 규칙을 따르세요:\n\nShort: 1–2문장 (최대 ~25단어)\nMedium: 2–4문장 (25-70단어)\nLong: 4–8문장 (70-150단어)\n\n자동 길이 결정:\n1. 확인 메시지 (감사, ok, 예, 알겠습니다, はい) → Short\n2. 메시지 길이: <20자 → Short, 20-120자 → Medium, >120자 → Long\n3. 여러 질문 (2+ ?) → Long\n4. 요청 단어 (제발, 할 수 있나요, 보내, 확인) → 최소 Medium",
+  japanese: "自動長モード：メッセージコンテキストに基づいて返信長を決定してください。以下のルールに従ってください：\n\nShort：1〜2文（最大〜25単語）\nMedium：2〜4文（25-70単語）\nLong：4〜8文（70-150単語）\n\n自動長決定：\n1. 確認メッセージ（ありがとう、OK、はい、알겠습니다、はい）→ Short\n2. メッセージ長：<20文字 → Short、20-120文字 → Medium、>120文字 → Long\n3. 複数の質問（2+ ?）→ Long\n4. 要求単語（お願い、できますか、送信、確認）→ 最低Medium"
+};
+
+// Convert UI language to OpenAI language code
+function mapLanguageToOpenAI(language) {
+  const languageMapping = {
+    'english': 'en',
+    'korean': 'ko', 
+    'japanese': 'ja'
+  };
+  return languageMapping[language] || 'en';
+}
+
 function buildLengthInstruction(length, language = DEFAULT_LANGUAGE) {
   const l = (length || DEFAULT_LENGTH).toLowerCase();
+  
+  // Convert UI language to OpenAI language code
+  const openAILanguage = mapLanguageToOpenAI(language);
 
   // Language-specific base instructions
   const languageInstructions = {
-    english: "Write the reply in English.",
-    korean: "Write the reply in Korean (한국어).",
-    japanese: "Write the reply in Japanese (日本語)."
+    en: "Write reply in English.",
+    ko: "Write reply in Korean (한국어).",
+    ja: "Write reply in Japanese (日本語)."
   };
-
-  const languageInstruction = languageInstructions[language] || languageInstructions.english;
+  
+  const languageInstruction = languageInstructions[openAILanguage] || languageInstructions.en;
 
   // Auto mode - let backend determine length
   if (l === "auto") {
-    const autoInstructions = {
-      english: "Auto-length mode: Determine reply length based on message context. Follow these rules:\n\nShort: 1–2 sentences (max ~25 words)\nMedium: 2–4 sentences (25–70 words)\nLong: 4–8 sentences (70–150 words)\n\nAuto-length determination:\n1. Acknowledgement messages (thanks, ok, yes, 알겠습니다, はい) → Short\n2. Message length: <20 chars → Short, 20-120 chars → Medium, >120 chars → Long\n3. Multiple questions (2+ ?) → Long\n4. Request words (please, could you, can you, send, confirm) → at least Medium",
-      korean: "자동 길이 모드: 메시지 컨텍스트에 따라 답장 길이를 결정하세요. 다음 규칙을 따르세요:\n\nShort: 1–2문장 (최대 ~25단어)\nMedium: 2–4문장 (25-70단어)\nLong: 4–8문장 (70-150단어)\n\n자동 길이 결정:\n1. 확인 메시지 (감사, ok, 예, 알겠습니다, はい) → Short\n2. 메시지 길이: <20자 → Short, 20-120자 → Medium, >120자 → Long\n3. 여러 질문 (2+ ?) → Long\n4. 요청 단어 (제발, 할 수 있나요, 보내, 확인) → 최소 Medium",
-      japanese: "自動長モード：メッセージコンテキストに基づいて返信長を決定してください。以下のルールに従ってください：\n\nShort：1〜2文（最大〜25単語）\nMedium：2〜4文（25-70単語）\nLong：4〜8文（70-150単語）\n\n自動長決定：\n1. 確認メッセージ（ありがとう、OK、はい、알겠습니다、了解）→ Short\n2. メッセージ長：<20文字 → Short、20-120文字 → Medium、>120文字 → Long\n3. 複数の質問（2+ ?）→ Long\n4. 要求単語（お願い、できますか、送信、確認）→ 最低Medium"
-    };
-    return `${languageInstruction} ${autoInstructions[language] || autoInstructions.english}`;
+    return `${languageInstruction} ${autoInstructions[(language || 'english')] || autoInstructions.english}`;
   }
 
   if (l === "short") {
@@ -714,7 +732,7 @@ function buildLengthInstruction(length, language = DEFAULT_LANGUAGE) {
       korean: "엄격한 Short 모드: 정확히 1-2문장 (최대 ~25단어)으로 작성하세요. 간결하고 직접적으로, 최소한의 말로 작성하고, 이 이메일에 자연스럽게 느껴지는 것 이상의 잡담은 추가하지 마세요.",
       japanese: "厳格なShortモード：正確に1〜2文（最大〜25単語）で書いてください。簡潔で直接的に、最小限の言葉で、このメールに自然に感じられる以上の世間話を追加しないでください。"
     };
-    return `${languageInstruction} ${shortInstructions[language] || shortInstructions.english}`;
+    return `${languageInstruction} ${shortInstructions[(language || 'english')] || shortInstructions.english}`;
   }
 
   if (l === "long") {
@@ -723,7 +741,7 @@ function buildLengthInstruction(length, language = DEFAULT_LANGUAGE) {
       korean: "엄격한 Long 모드: 정확히 4-8문장 (70-150단어)으로 작성하세요. 더 많은 감사 표현, 맥락, 명확화, 그리고 세련된 마무리로 확장하세요. 자연스럽게 유지하고 이메일 자체가 매우 짧을 경우 불필요한 미사여구를 피하세요.",
       japanese: "厳格なLongモード：正確に4〜8文（70-150単語）で書いてください。より多くの感謝、文脈、明確化、そして洗練された結びで拡張してください。自然に保ち、メール自体が非常に短い場合は不要な飾り言葉を避けてください。"
     };
-    return `${languageInstruction} ${longInstructions[language] || longInstructions.english}`;
+    return `${languageInstruction} ${longInstructions[(language || 'english')] || longInstructions.english}`;
   }
 
   // medium / default
@@ -732,7 +750,7 @@ function buildLengthInstruction(length, language = DEFAULT_LANGUAGE) {
     korean: "엄격한 Medium 모드: 정확히 2-4문장 (25-70단어)으로 작성하세요. 이 이메일에 적합하다고 느껴지는 길이에 맞춰 상세함과 예의를 조절하며, 장황하게 들리지 않도록 하세요.",
     japanese: "厳格なMediumモード：正確に2〜4文（25-70単語）で書いてください。このメールに適切だと感じられる長さに合わせて、適度な詳細と丁寧さを目指し、冗長に聞こえないようにしてください。"
   };
-  return `${languageInstruction} ${mediumInstructions[language] || mediumInstructions.english}`;
+  return `${languageInstruction} ${mediumInstructions[(language || 'english')] || mediumInstructions.english}`;
 }
 
 // Finds the reply editor associated with a clicked ReplyMate button.
@@ -818,7 +836,7 @@ async function createReplyMateButton() {
   instructionInput.style.border = "1px solid #ccc";
   instructionInput.style.borderRadius = "4px";
   instructionInput.style.fontSize = "12px";
-  instructionInput.style.width = "275px";
+  instructionInput.style.width = "350px";
   instructionInput.style.minWidth = "150px";
   instructionInput.style.maxWidth = "300px";
   instructionInput.style.pointerEvents = "auto";
@@ -900,6 +918,7 @@ async function createReplyMateButton() {
       length: settings.length || DEFAULT_LENGTH,
       lengthInstruction: buildLengthInstruction(settings.length || DEFAULT_LENGTH, language),
       additionalInstruction: instructionInput.value || "",
+      language: language,
     };
 
     console.log("[ReplyMate DEBUG] Sending API request with payload:", payload);
@@ -998,7 +1017,7 @@ async function createReplyMateButton() {
           currentPlanText.style.fontSize = "11px";
           currentPlanText.style.color = "#188038";
           currentPlanText.style.fontWeight = "600";
-          currentPlanText.textContent = `Current Plan: ${getTranslation("planNames", language)?.pro_plus || "Pro+ Plan"}`;
+          currentPlanText.textContent = `Current Plan: ${(TRANSLATIONS[language]?.planNames || TRANSLATIONS.english.planNames).pro_plus || "Pro+ Plan"}`;
           upgradeContainer.appendChild(currentPlanText);
           console.log("[ReplyMate] Gmail UI - Billing UI rendered: Pro Plus plan (no upgrades)");
         } else {
@@ -1159,7 +1178,7 @@ function insertReplyIntoEditor(editor, replyText) {
 
   editor.focus();
   editor.innerHTML = html;
-
+  editor.dispatchEvent(new Event("input", { bubbles: true }));
 }
 
 // Extract sender name from email container
@@ -1197,6 +1216,74 @@ function extractSenderName(container) {
   }
   
   return "";
+}
+
+// Extract participants and detect languages from message content
+function extractParticipants(messages) {
+  const participants = [];
+  const languages = new Set();
+  
+  for (const message of messages) {
+    if (message.text && message.senderName) {
+      participants.push({
+        name: message.senderName,
+        language: detectLanguage(message.text)
+      });
+      languages.add(detectLanguage(message.text));
+    }
+  }
+  
+  return Array.from(participants);
+}
+
+// Detect language from text content
+function detectLanguage(text) {
+  if (!text || typeof text !== 'string') return 'english';
+  
+  const lowerText = text.toLowerCase();
+  
+  // Korean detection
+  if (/[가-힣ㅋㅌㅎㅏ-ㅑㅒㅓㅔㅕㅟㅠㅢㅣㅡㅢㅥㅤㅦㅨㅧㅮㅯㅰㅱㅲㅴㅶㅷㅇㅈㅏㅑㅓㅒㅔㅕㅟㅠㅢㅣㅡㅢㅥㅤㅦㅨㅧㅮㅯㅰㅱㅲㅴㅶㅷㅇ]/.test(text)) {
+    return 'korean';
+  }
+  
+  // Japanese detection - comprehensive patterns
+  if (
+    // Hiragana detection
+    /[ひらがな]/.test(text) ||
+    // Katakana detection  
+    /[ァ-ヶ]/.test(text) ||
+    // Common Japanese sentence endings
+    /[です-ます]/.test(text) ||
+    /[ます]/.test(text) ||
+    /[だ]/.test(text) ||
+    // Particles and common words
+    /[の]/.test(text) ||
+    /[に]/.test(text) ||
+    /[と]/.test(text) ||
+    /[で]/.test(text) ||
+    /[から]/.test(text) ||
+    // Common Japanese phrases
+    /[こんにちは]/.test(text) ||
+    /[ありがとう]/.test(text) ||
+    /[お願い]/.test(text) ||
+    // Japanese-specific punctuation and characters
+    /[？]/.test(text) ||
+    /[！]/.test(text) ||
+    /[。]/.test(text) ||
+    // Japanese Unicode range (basic coverage)
+    /[\u3040-\u309F\u30A0-\u30FF]/.test(text)
+  ) {
+    return 'japanese';
+  }
+  
+  // Chinese detection (basic patterns)
+  if (/[\u4e00-\u9fff]/.test(text)) {
+    return 'chinese';
+  }
+  
+  // Default to English
+  return 'english';
 }
 
 // Extract information about the currently opened Gmail thread (subject, messages, names).
@@ -1354,10 +1441,11 @@ function extractThreadContext() {
       previousMessages: previousMessages || [],
       recipientName: recipientName || "",
       inferredUserName: inferredUserName || "",
+      participants: extractParticipants(visibleMessages)
     };
 
     // DIAGNOSTIC: Log final result
-    console.log("[ReplyMate DEBUG] Final thread context:", {
+    console.log(`[ReplyMate DEBUG] Final thread context:`, {
       hasSubject: !!result.subject,
       subjectLength: result.subject.length,
       hasLatestMessage: !!result.latestMessage,
@@ -1366,8 +1454,19 @@ function extractThreadContext() {
       hasRecipientName: !!result.recipientName,
       recipientName: result.recipientName || "NONE",
       hasInferredUserName: !!result.inferredUserName,
-      inferredUserName: result.inferredUserName || "NONE"
+      inferredUserName: result.inferredUserName || "NONE",
+      participants: result.participants
     });
+
+    // Send participant data to popup for multi-language detection
+    if (result.participants && result.participants.length > 1) {
+      chrome.runtime.sendMessage({
+        type: "PARTICIPANTS_DETECTED",
+        data: {
+          participants: result.participants
+        }
+      });
+    }
 
     return result;
   } catch (error) {
@@ -1536,8 +1635,6 @@ function findMessageListRowFromTarget(target) {
   return null;
 }
 
-
-
 // Safely open the email thread for a given row by simulating a user click.
 // Gmail sometimes relies on mouse events rather than just calling `.click()`.
 function openThreadForRow(row) {
@@ -1574,6 +1671,8 @@ async function runHoverGenerateReplyWorkflow(row, sourceButton) {
     if (row.dataset.replymateWorkflowRunning === "1") return;
     row.dataset.replymateWorkflowRunning = "1";
   
+    let inEmailButton = null;
+    
     if (sourceButton) {
       // If already loading, prevent duplicate requests.
       if (sourceButton.dataset.replymateState === "loading") {
@@ -1658,7 +1757,7 @@ async function runHoverGenerateReplyWorkflow(row, sourceButton) {
 
       try {
         // Find and update the in-email AI Reply button to show loading state
-        const inEmailButton = document.querySelector(".replymate-generate-button");
+        inEmailButton = document.querySelector(".replymate-generate-button");
         if (inEmailButton) {
           await setReplyMateButtonState(inEmailButton, "loading");
         }
@@ -1679,6 +1778,7 @@ async function runHoverGenerateReplyWorkflow(row, sourceButton) {
           tone: settings.tone || DEFAULT_TONE,
           length: settings.length || DEFAULT_LENGTH,
           lengthInstruction: buildLengthInstruction(settings.length || DEFAULT_LENGTH, language),
+          language: language,
         };
 
         // Only include previousMessages when we actually have some.
@@ -1912,9 +2012,8 @@ async function runHoverGenerateReplyWorkflow(row, sourceButton) {
       let left = leftmostRect.left - rowRect.left - buttonRect.width - gap;
       let top =
         leftmostRect.top -
-        rowRect.top +
         (leftmostRect.height - buttonRect.height) / 2;
-  
+      
       left = Math.max(8, left);
       top = Math.max(4, top);
   

@@ -233,7 +233,7 @@ option {
       }
       
       .upgrade-title {
-        color: #ffffff !important; /* 흰색으로 변경 */
+        color: #000000 !important; /* 프로플러스일 때 검정색으로 변경 */
       }
     }
 
@@ -284,6 +284,7 @@ option {
   <div class="field">
     <label for="toneSelect">Reply Tone</label>
     <select id="toneSelect">
+      <option value="auto" selected>Auto (recommended)</option>
       <option value="professional">Professional</option>
       <option value="polite">Polite</option>
       <option value="friendly">Friendly</option>
