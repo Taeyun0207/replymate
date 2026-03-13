@@ -18,6 +18,77 @@ const PLAN_PRICE_IDS = {
   pro_plus: process.env.STRIPE_PRO_PLUS_PRICE_ID,
 };
 
+// ─────────────────────────────────────────────
+// FIX 4: 언어별로 분리된 단순 응답 키워드 목록
+// ─────────────────────────────────────────────
+const ACKNOWLEDGEMENTS = {
+  english: ["thanks", "thank you", "ok", "okay", "got it", "sounds good", "yes", "sure"],
+  korean: ["네", "알겠습니다", "감사합니다", "고맙습니다", "예", "좋습니다"],
+  japanese: ["はい", "了解", "ありがとう", "ありがとうございます", "分かりました"],
+};
+const ALL_ACKNOWLEDGEMENTS = Object.values(ACKNOWLEDGEMENTS).flat();
+
+// ─────────────────────────────────────────────
+// FIX 5: Auto 길이 판단 로직을 별도 함수로 분리
+// FIX 1: 단순 응답 감지 오탐 수정 (.includes 단독 → 길이 조건 병행)
+// FIX 2: 물음표 오버라이드에 글자 수 조건 추가
+// FIX 3: Medium → Long 상향 경로 추가
+// ─────────────────────────────────────────────
+function determineAutoLength(latestMessage) {
+  const latestMessageLower = (latestMessage || "").toLowerCase().trim();
+  const messageLength = (latestMessage || "").length;
+
+  // FIX 1: 단독 일치 OR (짧은 메시지 + includes) 조건으로 오탐 방지
+  const isAcknowledgement =
+    ALL_ACKNOWLEDGEMENTS.some((ack) => latestMessageLower === ack) ||
+    (latestMessageLower.length < 30 &&
+      ALL_ACKNOWLEDGEMENTS.some((ack) => latestMessageLower.includes(ack)));
+
+  if (isAcknowledgement) {
+    console.log("[DEBUG] Auto length: Acknowledgement → Short");
+    return "Strict Short mode: Write exactly 1–2 sentences (maximum ~25 words). Be concise and direct with minimal padding.";
+  }
+
+  let determinedLength = "medium";
+  if (messageLength < 20) determinedLength = "short";
+  else if (messageLength > 120) determinedLength = "long";
+
+  // FIX 2: 물음표 2개 이상이어도 메시지가 충분히 길 때만 Long으로 상향
+  const questionCount = (latestMessage || "").split("?").length - 1;
+  if (questionCount >= 2 && messageLength > 40) {
+    console.log("[DEBUG] Auto length: Multiple questions → Long");
+    determinedLength = "long";
+  }
+
+  const requestWords = [
+    "please", "could you", "can you", "would you", "let me know",
+    "send", "confirm", "제발", "부탁", "해주세요", "주세요",
+    "お願い", "ください", "できますか", "お願いします",
+  ];
+  const hasRequest = requestWords.some((word) =>
+    latestMessageLower.includes(word.toLowerCase())
+  );
+
+  // FIX 3: short → medium 뿐 아니라 medium → long 상향 경로도 추가
+  if (hasRequest && determinedLength === "short") {
+    console.log("[DEBUG] Auto length: Request detected → Medium");
+    determinedLength = "medium";
+  }
+  if (hasRequest && determinedLength === "medium" && messageLength > 80) {
+    console.log("[DEBUG] Auto length: Long request detected → Long");
+    determinedLength = "long";
+  }
+
+  switch (determinedLength) {
+    case "short":
+      return "Strict Short mode: Write exactly 1–2 sentences (maximum ~25 words). Be concise and direct with minimal padding.";
+    case "long":
+      return "Strict Long mode: Write exactly 4–8 sentences (70–150 words). Expand with appreciation, context, clarifications, and a polished closing.";
+    default:
+      return "Strict Medium mode: Write exactly 2–4 sentences (25–70 words). Aim for balanced detail and politeness without sounding verbose.";
+  }
+}
+
 // Helper function to check if user has exceeded their limit
 async function checkUsageLimit(userId) {
   try {
@@ -194,75 +265,14 @@ app.post("/generate-reply", async (req, res) => {
       }
     }
 
-    // Auto length determination - only if frontend didn't provide lengthInstruction
+    // FIX 5: 길이 판단 로직을 분리된 함수로 호출
     let effectiveLengthInstruction = lengthInstruction;
     const length = req.body.length || "auto";
 
     if (!lengthInstruction && length.toLowerCase() === "auto") {
       console.log("[DEBUG] Auto length mode: analyzing message");
-
-      const acknowledgements = [
-        "thanks", "thank you", "ok", "okay", "got it", "sounds good", "yes", "sure",
-        "네", "알겠습니다", "감사합니다", "고맙습니다", "예", "좋습니다",
-        "はい", "了解", "ありがとう", "ありがとうございます", "分かりました",
-      ];
-
-      const latestMessageLower = (latestMessage || "").toLowerCase().trim();
-      const isAcknowledgement = acknowledgements.some(
-        (ack) =>
-          latestMessageLower === ack ||
-          latestMessageLower.includes(ack) ||
-          latestMessageLower.startsWith(ack)
-      );
-
-      if (isAcknowledgement) {
-        console.log("[DEBUG] Auto length: Acknowledgement → Short");
-        effectiveLengthInstruction =
-          "Strict Short mode: Write exactly 1–2 sentences (maximum ~25 words). Be concise and direct with minimal padding.";
-      } else {
-        const messageLength = (latestMessage || "").length;
-        let determinedLength = "medium";
-
-        if (messageLength < 20) determinedLength = "short";
-        else if (messageLength > 120) determinedLength = "long";
-
-        const questionCount = (latestMessage || "").split("?").length - 1;
-        if (questionCount >= 2) {
-          console.log("[DEBUG] Auto length: Multiple questions → Long");
-          determinedLength = "long";
-        }
-
-        const requestWords = [
-          "please", "could you", "can you", "would you", "let me know",
-          "send", "confirm", "제발", "부탁", "해주세요", "주세요",
-          "お願い", "ください", "できますか", "お願いします",
-        ];
-
-        const hasRequest = requestWords.some((word) =>
-          latestMessageLower.includes(word.toLowerCase())
-        );
-
-        if (hasRequest && determinedLength === "short") {
-          console.log("[DEBUG] Auto length: Request detected → at least Medium");
-          determinedLength = "medium";
-        }
-
-        switch (determinedLength) {
-          case "short":
-            effectiveLengthInstruction =
-              "Strict Short mode: Write exactly 1–2 sentences (maximum ~25 words). Be concise and direct with minimal padding.";
-            break;
-          case "long":
-            effectiveLengthInstruction =
-              "Strict Long mode: Write exactly 4–8 sentences (70–150 words). Expand with appreciation, context, clarifications, and a polished closing.";
-            break;
-          default:
-            effectiveLengthInstruction =
-              "Strict Medium mode: Write exactly 2–4 sentences (25–70 words). Aim for balanced detail and politeness without sounding verbose.";
-        }
-
-        console.log("[DEBUG] Auto length determined:", effectiveLengthInstruction);
-      }
+      effectiveLengthInstruction = determineAutoLength(latestMessage);
+      console.log("[DEBUG] Auto length determined:", effectiveLengthInstruction);
     }
 
     // Tone instructions
@@ -301,7 +311,6 @@ app.post("/generate-reply", async (req, res) => {
     const userDisplayName = userName || "";
     let latestSpeakerName = recipientName || "Other";
 
-    // FIX: Both if-blocks were previously left unclosed, causing duplicate code
     if (userDisplayName && recipientName) {
       const normalizedUser = userDisplayName.toLowerCase().trim();
       const normalizedRecipient = recipientName.toLowerCase().trim();
@@ -418,7 +427,6 @@ app.post("/billing/create-checkout-session", async (req, res) => {
         .json({ error: "Invalid plan. Must be 'pro' or 'pro_plus'" });
     }
 
-    // FIX: priceId was used but never defined — now resolved from PLAN_PRICE_IDS
     const priceId = PLAN_PRICE_IDS[targetPlan];
     if (!priceId) {
       return res
