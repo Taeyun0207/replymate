@@ -1042,6 +1042,8 @@ function buildLengthInstructionWithAuto(length, language = DEFAULT_LANGUAGE, aut
   const antiHallucinationRules = `
 CRITICAL—NEVER INVENT FACTS: Do not fabricate dates, times, prices, schedules, release dates, meeting details, locations, URLs, attachments, or any specific information not present in the email or user instructions.
 
+Do not assume facts that were asked as questions. If the sender asks whether something is finalized, available, confirmed, or ready, do not confirm it unless the information is explicitly provided. Use neutral responses or placeholders instead.
+
 If information is missing, use context-aware placeholders integrated naturally into sentences. Examples: [date], [time], [price], [meeting link], [document name], [location], [availability]. Use placeholders in the reply language (EN: [time], KO: [시간], JP: [時間]).
 
 Rules: Placeholders only when info is genuinely missing. If user provides data in optional instructions, use it. Never invent specifics. Write natural professional emails—placeholders should read naturally in context.
@@ -1133,9 +1135,9 @@ async function createReplyMateButton() {
   instructionInput.style.border = "1px solid #ccc";
   instructionInput.style.borderRadius = "4px";
   instructionInput.style.fontSize = "12px";
-  instructionInput.style.width = "350px";
+  instructionInput.style.width = "450px";
   instructionInput.style.minWidth = "150px";
-  instructionInput.style.maxWidth = "300px";
+  instructionInput.style.maxWidth = "500px";
   instructionInput.style.pointerEvents = "auto";
   instructionInput.style.userSelect = "auto";
   instructionInput.style.webkitUserSelect = "auto";
