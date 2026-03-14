@@ -10,7 +10,13 @@
     const url = window.REPLYMATE_SUPABASE_URL;
     const key = window.REPLYMATE_SUPABASE_ANON_KEY;
     if (!url || !key || typeof supabase === "undefined") return null;
-    return supabase.createClient(url, key);
+    return supabase.createClient(url, key, {
+      auth: {
+        persistSession: false,
+        detectSessionInUrl: false,
+        lock: async function(_name, _timeout, fn) { return fn(); }
+      }
+    });
   }
 
   function getStorage() {
@@ -95,8 +101,17 @@
       if (typeof chrome === "undefined" || !chrome.identity) {
         return { error: "Chrome identity API not available" };
       }
-      const clientId = window.REPLYMATE_GOOGLE_CLIENT_ID;
-      if (!clientId) return { error: "Google OAuth client ID not configured" };
+      let clientId = window.REPLYMATE_GOOGLE_CLIENT_ID;
+      if (!clientId && typeof chrome !== "undefined" && chrome.runtime?.getManifest) {
+        const manifest = chrome.runtime.getManifest();
+        const manifestClientId = manifest?.oauth2?.client_id;
+        if (manifestClientId && manifestClientId !== "REPLACE_WITH_GOOGLE_CLIENT_ID") {
+          clientId = manifestClientId;
+        }
+      }
+      if (!clientId || clientId === "REPLACE_WITH_GOOGLE_CLIENT_ID") {
+        return { error: "Google OAuth client ID not configured. Add GOOGLE_CLIENT_ID to replymate-backend/.env and run: node scripts/build-auth-config.js" };
+      }
       const redirectUri = chrome.identity.getRedirectURL();
       const nonce = crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2) + Date.now().toString(36);
       const scope = encodeURIComponent("openid email profile");

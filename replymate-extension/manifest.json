@@ -3,11 +3,17 @@
   "name": "ReplyMate",
   "version": "1.0.1",
   "description": "AI-powered Gmail reply assistant",
-
-  "permissions": ["storage", "identity"],
+  "permissions": [
+    "storage",
+    "identity"
+  ],
   "oauth2": {
-    "client_id": "REPLACE_WITH_GOOGLE_CLIENT_ID",
-    "scopes": ["openid", "email", "profile"]
+    "client_id": "292807400870-mjcg3bqb2ja5ilsjuuk1aifv8551f2je.apps.googleusercontent.com",
+    "scopes": [
+      "openid",
+      "email",
+      "profile"
+    ]
   },
   "icons": {
     "16": "icons/icon16.png",
@@ -15,24 +21,27 @@
     "48": "icons/icon48.png",
     "128": "icons/icon128.png"
   },
-
   "host_permissions": [
     "https://mail.google.com/*",
     "https://replymate-backend-bot8.onrender.com/*",
     "https://*.supabase.co/*",
     "https://accounts.google.com/*"
-  ], 
+  ],
   "background": {
     "service_worker": "background/service-worker.js"
   },
-
   "content_scripts": [
     {
-      "matches": ["https://mail.google.com/*"],
-      "js": ["lib/auth-config.js", "lib/auth-shared.js", "content/gmail.js"]
+      "matches": [
+        "https://mail.google.com/*"
+      ],
+      "js": [
+        "lib/auth-config.js",
+        "lib/auth-shared.js",
+        "content/gmail.js"
+      ]
     }
   ],
-
   "action": {
     "default_title": "ReplyMate",
     "default_popup": "popup/popup.html",
