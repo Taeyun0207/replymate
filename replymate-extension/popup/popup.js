@@ -40,7 +40,7 @@ const TRANSLATIONS = {
     signInWithGoogle: "Sign in with Google",
     signedInAs: "Signed in as",
     signOut: "Sign out",
-    signInRequired: "Please sign in with Google to use ReplyMate."
+    signInRequired: "⚠️ Please sign in with Google to use ReplyMate."
   },
   korean: {
     settings: "ReplyMate 설정",
@@ -71,7 +71,7 @@ const TRANSLATIONS = {
     signInWithGoogle: "Google로 로그인",
     signedInAs: "로그인됨",
     signOut: "로그아웃",
-    signInRequired: "ReplyMate를 사용하려면 Google로 로그인해 주세요."
+    signInRequired: "⚠️ ReplyMate를 사용하려면 Google로 로그인해 주세요."
   },
   japanese: {
     settings: "設定",
@@ -102,7 +102,7 @@ const TRANSLATIONS = {
     signInWithGoogle: "Googleでサインイン",
     signedInAs: "サインイン中",
     signOut: "サインアウト",
-    signInRequired: "ReplyMateをご利用になるには、Googleでサインインしてください。"
+    signInRequired: "⚠️ ReplyMateをご利用になるには、Googleでサインインしてください。"
   }
 };
 
@@ -468,7 +468,10 @@ async function updateLoginUI(language = DEFAULT_LANGUAGE) {
   } else {
     notSignedIn.style.display = "block";
     signedIn.style.display = "none";
-    if (signInBtn) signInBtn.textContent = getTranslation("signInWithGoogle", language);
+    if (signInBtn) {
+      const textEl = signInBtn.querySelector(".gsi-material-button-contents");
+      if (textEl) textEl.textContent = getTranslation("signInWithGoogle", language);
+    }
     if (planUsageEl) planUsageEl.style.display = "none";
     if (upgradeBox) upgradeBox.style.display = "none";
     if (cancelSection) cancelSection.style.display = "none";
@@ -493,13 +496,14 @@ document.addEventListener("DOMContentLoaded", () => {
   const signInButton = document.getElementById("signInButton");
   if (signInButton && typeof ReplyMateAuth !== "undefined") {
     signInButton.addEventListener("click", async () => {
+      const textEl = signInButton.querySelector(".gsi-material-button-contents");
       signInButton.disabled = true;
-      signInButton.textContent = "Signing in...";
+      if (textEl) textEl.textContent = "Signing in...";
       const result = await ReplyMateAuth.signInWithGoogle();
       const language = languageSelect?.value || DEFAULT_LANGUAGE;
       if (result.error) {
         signInButton.disabled = false;
-        signInButton.textContent = getTranslation("signInWithGoogle", language);
+        if (textEl) textEl.textContent = getTranslation("signInWithGoogle", language);
         if (result.error !== "Auth cancelled") alert(result.error);
       } else {
         await updateLoginUI(language);

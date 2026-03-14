@@ -10,13 +10,41 @@
 
   async function getStored(key) {
     return new Promise((resolve) => {
-      chrome.storage.local.get([key], (r) => resolve(r[key] || null));
+      try {
+        if (typeof chrome === "undefined" || !chrome.storage?.local) {
+          resolve(null);
+          return;
+        }
+        chrome.storage.local.get([key], (r) => {
+          try {
+            resolve(r && r[key] !== undefined ? r[key] : null);
+          } catch (err) {
+            resolve(null);
+          }
+        });
+      } catch (err) {
+        resolve(null);
+      }
     });
   }
 
   async function setStored(obj) {
     return new Promise((resolve) => {
-      chrome.storage.local.set(obj, resolve);
+      try {
+        if (typeof chrome === "undefined" || !chrome.storage?.local) {
+          resolve();
+          return;
+        }
+        chrome.storage.local.set(obj, () => {
+          try {
+            resolve();
+          } catch (_) {
+            resolve();
+          }
+        });
+      } catch (_) {
+        resolve();
+      }
     });
   }
 

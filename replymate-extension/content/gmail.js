@@ -96,7 +96,6 @@ const REPLYMATE_LANGUAGE_KEY = "replymateLanguage";
 const DEFAULT_TONE = "auto";
 const DEFAULT_LENGTH = "auto";
 const DEFAULT_LANGUAGE = "english";
-const FREE_PLAN_LIMIT = 25; // Matches backend PLAN_LIMIT_FREE
 
 // Language translations for Gmail UI
 const TRANSLATIONS = {
@@ -108,8 +107,8 @@ const TRANSLATIONS = {
     limitReached: "Limit reached",
     usageUnavailable: "Usage unavailable",
     monthlyLimitReached: "⚠️You've reached your monthly ReplyMate limit. Upgrade to generate more replies.",
-    replyLimitReached: "ReplyMate limit reached. Upgrade to generate more replies.",
-    signInRequired: "Please sign in with Google to use ReplyMate.",
+    replyLimitReached: "⚠️ ReplyMate limit reached. Upgrade to generate more replies.",
+    signInRequired: "⚠️ Please sign in with Google to use ReplyMate.",
     planNames: {
       free: "Free Plan",
       pro: "Pro",
@@ -129,8 +128,8 @@ const TRANSLATIONS = {
     limitReached: "한도 도달",
     usageUnavailable: "사용량을 사용할 수 없음",
     monthlyLimitReached: "⚠️월간 ReplyMate 한도에 도달했습니다. 더 많은 답장을 생성하려면 업그레이드하세요.",
-    replyLimitReached: "ReplyMate 한도에 도달했습니다. 더 많은 답장을 생성하려면 업그레이드하세요.",
-    signInRequired: "ReplyMate를 사용하려면 Google로 로그인해 주세요.",
+    replyLimitReached: "⚠️ ReplyMate 한도에 도달했습니다. 더 많은 답장을 생성하려면 업그레이드하세요.",
+    signInRequired: "⚠️ ReplyMate를 사용하려면 Google로 로그인해 주세요.",
     planNames: {
       free: "무료 플랜",
       pro: "Pro",
@@ -150,8 +149,8 @@ const TRANSLATIONS = {
     limitReached: "利用上限に達しました",
     usageUnavailable: "現在この機能は利用できません",
     monthlyLimitReached: "⚠️ 今月の返信回数の上限に達しました。続けて利用するには、プランをアップグレードしてください。",
-    replyLimitReached: "返信回数の上限に達しました。続けて利用するには、プランをアップグレードしてください。",
-    signInRequired: "ReplyMateをご利用になるには、Googleでサインインしてください。",
+    replyLimitReached: "⚠️ 返信回数の上限に達しました。続けて利用するには、プランをアップグレードしてください。",
+    signInRequired: "⚠️ ReplyMateをご利用になるには、Googleでサインインしてください。",
     planNames: {
       free: "無料プラン",
       pro: "Pro",
@@ -175,24 +174,19 @@ function getTranslation(key, language = DEFAULT_LANGUAGE) {
 async function getCurrentLanguage() {
   return new Promise((resolve) => {
     try {
-      // chrome 객체와 chrome.storage가 존재하는지 먼저 확인
-      if (typeof chrome === 'undefined' || !chrome.storage || !chrome.storage.local) {
-        console.warn("[ReplyMate] Chrome storage API not available, using default language");
+      if (typeof chrome === 'undefined' || !chrome.storage?.local) {
         resolve(DEFAULT_LANGUAGE);
         return;
       }
-      
       chrome.storage.local.get([REPLYMATE_LANGUAGE_KEY], (result) => {
-        // Check for extension context invalidation
-        if (chrome.runtime.lastError) {
-          console.warn("[ReplyMate] Chrome storage error:", chrome.runtime.lastError.message);
+        try {
+          if (chrome?.runtime?.lastError) resolve(DEFAULT_LANGUAGE);
+          else resolve(result?.[REPLYMATE_LANGUAGE_KEY] || DEFAULT_LANGUAGE);
+        } catch (_) {
           resolve(DEFAULT_LANGUAGE);
-          return;
         }
-        resolve(result[REPLYMATE_LANGUAGE_KEY] || DEFAULT_LANGUAGE);
       });
-    } catch (error) {
-      console.warn("[ReplyMate] Chrome storage not available, using default language:", error);
+    } catch (_) {
       resolve(DEFAULT_LANGUAGE);
     }
   });
@@ -212,22 +206,18 @@ function loadReplyMateSettings() {
       chrome.storage.local.get(
         [REPLYMATE_TONE_KEY, REPLYMATE_LENGTH_KEY, REPLYMATE_USER_NAME_KEY],
         (result) => {
-          // Check for extension context invalidation
-          if (chrome.runtime.lastError) {
-            console.warn("[ReplyMate] Chrome storage error:", chrome.runtime.lastError.message);
+          try {
+            if (chrome?.runtime?.lastError) {
+              resolve({ tone: DEFAULT_TONE, length: DEFAULT_LENGTH, userName: "" });
+              return;
+            }
+            const tone = result?.[REPLYMATE_TONE_KEY] || DEFAULT_TONE;
+            const length = result?.[REPLYMATE_LENGTH_KEY] || DEFAULT_LENGTH;
+            const userName = result?.[REPLYMATE_USER_NAME_KEY] || "";
+            resolve({ tone, length, userName });
+          } catch (_) {
             resolve({ tone: DEFAULT_TONE, length: DEFAULT_LENGTH, userName: "" });
-            return;
           }
-          
-          const tone = result?.[REPLYMATE_TONE_KEY] || DEFAULT_TONE;
-          const length = result?.[REPLYMATE_LENGTH_KEY] || DEFAULT_LENGTH;
-          const userName = result?.[REPLYMATE_USER_NAME_KEY] || "";
-          
-          // Debug log for userName
-          console.log("[ReplyMate Debug] Loaded settings.userName:", userName);
-          console.log("[ReplyMate Debug] Storage result for userName key:", result?.[REPLYMATE_USER_NAME_KEY]);
-          
-          resolve({ tone, length, userName });
         }
       );
     } catch (error) {
@@ -270,13 +260,15 @@ function getCachedUsage() {
       }
       
       chrome.storage.local.get([USAGE_CACHE_KEY], (result) => {
-        if (result && result[USAGE_CACHE_KEY]) {
-          const { data, timestamp } = result[USAGE_CACHE_KEY];
-          if (Date.now() - timestamp < USAGE_CACHE_TTL) {
-            resolve(data);
-            return;
+        try {
+          if (result && result[USAGE_CACHE_KEY]) {
+            const { data, timestamp } = result[USAGE_CACHE_KEY];
+            if (Date.now() - timestamp < USAGE_CACHE_TTL) {
+              resolve(data);
+              return;
+            }
           }
-        }
+        } catch (_) {}
         resolve(null);
       });
     } catch (error) {
@@ -344,15 +336,11 @@ async function getUsageData() {
   return await fetchUsageFromBackend();
 }
 
-// Format usage display text with plan name and limit (with language support)
+// Format usage display text - plan name only (same for pre-login and logged-in free plan)
 function formatUsageDisplay(plan, remaining, limit, language = DEFAULT_LANGUAGE) {
   const planTranslations = TRANSLATIONS[language]?.planNames || TRANSLATIONS.english.planNames;
   const planName = planTranslations[plan] || planTranslations.free || "Free Plan";
-  const repliesLeft = getTranslation("repliesLeft", language);
-  if (limit !== undefined && remaining !== undefined) {
-    return `${planName} · ${remaining} / ${limit} ${repliesLeft}`;
-  }
-  return `${planName}`;
+  return planName;
 }
 
 // Shared function to update all usage displays from backend data (with language support)
@@ -434,9 +422,9 @@ async function updateUsageDisplay(usageDisplay) {
     if (usageData) {
       await updateUsageDisplayFromData(usageData);
     } else {
-      // Not logged in: show free plan default (25/25) to encourage signup
+      // Not logged in: show "Free Plan" (same as logged-in free plan)
       if (usageDisplay) {
-        usageDisplay.textContent = formatUsageDisplay("free", FREE_PLAN_LIMIT, FREE_PLAN_LIMIT, language);
+        usageDisplay.textContent = formatUsageDisplay("free", 0, 0, language);
       }
     }
 
@@ -444,7 +432,7 @@ async function updateUsageDisplay(usageDisplay) {
     console.error("[ReplyMate] Failed to update usage display:", error);
     const language = await getCurrentLanguage();
     if (usageDisplay) {
-      usageDisplay.textContent = formatUsageDisplay("free", FREE_PLAN_LIMIT, FREE_PLAN_LIMIT, language);
+      usageDisplay.textContent = formatUsageDisplay("free", 0, 0, language);
     }
   }
 }
@@ -585,50 +573,48 @@ async function generateAIReply(payload) {
 }
 
 // Show ReplyMate message to user (with language support)
-async function showReplyMateMessage(message) {
-  const language = await getCurrentLanguage();
-  
-  // Create a temporary message element
-  const messageEl = document.createElement("div");
-  messageEl.textContent = message;
-  messageEl.style.cssText = `
-    position: fixed;
-    right: 20px;
-    bottom: 20px;
-    left: auto;
-    transform: none;
-    background: #f8f9fa;
-    color: #333;
-    padding: 12px 16px;
-    border-radius: 8px;
-    border: 1px solid #ddd;
-    font-size: 14px;
-    font-weight: 500;
-    z-index: 2147483647;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.1);
-    max-width: min(380px, calc(100vw - 24px));
-    width: max-content;
-    box-sizing: border-box;
-    word-wrap: break-word;
-    white-space: normal;
-  `;
-  
-  // Add dark mode styles
-  if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
-    messageEl.style.background = '#2d2e30';
-    messageEl.style.color = '#e8eaed';
-    messageEl.style.borderColor = '#5f6368';
-  }
-  
-  // Append to document.body to avoid Gmail container clipping
-  document.body.appendChild(messageEl);
-  
-  // Remove after 5 seconds
-  setTimeout(() => {
-    if (messageEl.parentNode) {
-      messageEl.parentNode.removeChild(messageEl);
+async function showReplyMateMessage(message, anchorElement = null) {
+  try {
+    const messageEl = document.createElement("div");
+    messageEl.textContent = message;
+    messageEl.className = "replymate-toast-message";
+    messageEl.style.cssText = `
+      position: fixed;
+      right: 20px;
+      bottom: 20px;
+      z-index: 2147483647;
+      background: #f8f9fa;
+      color: #333;
+      padding: 14px 20px;
+      border-radius: 8px;
+      border: 1px solid #ddd;
+      font-size: 14px;
+      font-weight: 500;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+      max-width: min(360px, calc(100vw - 40px));
+      width: max-content;
+      box-sizing: border-box;
+      word-wrap: break-word;
+      white-space: normal;
+      pointer-events: auto;
+    `;
+
+    if (window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+      messageEl.style.background = '#2d2e30';
+      messageEl.style.color = '#e8eaed';
+      messageEl.style.borderColor = '#5f6368';
     }
-  }, REPLYMATE_CONFIG.ui.timeouts.message); // Use config timeout
+
+    document.body.appendChild(messageEl);
+
+    setTimeout(() => {
+      if (messageEl.parentNode) {
+        messageEl.parentNode.removeChild(messageEl);
+      }
+    }, REPLYMATE_CONFIG.ui.timeouts.message);
+  } catch (err) {
+    console.error("[ReplyMate] showReplyMateMessage error:", err);
+  }
 }
 
 // Use configuration colors instead of hardcoded values
@@ -1163,10 +1149,22 @@ async function createReplyMateButton() {
     }
 
     // Login required for AI reply
-    if (!(await isLoggedIn())) {
-      const language = await getCurrentLanguage();
-      showReplyMateMessage(getTranslation("signInRequired", language));
-      chrome.runtime.sendMessage({ type: "OPEN_POPUP_FOR_LOGIN" }).catch(() => {});
+    try {
+      if (!(await isLoggedIn())) {
+        const language = await getCurrentLanguage();
+        await showReplyMateMessage(getTranslation("signInRequired", language), button);
+        try {
+          chrome.runtime.sendMessage({ type: "OPEN_POPUP_FOR_LOGIN" }).catch(() => {});
+        } catch (_) {}
+        await setReplyMateButtonState(button, "error");
+        setTimeout(async () => await setReplyMateButtonState(button, "idle"), 3000);
+        return;
+      }
+    } catch (err) {
+      const msg = err?.message?.includes("Extension context invalidated")
+        ? "ReplyMate was updated. Please refresh this page to continue."
+        : getTranslation("signInRequired", DEFAULT_LANGUAGE);
+      await showReplyMateMessage("⚠️ " + msg, button);
       await setReplyMateButtonState(button, "error");
       setTimeout(async () => await setReplyMateButtonState(button, "idle"), 3000);
       return;
@@ -1210,7 +1208,7 @@ async function createReplyMateButton() {
       });
       
       await setReplyMateButtonState(button, "error");
-      showReplyMateMessage("Unable to extract email content. Please try refreshing the page.");
+      showReplyMateMessage("⚠️ Unable to extract email content. Please try refreshing the page.");
       setTimeout(async () => await setReplyMateButtonState(button, "idle"), 3000);
       return;
     }
@@ -1321,12 +1319,12 @@ Length: ${finalLength}
         );
         usageDisplay.textContent = formattedText;
       } else {
-        // Not logged in: show free plan default (25/25) to encourage signup
-        usageDisplay.textContent = formatUsageDisplay("free", FREE_PLAN_LIMIT, FREE_PLAN_LIMIT, language);
+        // Not logged in: show "Free Plan" (same as logged-in free plan)
+        usageDisplay.textContent = formatUsageDisplay("free", 0, 0, language);
       }
     } catch (error) {
       console.error("[ReplyMate] Failed to fetch initial usage:", error);
-      usageDisplay.textContent = formatUsageDisplay("free", FREE_PLAN_LIMIT, FREE_PLAN_LIMIT, language);
+      usageDisplay.textContent = formatUsageDisplay("free", 0, 0, language);
     }
   })();
   
@@ -2291,11 +2289,23 @@ Length: ${finalLength}
       }
 
       // Login required for AI reply
-      const token = await getAccessToken();
-      if (!token) {
-        const language = await getCurrentLanguage();
-        showReplyMateMessage(getTranslation("signInRequired", language));
-        chrome.runtime.sendMessage({ type: "OPEN_POPUP_FOR_LOGIN" }).catch(() => {});
+      try {
+        const token = await getAccessToken();
+        if (!token) {
+          const language = await getCurrentLanguage();
+          await showReplyMateMessage(getTranslation("signInRequired", language), button);
+          try {
+            chrome.runtime.sendMessage({ type: "OPEN_POPUP_FOR_LOGIN" }).catch(() => {});
+          } catch (_) {}
+          await setReplyMateButtonState(button, "error");
+          setTimeout(async () => await setReplyMateButtonState(button, "idle"), 3000);
+          return;
+        }
+      } catch (err) {
+        const msg = err?.message?.includes("Extension context invalidated")
+          ? "ReplyMate was updated. Please refresh this page to continue."
+          : getTranslation("signInRequired", DEFAULT_LANGUAGE);
+        await showReplyMateMessage("⚠️ " + msg, button);
         await setReplyMateButtonState(button, "error");
         setTimeout(async () => await setReplyMateButtonState(button, "idle"), 3000);
         return;
