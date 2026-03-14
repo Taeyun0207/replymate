@@ -456,9 +456,44 @@ app.post("/billing/create-checkout-session", async (req, res) => {
   } catch (error) {
     console.error("Stripe checkout session error:", error);
     res.status(500).json({ error: "Failed to create checkout session" });
-    console.log("ENV STRIPE_PRICE_PRO:", process.env.STRIPE_PRICE_PRO);
-console.log("ENV STRIPE_PRICE_PRO_PLUS:", process.env.STRIPE_PRICE_PRO_PLUS);
-console.log("Requested targetPlan:", targetPlan);
+  }
+});
+
+// Cancel subscription at period end
+app.post("/billing/cancel-subscription", async (req, res) => {
+  try {
+    const userId = req.headers["x-user-id"] || "default_user";
+
+    const user = await getUser(userId);
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    if (!["pro", "pro_plus"].includes(user.plan)) {
+      return res.status(400).json({ error: "Only pro or pro_plus users can cancel" });
+    }
+
+    const subscriptionId = user.stripeSubscriptionId;
+    if (!subscriptionId) {
+      return res.status(400).json({ error: "No active subscription found" });
+    }
+
+    const subscription = await stripe.subscriptions.update(subscriptionId, {
+      cancel_at_period_end: true,
+    });
+
+    const periodEnd = subscription.current_period_end;
+    const periodEndDate = new Date(periodEnd * 1000).toISOString();
+    const remainingDays = Math.ceil((periodEnd * 1000 - Date.now()) / (24 * 60 * 60 * 1000));
+
+    res.json({
+      success: true,
+      cancelAt: periodEndDate,
+      remainingDays: Math.max(0, remainingDays),
+    });
+  } catch (error) {
+    console.error("Cancel subscription error:", error);
+    res.status(500).json({ error: "Failed to cancel subscription" });
   }
 });
 

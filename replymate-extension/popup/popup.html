@@ -273,6 +273,22 @@ option {
     .footer a:hover {
       text-decoration: underline;
     }
+
+    .cancel-section {
+      margin-top: 10px;
+      text-align: center;
+    }
+
+    .cancel-link {
+      font-size: 12px;
+      color: var(--muted);
+      text-decoration: none;
+      cursor: pointer;
+    }
+
+    .cancel-link:hover {
+      text-decoration: underline;
+    }
   </style>
 </head>
 <body>
@@ -334,6 +350,10 @@ option {
       <a id="upgradeProLink" href="#" class="upgrade-link upgrade-pro">Upgrade to Pro</a>
       <a id="upgradeProPlusLink" href="#" class="upgrade-link upgrade-pro-plus">Upgrade to Pro+</a>
     </div>
+  </div>
+  
+  <div id="cancelSection" class="cancel-section" style="display: none;">
+    <a id="cancelSubscriptionLink" href="#" class="cancel-link">Cancel Subscription</a>
   </div>
   
   <div class="footer">

@@ -32,7 +32,11 @@ const TRANSLATIONS = {
       pro: "Pro",
       pro_plus: "Pro+"
     },
-    repliesLeft: "replies left"
+    repliesLeft: "replies left",
+    cancelSubscription: "Cancel Subscription",
+    cancelConfirmMessage: "Are you sure you want to cancel your subscription? You will still be able to use ReplyMate until the end of your current billing period.",
+    cancelSuccessMessage: "Subscription cancellation scheduled. You can continue using ReplyMate for {days} more days.",
+    cancelError: "Failed to cancel subscription."
   },
   korean: {
     settings: "ReplyMate 설정",
@@ -55,7 +59,11 @@ const TRANSLATIONS = {
       pro: "Pro",
       pro_plus: "Pro+"
     },
-    repliesLeft: "답장 남음"
+    repliesLeft: "답장 남음",
+    cancelSubscription: "구독 취소",
+    cancelConfirmMessage: "구독을 취소하시겠습니까? 현재 결제 기간이 끝날 때까지 ReplyMate를 계속 사용할 수 있습니다.",
+    cancelSuccessMessage: "구독 취소가 예약되었습니다. ReplyMate를 {days}일 더 사용할 수 있습니다.",
+    cancelError: "구독 취소에 실패했습니다."
   },
   japanese: {
     settings: "設定",
@@ -78,7 +86,11 @@ const TRANSLATIONS = {
       pro: "Pro",
       pro_plus: "Pro+"
     },
-    repliesLeft: "残り返信可能数"
+    repliesLeft: "残り返信可能数",
+    cancelSubscription: "サブスクリプションをキャンセル",
+    cancelConfirmMessage: "サブスクリプションをキャンセルしますか？現在の請求期間が終わるまでReplyMateをご利用いただけます。",
+    cancelSuccessMessage: "サブスクリプションのキャンセルが予約されました。あと{days}日間ReplyMateをご利用いただけます。",
+    cancelError: "キャンセルに失敗しました。"
   }
 };
 
@@ -217,8 +229,20 @@ function updateUpgradeLink(plan, language = DEFAULT_LANGUAGE) {
   const upgradeTitle = document.querySelector(".upgrade-title");
   const upgradeBox = document.querySelector(".upgrade-box");
   const upgradeButtons = document.querySelector(".upgrade-buttons");
+  const cancelSection = document.getElementById("cancelSection");
+  const cancelLink = document.getElementById("cancelSubscriptionLink");
   
   if (!upgradeProLink || !upgradeProPlusLink || !upgradeTitle || !upgradeBox || !upgradeButtons) return;
+
+  // Show cancel section only for pro / pro_plus
+  if (cancelSection && cancelLink) {
+    if (plan === "pro" || plan === "pro_plus") {
+      cancelSection.style.display = "block";
+      cancelLink.textContent = getTranslation("cancelSubscription", language);
+    } else {
+      cancelSection.style.display = "none";
+    }
+  }
 
   console.log(`[ReplyMate] Rendering billing UI for plan: ${plan}`);
 
@@ -438,6 +462,33 @@ document.addEventListener("DOMContentLoaded", () => {
         type: "CREATE_STRIPE_CHECKOUT",
         targetPlan: "pro_plus"
       });
+    });
+  }
+
+  // Add click handler for Cancel Subscription link
+  const cancelSubscriptionLink = document.getElementById("cancelSubscriptionLink");
+  if (cancelSubscriptionLink) {
+    cancelSubscriptionLink.addEventListener("click", async (e) => {
+      e.preventDefault();
+      const language = languageSelect?.value || DEFAULT_LANGUAGE;
+      const confirmMsg = getTranslation("cancelConfirmMessage", language);
+      if (!confirm(confirmMsg)) return;
+      try {
+        const userId = await getReplyMateUserId();
+        const response = await fetch("https://replymate-backend-bot8.onrender.com/billing/cancel-subscription", {
+          method: "POST",
+          headers: { "X-User-ID": userId },
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data.error || "Failed");
+        const days = data.remainingDays ?? 0;
+        const successMsg = getTranslation("cancelSuccessMessage", language).replace("{days}", days);
+        alert(successMsg);
+        setCachedUsage(null);
+        loadUsageData(language);
+      } catch (err) {
+        alert(getTranslation("cancelError", language));
+      }
     });
   }
 
