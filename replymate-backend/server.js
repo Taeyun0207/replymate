@@ -380,6 +380,7 @@ ${additionalInstruction ? `- Additional instruction: ${additionalInstruction}` :
           },
         ],
         temperature: 0.7,
+        max_tokens: parseInt(process.env.OPENAI_MAX_TOKENS, 10) || 512,
       });
 
       const reply = completion.choices?.[0]?.message?.content?.trim();
@@ -406,7 +407,7 @@ ${additionalInstruction ? `- Additional instruction: ${additionalInstruction}` :
       console.error("OpenAI generation error:", errMsg);
       res.status(500).json({
         error: "Failed to generate AI reply.",
-        detail: process.env.NODE_ENV === "development" ? errMsg : undefined,
+        detail: errMsg,
       });
     }
   } catch (error) {
