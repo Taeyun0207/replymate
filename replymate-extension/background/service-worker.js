@@ -1,5 +1,5 @@
 // ReplyMate background service worker (MV3).
-importScripts("lib/auth-config.js", "lib/auth-shared.js");
+importScripts("../lib/auth-config.js", "../lib/auth-shared.js");
 
 // Shared function to create Stripe checkout session (requires auth)
 async function createStripeCheckout(targetPlan) {
