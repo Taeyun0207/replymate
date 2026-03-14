@@ -1135,9 +1135,9 @@ async function createReplyMateButton() {
   instructionInput.style.border = "1px solid #ccc";
   instructionInput.style.borderRadius = "4px";
   instructionInput.style.fontSize = "12px";
-  instructionInput.style.width = "450px";
+  instructionInput.style.width = "350px";
   instructionInput.style.minWidth = "150px";
-  instructionInput.style.maxWidth = "500px";
+  instructionInput.style.maxWidth = "300px";
   instructionInput.style.pointerEvents = "auto";
   instructionInput.style.userSelect = "auto";
   instructionInput.style.webkitUserSelect = "auto";
