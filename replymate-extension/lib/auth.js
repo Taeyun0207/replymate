@@ -113,7 +113,9 @@
         return { error: "Google OAuth client ID not configured. Add GOOGLE_CLIENT_ID to replymate-backend/.env and run: node scripts/build-auth-config.js" };
       }
       const redirectUri = chrome.identity.getRedirectURL();
-      const nonce = crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2) + Date.now().toString(36);
+      const rawNonce = crypto.randomUUID ? crypto.randomUUID() : Math.random().toString(36).slice(2) + Date.now().toString(36);
+      const hashBuf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(rawNonce));
+      const hashHex = Array.from(new Uint8Array(hashBuf)).map((b) => b.toString(16).padStart(2, "0")).join("");
       const scope = encodeURIComponent("openid email profile");
       const authUrl =
         "https://accounts.google.com/o/oauth2/v2/auth?" +
@@ -121,10 +123,7 @@
         "&redirect_uri=" + encodeURIComponent(redirectUri) +
         "&response_type=id_token" +
         "&scope=" + scope +
-        "&nonce=" + encodeURIComponent(nonce);
-        console.log("clientId:", clientId);
-        console.log("redirectUri:", redirectUri);
-        console.log("authUrl:", authUrl);
+        "&nonce=" + encodeURIComponent(hashHex);
       return new Promise((resolve) => {
         chrome.identity.launchWebAuthFlow(
           { url: authUrl, interactive: true },
@@ -156,6 +155,7 @@
             const { data, error } = await client.auth.signInWithIdToken({
               provider: "google",
               token: idToken,
+              nonce: rawNonce,
             });
             if (error) {
               resolve({ error: error.message });
