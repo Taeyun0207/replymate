@@ -367,7 +367,7 @@ ${additionalInstruction ? `- Additional instruction: ${additionalInstruction}` :
 
     try {
       const completion = await openai.chat.completions.create({
-        model: process.env.OPENAI_MODEL || "gpt-5-mini",
+        model: process.env.OPENAI_MODEL || "gpt-4o-mini",
         messages: [
           {
             role: "system",
@@ -379,7 +379,8 @@ ${additionalInstruction ? `- Additional instruction: ${additionalInstruction}` :
             content: prompt,
           },
         ],
-        max_completion_tokens: parseInt(process.env.OPENAI_MAX_TOKENS, 10) || 1024,
+        temperature: 0.7,
+        max_tokens: parseInt(process.env.OPENAI_MAX_TOKENS, 10) || 512,
       });
 
       const reply = completion.choices?.[0]?.message?.content?.trim();
