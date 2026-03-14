@@ -4,8 +4,9 @@ require("dotenv").config();
 const OpenAI = require("openai");
 const { createClient } = require("@supabase/supabase-js");
 const { PLAN_LIMITS } = require("./src/config/plans");
-const { getUser, updateUserPlan, recordUsage } = require("./src/database");
+const { getUser, updateUserPlan, recordUsage, testConnection } = require("./src/database");
 const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
+
 
 const supabase = createClient(
   process.env.SUPABASE_URL || "",
@@ -116,26 +117,15 @@ function determineAutoLength(latestMessage) {
 
 // Helper function to check if user has exceeded their limit
 async function checkUsageLimit(userId) {
-  try {
-    const usage = await getUser(userId);
-    const limit = PLAN_LIMITS[usage.plan] || PLAN_LIMITS.free;
-    return {
-      proceed: usage.used < limit,
-      remaining: Math.max(0, limit - usage.used),
-      used: usage.used,
-      limit: limit,
-      plan: usage.plan,
-    };
-  } catch (error) {
-    console.error("Error checking usage limit:", error);
-    return {
-      proceed: false,
-      remaining: 0,
-      used: 0,
-      limit: PLAN_LIMITS.free,
-      plan: "free",
-    };
-  }
+  const usage = await getUser(userId);
+  const limit = PLAN_LIMITS[usage.plan] || PLAN_LIMITS.free;
+  return {
+    proceed: usage.used < limit,
+    remaining: Math.max(0, limit - usage.used),
+    used: usage.used,
+    limit: limit,
+    plan: usage.plan,
+  };
 }
 
 app.use(cors());
@@ -164,6 +154,7 @@ app.post(
 
     if (event.type === "checkout.session.completed") {
       const session = event.data.object;
+      console.log("[Stripe] Webhook received: checkout.session.completed", "metadata:", session.metadata);
 
       try {
         const { userId, targetPlan } = session.metadata;
@@ -214,14 +205,27 @@ app.get("/", (req, res) => {
   res.send("ReplyMate backend is running.");
 });
 
+// Debug: test Supabase connection (check Render logs)
+app.get("/api/db-check", async (req, res) => {
+  try {
+    await testConnection();
+    console.log("[DB-Check] OK");
+    res.json({ ok: true, message: "Supabase connected" });
+  } catch (e) {
+    console.error("[DB-Check] Failed:", e?.message, e?.details);
+    res.status(500).json({ ok: false, error: e?.message || String(e) });
+  }
+});
+
 // Get current usage (requires auth)
 app.get("/usage", requireAuth, async (req, res) => {
   try {
     const userId = req.userId;
     const usage = await checkUsageLimit(userId);
+    console.log("[Usage] userId:", userId?.slice(0, 8) + "...", "plan:", usage?.plan, "used:", usage?.used);
     res.json(usage);
   } catch (error) {
-    console.error("Error getting usage:", error);
+    console.error("[Usage] Error:", error?.message || error);
     res.status(500).json({ error: "Failed to get usage" });
   }
 });

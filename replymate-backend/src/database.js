@@ -218,9 +218,20 @@ function closeDatabase() {
   // No-op: Supabase client does not require explicit connection close
 }
 
+async function testConnection() {
+  const { data, error } = await supabase
+    .from(TABLE_NAME)
+    .select("user_id")
+    .limit(1)
+    .maybeSingle();
+  if (error) throw error;
+  return true;
+}
+
 module.exports = {
   getUser,
   updateUserPlan,
   recordUsage,
   closeDatabase,
+  testConnection,
 };
