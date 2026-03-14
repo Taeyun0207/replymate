@@ -122,6 +122,9 @@
         "&response_type=id_token" +
         "&scope=" + scope +
         "&nonce=" + encodeURIComponent(nonce);
+        console.log("clientId:", clientId);
+        console.log("redirectUri:", redirectUri);
+        console.log("authUrl:", authUrl);
       return new Promise((resolve) => {
         chrome.identity.launchWebAuthFlow(
           { url: authUrl, interactive: true },
