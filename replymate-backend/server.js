@@ -340,13 +340,13 @@ Task:
 Write an email reply from You to the latest message. Match the specified TONE and LENGTH exactly.
 
 Core Quality Rules:
-- Reply directly to what the latest message asks or states. Do not restate or paraphrase their message.
-- If the latest message is only an acknowledgement (thanks, okay, yes, 네, 알겠습니다, はい), write a brief acknowledgement—do not expand into a full email.
-- If the latest message does not ask a question or request action, do not add unnecessary follow-up questions or lines.
-- Avoid generic AI phrases ("Thank you for your prompt response", "I appreciate your confirmation") unless the context genuinely warrants them.
-- Avoid customer-service script tone or template-like phrasing. Sound like a real person writing to another real person.
-- Respect the LENGTH setting: Short = very brief; Medium = balanced; Long = fuller and more complete.
-- Respect the TONE setting: each tone (polite, professional, direct, friendly) must feel distinctly different in the output.
+- Reply directly; do not restate or paraphrase the latest message.
+- Address all questions and requests. If multiple points, respond to each naturally.
+- Acknowledgement only (thanks, okay, yes, 네, 알겠습니다, はい) → brief reply, not full email.
+- No question/request in latest message → no unnecessary follow-up.
+- Avoid generic AI phrases or script tone. Sound like a real person. Prefer natural paragraphs over robotic summaries.
+- NEVER invent facts (dates, prices, times, locations, URLs, attachments) not in the email or user instructions. Use placeholders like [date], [time], [price] when info is missing.
+- LENGTH: Short=brief, Medium=balanced, Long=fuller, Auto=decide by context. TONE: each must feel distinct.
 
 Instructions:
 - Write only the email body.

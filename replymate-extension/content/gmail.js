@@ -114,7 +114,7 @@ const TRANSLATIONS = {
       pro_plus: "Pro+"
     },
     repliesLeft: "replies left",
-    instructionPlaceholder: "Optional instructions (e.g. mention tomorrow)...",
+    instructionPlaceholder: "Additional details (optional, e.g. date, time, location).",
     upgradeToPro: "Upgrade to Pro",
     upgradeToProPlus: "Upgrade to Pro+",
     enjoyReplyMate: "Enjoy ReplyMate!"
@@ -134,7 +134,7 @@ const TRANSLATIONS = {
       pro_plus: "Pro+"
     },
     repliesLeft: "답장 남음",
-    instructionPlaceholder: "선택적 지침 추가 (예: 내일 언급해줘)...",
+    instructionPlaceholder: "추가 정보 입력 (선택 사항, 예: 날짜, 시간)",
     upgradeToPro: "Pro로 업그레이드",
     upgradeToProPlus: "Pro+로 업그레이드",
     enjoyReplyMate: "ReplyMate를 즐겨보세요!"
@@ -154,7 +154,7 @@ const TRANSLATIONS = {
       pro_plus: "Pro+"
     },
     repliesLeft: "残り返信可能数",
-    instructionPlaceholder: "追加の指示（例：明日について言及してください）...",
+    instructionPlaceholder: "追加情報（任意：日付、時間 など）",
     upgradeToPro: "Proにアップグレード",
     upgradeToProPlus: "Pro+にアップグレード",
     enjoyReplyMate: "ReplyMateをお楽しみください！"
@@ -697,11 +697,23 @@ function attachReplyMateButtonHoverStyles(button) {
   });
 }
 
-// Auto mode instructions for different languages
+// Auto mode: intelligent length—no strict limits. AI decides based on context.
 const autoInstructions = {
-  english: "AUTO MODE: Choose the best length for this specific email. Be intentional—match reply length to what the message needs.\n\nRULES (apply in order):\n1. Acknowledgement only (thanks, ok, got it, yes, 알겠습니다, はい) → SHORT: 1–2 sentences, ~20 words max.\n2. Simple question or short request → MEDIUM: 3–5 sentences, 25–70 words.\n3. Multiple questions (2+), complex request, or long message (>120 chars) → LONG: 6–9 sentences, 70–150 words.\n4. Request words (please, could you, 부탁, お願い, send, confirm) with substantial message → at least MEDIUM.\n\nOutput must feel right for the situation—Short when brief fits; Long when the message deserves a fuller response.",
-  korean: "AUTO MODE: 이 이메일에 가장 적합한 길이를 선택하세요. 의도적으로—메시지가 필요로 하는 길이에 맞추세요.\n\n규칙 (순서대로):\n1. 확인만 (감사, ok, 알겠습니다, 예, はい) → SHORT: 1–2문장, 최대 ~20단어.\n2. 단순 질문 또는 짧은 요청 → MEDIUM: 3–5문장, 25–70단어.\n3. 여러 질문(2+), 복잡한 요청, 또는 긴 메시지(>120자) → LONG: 6–9문장, 70–150단어.\n4. 요청 표현(제발, 부탁, お願い, 보내, 확인) + 충분한 메시지 → 최소 MEDIUM.\n\n상황에 맞는 길이로—짧을 때는 짧게, 길어야 할 때는 충분히 길게.",
-  japanese: "AUTO MODE: このメールに最適な長さを選択してください。意図的に—メッセージが必要とする長さに合わせてください。\n\nルール（順に適用）:\n1. 確認のみ（ありがとう、OK、はい、알겠습니다）→ SHORT: 1〜2文、最大〜20語。\n2. 単純な質問または短い依頼 → MEDIUM: 3〜5文、25〜70語。\n3. 複数の質問（2+）、複雑な依頼、または長いメッセージ（>120文字）→ LONG: 6〜9文、70〜150語。\n4. 依頼表現（お願い、ください、부탁、送信、確認）+ 十分なメッセージ → 最低MEDIUM。\n\n状況に合った長さに—短い時は短く、長い時は十分に長く。"
+  english: `AUTO LENGTH: Decide reply length based on the email's actual needs. No strict Short/Medium/Long limits.
+
+Consider: number of questions or requests, discussion points, complexity, required explanation, email length.
+Aim for concise completeness: address all important points, avoid unnecessary verbosity, do not shorten just because the email could be summarized.
+Acknowledgement-only (thanks, ok, got it, yes, 알겠습니다, はい) → brief reply. Otherwise, reply length can exceed typical Long if the situation requires it.`,
+  korean: `AUTO LENGTH: 이메일의 실제 필요에 따라 답장 길이를 결정하세요. Short/Medium/Long 제한 없음.
+
+고려: 질문/요청 수, 논의 포인트, 복잡도, 필요한 설명, 이메일 길이.
+간결한 완전성: 모든 중요한 포인트를 다루고, 불필요한 장황함은 피하며, 요약 가능하다고 해서 짧게 쓰지 마세요.
+확인만 (감사, ok, 알겠습니다, 예, はい) → 짧은 답장. 그 외에는 상황에 따라 Long보다 길어도 됨.`,
+  japanese: `AUTO LENGTH: メールの実際の必要に応じて返信長を決定してください。Short/Medium/Longの厳格な制限なし。
+
+考慮: 質問・依頼の数、論点、複雑さ、必要な説明、メールの長さ。
+簡潔な完全性: 重要な点をすべて扱い、不要な冗長さを避け、要約できるからといって短くしない。
+確認のみ（ありがとう、OK、はい、알겠습니다）→ 短い返信。それ以外は状況に応じてLongより長くても可。`
 };
 
 // Convert UI language to OpenAI language code
@@ -999,41 +1011,43 @@ function detectOptimalLength(threadContext, latestMessage) {
   };
 }
 
+// Detect message scope for Auto mode (questions, requests, topics)
+function getMessageScope(latestMessage) {
+  if (!latestMessage || typeof latestMessage !== "string") return null;
+  const msg = latestMessage.toLowerCase();
+  const questionCount = (msg.match(/\?/g) || []).length;
+  const requestMarkers = ["please", "could you", "would you", "can you", "부탁", "해주세요", "お願い", "ください", "send", "confirm", "let me know", "알려주세요", "inform"];
+  const requestCount = requestMarkers.filter((m) => msg.includes(m)).length;
+  const topicMarkers = ["and", "also", "또한", "그리고", "また", "さらに", "when", "what", "how", "언제", "무엇", "어떻게", "いつ", "何", "どの"];
+  const topicCount = Math.min(questionCount + requestCount + topicMarkers.filter((m) => msg.includes(m)).length, 10);
+  return { questionCount, requestCount, topicCount };
+}
+
 // Build length instruction with auto-detection and anti-hallucination rules
-function buildLengthInstructionWithAuto(length, language = DEFAULT_LANGUAGE, autoDetectedLength = null) {
-  // If we have auto-detected length, use it; otherwise use provided length
+function buildLengthInstructionWithAuto(length, language = DEFAULT_LANGUAGE, autoDetectedLength = null, scopeContext = null) {
+  // When user selected Auto, use "auto" (no pre-resolution). Manual stays as-is.
   const effectiveLength = autoDetectedLength || length || DEFAULT_LENGTH;
   const baseInstruction = buildLengthInstruction(effectiveLength, language);
   
-  // Add anti-hallucination rules for all languages
+  // When Auto mode, append scope hint to help AI decide length
+  let scopeHint = "";
+  if (effectiveLength === "auto" && scopeContext && scopeContext.latestMessage) {
+    const scope = getMessageScope(scopeContext.latestMessage);
+    if (scope && (scope.questionCount > 0 || scope.requestCount > 0)) {
+      scopeHint = `\n\nScope: ${scope.questionCount} question(s), ${scope.requestCount} request(s). Address all points.`;
+    }
+  }
+  
+  // Anti-hallucination and placeholder rules (all languages)
   const antiHallucinationRules = `
-CRITICAL: Never invent specific facts, times, dates, locations, URLs, or contact information.
-If the incoming email lacks specific information, generate a concise, context-appropriate placeholder instead:
+CRITICAL—NEVER INVENT FACTS: Do not fabricate dates, times, prices, schedules, release dates, meeting details, locations, URLs, attachments, or any specific information not present in the email or user instructions.
 
-Guidelines for dynamic placeholder generation:
-1. Analyze what specific information is missing from email context
-2. Create a short, natural placeholder that matches the missing information type
-3. Make it easy for the user to replace with actual information
-4. Keep placeholders concise and clear
-5. IMPORTANT: Generate placeholders in the REPLY language (user's selected language), not email language
+If information is missing, use context-aware placeholders integrated naturally into sentences. Examples: [date], [time], [price], [meeting link], [document name], [location], [availability]. Use placeholders in the reply language (EN: [time], KO: [시간], JP: [時間]).
 
-Localized placeholder examples:
-- English reply → [time], [date], [location], [link], [price], [name]
-- Korean reply → [시간], [날짜], [장소], [링크], [가격], [이름]
-- Japanese reply → [時間], [日付], [場所], [リンク], [価格], [名前]
-
-Rules:
-1. Generate placeholders ONLY when required information is genuinely missing from email context
-2. Never fabricate specific times, dates, addresses, URLs, names, or numbers
-3. Use concise, context-specific placeholders that match the missing information type
-4. If you have the information, use it directly instead of placeholders
-5. Respond naturally and concisely without making assumptions
-6. This applies to ALL languages (English, Korean, Japanese, etc.)
-7. Placeholders should be easy for users to identify and replace with actual information
-8. CRITICAL: Placeholders must be in the same language as the reply (user's selected language)
+Rules: Placeholders only when info is genuinely missing. If user provides data in optional instructions, use it. Never invent specifics. Write natural professional emails—placeholders should read naturally in context.
 `;
 
-  return `${baseInstruction}\n\n${antiHallucinationRules}`;
+  return `${baseInstruction}${scopeHint}\n\n${antiHallucinationRules}`;
 }
 
 // Finds the reply editor associated with a clicked ReplyMate button.
@@ -1204,13 +1218,13 @@ async function createReplyMateButton() {
     const userTone = settings.tone || DEFAULT_TONE;
     const userLength = settings.length || DEFAULT_LENGTH;
     
-    // Apply correct independent logic
+    // Apply correct independent logic: Tone Auto → detect; Length Auto → pass "auto" (AI decides, no pre-resolution)
     const finalTone = userTone === "auto" ? detectOptimalTone(threadContext, threadContext.latestMessage).tone : userTone;
-    const finalLength = userLength === "auto" ? detectOptimalLength(threadContext, threadContext.latestMessage).length : userLength;
+    const finalLength = userLength === "auto" ? "auto" : userLength;
     
     // Generate reasons for debug logging
     const toneReason = userTone === "auto" ? detectOptimalTone(threadContext, threadContext.latestMessage).reason : "user setting";
-    const lengthReason = userLength === "auto" ? detectOptimalLength(threadContext, threadContext.latestMessage).reason : "user setting";
+    const lengthReason = userLength === "auto" ? "auto (AI decides)" : "user setting";
 
     console.log("[ReplyMate Auto] User selected tone:", userTone);
     console.log("[ReplyMate Auto] User selected length:", userLength);
@@ -1225,7 +1239,7 @@ async function createReplyMateButton() {
       userName: settings.userName || threadContext.inferredUserName || "",
       tone: finalTone,
       length: finalLength,
-      lengthInstruction: buildLengthInstructionWithAuto(finalLength, language, finalLength === "auto" ? detectOptimalLength(threadContext, threadContext.latestMessage).length : null),
+      lengthInstruction: buildLengthInstructionWithAuto(finalLength, language, null, threadContext),
       additionalInstruction: instructionInput.value || "",
       language: language,
     };
@@ -2129,11 +2143,11 @@ async function runHoverGenerateReplyWorkflow(row, sourceButton) {
         
         // Apply correct independent logic
         const finalTone = userTone === "auto" ? detectOptimalTone(threadContext, threadContext.latestMessage).tone : userTone;
-        const finalLength = userLength === "auto" ? detectOptimalLength(threadContext, threadContext.latestMessage).length : userLength;
+        const finalLength = userLength === "auto" ? "auto" : userLength;
         
         // Generate reasons for debug logging
         const toneReason = userTone === "auto" ? detectOptimalTone(threadContext, threadContext.latestMessage).reason : "user setting";
-        const lengthReason = userLength === "auto" ? detectOptimalLength(threadContext, threadContext.latestMessage).reason : "user setting";
+        const lengthReason = userLength === "auto" ? "auto (AI decides)" : "user setting";
 
         console.log("[ReplyMate Auto] Hover mode - User selected tone:", userTone);
         console.log("[ReplyMate Auto] Hover mode - User selected length:", userLength);
@@ -2148,7 +2162,7 @@ async function runHoverGenerateReplyWorkflow(row, sourceButton) {
           userName: settings.userName || threadContext.inferredUserName || "",
           tone: finalTone,
           length: finalLength,
-          lengthInstruction: buildLengthInstructionWithAuto(finalLength, language, finalLength === "auto" ? detectOptimalLength(threadContext, threadContext.latestMessage).length : null),
+          lengthInstruction: buildLengthInstructionWithAuto(finalLength, language, null, threadContext),
           language: language,
         };
 
