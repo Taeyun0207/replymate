@@ -14,8 +14,8 @@ const openai = new OpenAI({
 
 // Map plan names to Stripe price IDs
 const PLAN_PRICE_IDS = {
-  pro: process.env.STRIPE_PRO_PRICE,
-  pro_plus: process.env.STRIPE_PRO_PLUS_PRICE,
+  pro: process.env.STRIPE_PRICE_PRO,
+  pro_plus: process.env.STRIPE_PRICE_PRO_PLUS,
 };
 
 // ─────────────────────────────────────────────
@@ -454,6 +454,9 @@ app.post("/billing/create-checkout-session", async (req, res) => {
   } catch (error) {
     console.error("Stripe checkout session error:", error);
     res.status(500).json({ error: "Failed to create checkout session" });
+    console.log("ENV STRIPE_PRICE_PRO:", process.env.STRIPE_PRICE_PRO);
+console.log("ENV STRIPE_PRICE_PRO_PLUS:", process.env.STRIPE_PRICE_PRO_PLUS);
+console.log("Requested targetPlan:", targetPlan);
   }
 });
 
