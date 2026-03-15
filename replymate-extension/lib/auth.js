@@ -195,7 +195,17 @@
     },
 
     async refreshSessionIfNeeded() {
-      const session = await this.getSession();
+      // Read raw session from storage (getSession returns null when expired, but we need refresh_token)
+      const storage = getStorage();
+      if (!storage) return null;
+      const raw = await storage.getItem(AUTH_STORAGE_KEY);
+      if (!raw) return null;
+      let session;
+      try {
+        session = JSON.parse(raw);
+      } catch (_) {
+        return null;
+      }
       if (!session || !session.refresh_token) return null;
       const client = getSupabaseClient();
       if (!client) return null;
@@ -203,23 +213,22 @@
         refresh_token: session.refresh_token,
       });
       if (error || !data?.session) return null;
-      const storage = getStorage();
-      if (storage) {
+      const sessionData = {
+        access_token: data.session.access_token,
+        refresh_token: data.session.refresh_token || session.refresh_token,
+        expires_at: data.session.expires_at || Math.floor(Date.now() / 1000) + (data.session.expires_in || 3600),
+      };
+      await storage.setItem(AUTH_STORAGE_KEY, JSON.stringify(sessionData));
+      if (data.user) {
         await storage.setItem(
-          AUTH_STORAGE_KEY,
-          JSON.stringify(data.session)
+          AUTH_USER_KEY,
+          JSON.stringify({
+            id: data.user.id,
+            email: data.user.email || "",
+          })
         );
-        if (data.user) {
-          await storage.setItem(
-            AUTH_USER_KEY,
-            JSON.stringify({
-              id: data.user.id,
-              email: data.user.email || "",
-            })
-          );
-        }
       }
-      return data.session;
+      return sessionData;
     },
   };
 })();

@@ -188,6 +188,12 @@ function getTranslation(key, language = DEFAULT_LANGUAGE) {
   return lang[key] || TRANSLATIONS.english[key] || key;
 }
 
+// Check if error is "Extension context invalidated" (happens when extension is reloaded while page is open)
+function isExtensionContextInvalidated(error) {
+  const msg = error?.message || String(error);
+  return msg.includes("Extension context invalidated") || msg.includes("context invalidated");
+}
+
 // Get current language from storage
 async function getCurrentLanguage() {
   return new Promise((resolve) => {
@@ -200,11 +206,13 @@ async function getCurrentLanguage() {
         try {
           if (chrome?.runtime?.lastError) resolve(DEFAULT_LANGUAGE);
           else resolve(result?.[REPLYMATE_LANGUAGE_KEY] || DEFAULT_LANGUAGE);
-        } catch (_) {
+        } catch (e) {
+          if (!isExtensionContextInvalidated(e)) console.warn("[ReplyMate] getCurrentLanguage error:", e);
           resolve(DEFAULT_LANGUAGE);
         }
       });
-    } catch (_) {
+    } catch (e) {
+      if (!isExtensionContextInvalidated(e)) console.warn("[ReplyMate] getCurrentLanguage error:", e);
       resolve(DEFAULT_LANGUAGE);
     }
   });
@@ -233,14 +241,14 @@ function loadReplyMateSettings() {
             const length = result?.[REPLYMATE_LENGTH_KEY] || DEFAULT_LENGTH;
             const userName = result?.[REPLYMATE_USER_NAME_KEY] || "";
             resolve({ tone, length, userName });
-          } catch (_) {
+          } catch (e) {
+            if (!isExtensionContextInvalidated(e)) console.warn("[ReplyMate] loadReplyMateSettings error:", e);
             resolve({ tone: DEFAULT_TONE, length: DEFAULT_LENGTH, userName: "" });
           }
         }
       );
     } catch (error) {
-      // If chrome.storage isn't available for any reason, fall back to defaults.
-      console.warn("[ReplyMate] Settings load error, using defaults:", error);
+      if (!isExtensionContextInvalidated(error)) console.warn("[ReplyMate] Settings load error, using defaults:", error);
       resolve({ tone: DEFAULT_TONE, length: DEFAULT_LENGTH, userName: "" });
     }
   });
@@ -270,7 +278,9 @@ async function getAccessToken() {
   try {
     const res = await chrome.runtime.sendMessage({ type: "GET_ACCESS_TOKEN" });
     if (res && res.token) return res.token;
-  } catch (_) {}
+  } catch (e) {
+    if (!isExtensionContextInvalidated(e)) console.warn("[ReplyMate] getAccessToken fallback error:", e);
+  }
   return null;
 }
 
@@ -284,7 +294,6 @@ function getCachedUsage() {
     try {
       // chrome 객체와 chrome.storage가 존재하는지 먼저 확인
       if (typeof chrome === 'undefined' || !chrome.storage || !chrome.storage.local) {
-        console.warn("[ReplyMate] Chrome storage API not available, no cache");
         resolve(null);
         return;
       }
@@ -298,11 +307,15 @@ function getCachedUsage() {
               return;
             }
           }
-        } catch (_) {}
+        } catch (e) {
+          if (!isExtensionContextInvalidated(e)) console.warn("[ReplyMate] Cache read error:", e);
+        }
         resolve(null);
       });
     } catch (error) {
-      console.warn("[ReplyMate] Failed to get cached usage:", error);
+      if (!isExtensionContextInvalidated(error)) {
+        console.warn("[ReplyMate] Failed to get cached usage:", error);
+      }
       resolve(null);
     }
   });
@@ -311,19 +324,11 @@ function getCachedUsage() {
 // Cache usage data with timestamp
 function setCachedUsage(usageData) {
   try {
-    // chrome 객체와 chrome.storage가 존재하는지 먼저 확인
-    if (typeof chrome === 'undefined' || !chrome.storage || !chrome.storage.local) {
-      console.warn("[ReplyMate] Chrome storage API not available, skipping cache");
-      return;
-    }
-    
-    const cacheData = {
-      data: usageData,
-      timestamp: Date.now()
-    };
+    if (typeof chrome === 'undefined' || !chrome.storage || !chrome.storage.local) return;
+    const cacheData = { data: usageData, timestamp: Date.now() };
     chrome.storage.local.set({ [USAGE_CACHE_KEY]: cacheData });
   } catch (error) {
-    console.warn("[ReplyMate] Failed to cache usage:", error);
+    if (!isExtensionContextInvalidated(error)) console.warn("[ReplyMate] Failed to cache usage:", error);
   }
 }
 
