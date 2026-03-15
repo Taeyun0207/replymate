@@ -47,7 +47,9 @@ const TRANSLATIONS = {
     signInWithGoogle: "Sign in with Google",
     signedInAs: "Signed in as",
     signOut: "Sign out",
-    signInRequired: "⚠️ Please sign in with Google to use ReplyMate."
+    signInRequired: "⚠️ Please sign in with Google to use ReplyMate.",
+    topUpReplies: "Top up replies",
+    topupAvailable: "Top-up available: {count} replies",
   },
   korean: {
     settings: "ReplyMate 설정",
@@ -85,7 +87,9 @@ const TRANSLATIONS = {
     signInWithGoogle: "Google로 로그인",
     signedInAs: "로그인됨",
     signOut: "로그아웃",
-    signInRequired: "⚠️ ReplyMate를 사용하려면 Google로 로그인해 주세요."
+    signInRequired: "⚠️ ReplyMate를 사용하려면 Google로 로그인해 주세요.",
+    topUpReplies: "답장 충전",
+    topupAvailable: "충전 가능: {count}개 답장",
   },
   japanese: {
     settings: "設定",
@@ -123,7 +127,9 @@ const TRANSLATIONS = {
     signInWithGoogle: "Googleでサインイン",
     signedInAs: "サインイン中",
     signOut: "サインアウト",
-    signInRequired: "⚠️ ReplyMateをご利用になるには、Googleでサインインしてください。"
+    signInRequired: "⚠️ ReplyMateをご利用になるには、Googleでサインインしてください。",
+    topUpReplies: "返信を追加",
+    topupAvailable: "追加可能: {count}件",
   }
 };
 
@@ -245,7 +251,7 @@ function updatePlanUsageDisplay(usageData, language = DEFAULT_LANGUAGE) {
 }
 
 // Update upgrade link based on current plan with language support
-function updateUpgradeLink(plan, language = DEFAULT_LANGUAGE, cancelScheduled = false, periodEndDate = null, nextResetAt = null) {
+function updateUpgradeLink(plan, language = DEFAULT_LANGUAGE, cancelScheduled = false, periodEndDate = null, nextResetAt = null, topupRemaining = 0) {
   const upgradeProLink = document.getElementById("upgradeProLink");
   const upgradeProPlusLink = document.getElementById("upgradeProPlusLink");
   const upgradeTitle = document.querySelector(".upgrade-title");
@@ -254,6 +260,9 @@ function updateUpgradeLink(plan, language = DEFAULT_LANGUAGE, cancelScheduled = 
   const cancelSection = document.getElementById("cancelSection");
   const cancelLink = document.getElementById("cancelSubscriptionLink");
   const renewalDateEl = document.getElementById("renewalDate");
+  const topupAvailableEl = document.getElementById("topupAvailable");
+  const topupSection = document.getElementById("topupSection");
+  const topupLabel = topupSection?.querySelector(".topup-label");
   
   if (!upgradeProLink || !upgradeProPlusLink || !upgradeTitle || !upgradeBox || !upgradeButtons) return;
 
@@ -269,6 +278,21 @@ function updateUpgradeLink(plan, language = DEFAULT_LANGUAGE, cancelScheduled = 
     } else {
       renewalDateEl.style.display = "none";
     }
+  }
+
+  // Top-up available: show when user has top-up credits
+  if (topupAvailableEl) {
+    if (topupRemaining > 0) {
+      topupAvailableEl.textContent = getTranslation("topupAvailable", language).replace("{count}", topupRemaining);
+      topupAvailableEl.style.display = "block";
+    } else {
+      topupAvailableEl.style.display = "none";
+    }
+  }
+
+  // Top-up section label
+  if (topupLabel) {
+    topupLabel.textContent = getTranslation("topUpReplies", language);
   }
 
   // Cancel section: show for pro/pro_plus; if cancelled, show "Cancelled · active until {date}"
@@ -458,7 +482,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     chrome.storage.local.get([LANGUAGE_KEY], (result) => {
       const language = result[LANGUAGE_KEY] || DEFAULT_LANGUAGE;
       updatePlanUsageDisplay(message.data, language);
-      updateUpgradeLink(message.data.plan, language, message.data.cancelScheduled, message.data.periodEndDate, message.data.nextResetAt);
+      updateUpgradeLink(message.data.plan, language, message.data.cancelScheduled, message.data.periodEndDate, message.data.nextResetAt, message.data.topupRemaining ?? 0);
     });
   }
   
@@ -507,6 +531,7 @@ async function updateLoginUI(language = DEFAULT_LANGUAGE) {
   const isSignedIn = await ReplyMateAuth.isSignedIn();
   const email = await ReplyMateAuth.getEmail();
 
+  const topupSection = document.getElementById("topupSection");
   if (isSignedIn) {
     notSignedIn.style.display = "none";
     signedIn.style.display = "block";
@@ -514,6 +539,7 @@ async function updateLoginUI(language = DEFAULT_LANGUAGE) {
     if (signOutBtn) signOutBtn.textContent = getTranslation("signOut", language);
     if (planUsageEl) planUsageEl.style.display = "";
     if (upgradeBox) upgradeBox.style.display = "";
+    if (topupSection) topupSection.style.display = "";
     if (cancelSection) cancelSection.style.display = "";
   } else {
     notSignedIn.style.display = "block";
@@ -524,6 +550,7 @@ async function updateLoginUI(language = DEFAULT_LANGUAGE) {
     }
     if (planUsageEl) planUsageEl.style.display = "none";
     if (upgradeBox) upgradeBox.style.display = "none";
+    if (topupSection) topupSection.style.display = "none";
     if (cancelSection) cancelSection.style.display = "none";
   }
 }
@@ -603,6 +630,22 @@ document.addEventListener("DOMContentLoaded", () => {
         type: "CREATE_STRIPE_CHECKOUT",
         targetPlan: "pro_plus"
       });
+    });
+  }
+
+  // Add click handlers for Top-up buttons
+  const topup100Btn = document.getElementById("topup100Btn");
+  const topup500Btn = document.getElementById("topup500Btn");
+  if (topup100Btn) {
+    topup100Btn.addEventListener("click", (e) => {
+      e.preventDefault();
+      chrome.runtime.sendMessage({ type: "CREATE_STRIPE_TOPUP", pack: "100" });
+    });
+  }
+  if (topup500Btn) {
+    topup500Btn.addEventListener("click", (e) => {
+      e.preventDefault();
+      chrome.runtime.sendMessage({ type: "CREATE_STRIPE_TOPUP", pack: "500" });
     });
   }
 
@@ -741,10 +784,10 @@ async function loadUsageData(language = DEFAULT_LANGUAGE, forceRefresh = false) 
   
   if (usageData) {
     updatePlanUsageDisplay(usageData, language);
-    updateUpgradeLink(usageData.plan, language, usageData.cancelScheduled, usageData.periodEndDate, usageData.nextResetAt);
+    updateUpgradeLink(usageData.plan, language, usageData.cancelScheduled, usageData.periodEndDate, usageData.nextResetAt, usageData.topupRemaining ?? 0);
   } else {
     updatePlanUsageDisplay(null, language);
-    updateUpgradeLink("free", language);
+    updateUpgradeLink("free", language, false, null, null, 0);
   }
 }
 });

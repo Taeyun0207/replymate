@@ -61,6 +61,30 @@ ALTER TABLE public.users ADD COLUMN IF NOT EXISTS cancel_at_period_end BOOLEAN D
 ALTER TABLE public.users ADD COLUMN IF NOT EXISTS period_end_at TIMESTAMPTZ;
 ```
 
+## 2b. Top-up credits table (optional)
+
+For one-time reply packs (100 / 500 replies):
+
+```sql
+CREATE TABLE IF NOT EXISTS public.user_topups (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id TEXT NOT NULL,
+  pack_size INTEGER NOT NULL,
+  remaining_replies INTEGER NOT NULL,
+  purchase_date TIMESTAMPTZ NOT NULL,
+  expiry_date TIMESTAMPTZ NOT NULL,
+  stripe_payment_intent_id TEXT,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS idx_user_topups_user_id ON public.user_topups(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_topups_expiry ON public.user_topups(user_id, expiry_date);
+
+ALTER TABLE public.user_topups ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Service role full access" ON public.user_topups FOR ALL USING (true) WITH CHECK (true);
+```
+
 ## 3. Stripe webhook (for upgrades, renewals, and cancellations)
 
 1. Go to **Stripe Dashboard → Developers → Webhooks**
@@ -71,6 +95,10 @@ ALTER TABLE public.users ADD COLUMN IF NOT EXISTS period_end_at TIMESTAMPTZ;
    - `customer.subscription.deleted`
 4. Copy the **Signing secret** and add to Render env as `STRIPE_WEBHOOK_SECRET`
 
-- `checkout.session.completed` – upgrades plan after payment
+- `checkout.session.completed` – upgrades plan after payment; also handles top-up purchases (one-time payment)
 - `customer.subscription.updated` – syncs billing period when subscription renews or changes
 - `customer.subscription.deleted` – downgrades to free when subscription ends
+
+**Top-up Stripe setup:** Create two one-time prices in Stripe ($3.99 for 100 replies, $7.99 for 500 replies) and add to `.env`:
+- `STRIPE_PRICE_TOPUP_100` – price ID for +100 replies pack
+- `STRIPE_PRICE_TOPUP_500` – price ID for +500 replies pack

@@ -161,6 +161,48 @@ option {
       line-height: 1.3;
     }
 
+    .topup-available {
+      font-size: 10px;
+      color: #3c4043;
+      margin: 4px 0 6px 0;
+      line-height: 1.3;
+    }
+
+    .topup-section {
+      margin: 8px 0 0 0;
+      padding: 8px 0 0 0;
+      border-top: 1px solid var(--border);
+    }
+
+    .topup-label {
+      font-size: 11px;
+      color: var(--muted);
+      margin-bottom: 6px;
+    }
+
+    .topup-buttons {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .topup-pill {
+      padding: 6px 12px;
+      font-size: 12px;
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      background: var(--bg);
+      color: var(--text);
+      cursor: pointer;
+      font-weight: 500;
+      transition: all 0.2s ease;
+    }
+
+    .topup-pill:hover {
+      border-color: var(--button-bg);
+      color: var(--button-bg);
+    }
+
     .upgrade-link {
       font-size: 13px;
       color: var(--button-bg);
@@ -479,6 +521,7 @@ option {
   <div class="plan-usage">
     Loading...
   </div>
+  <div id="topupAvailable" class="topup-available" style="display: none;"></div>
   
   <div class="upgrade-box">
     <div class="upgrade-title">Unlock more replies with Pro</div>
@@ -486,6 +529,14 @@ option {
     <div class="upgrade-buttons">
       <a id="upgradeProLink" href="#" class="upgrade-link upgrade-pro">Upgrade to Pro</a>
       <a id="upgradeProPlusLink" href="#" class="upgrade-link upgrade-pro-plus">Upgrade to Pro+</a>
+    </div>
+  </div>
+  
+  <div id="topupSection" class="topup-section">
+    <div class="topup-label">Top up replies</div>
+    <div class="topup-buttons">
+      <button type="button" id="topup100Btn" class="topup-pill">+100</button>
+      <button type="button" id="topup500Btn" class="topup-pill">+500</button>
     </div>
   </div>
   

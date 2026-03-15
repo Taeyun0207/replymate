@@ -5,6 +5,7 @@ const OpenAI = require("openai");
 const { createClient } = require("@supabase/supabase-js");
 const { PLAN_LIMITS } = require("./src/config/plans");
 const { getUser, updateUserPlan, recordUsage, testConnection, updateUserCancelScheduled, downgradeUserBySubscriptionId, syncPeriodBySubscriptionId } = require("./src/database");
+const { getTotalTopupRemaining, createTopup } = require("./src/topup");
 const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 
 
@@ -42,6 +43,12 @@ const openai = new OpenAI({
 const PLAN_PRICE_IDS = {
   pro: process.env.STRIPE_PRICE_PRO,
   pro_plus: process.env.STRIPE_PRICE_PRO_PLUS,
+};
+
+// Top-up pack price IDs (one-time payment)
+const TOPUP_PRICE_IDS = {
+  100: process.env.STRIPE_PRICE_TOPUP_100,
+  500: process.env.STRIPE_PRICE_TOPUP_500,
 };
 
 // ─────────────────────────────────────────────
@@ -119,9 +126,19 @@ function determineAutoLength(latestMessage) {
 async function checkUsageLimit(userId) {
   const usage = await getUser(userId);
   const limit = PLAN_LIMITS[usage.plan] || PLAN_LIMITS.free;
+  const subscriptionRemaining = Math.max(0, limit - usage.used);
+  let topupRemaining = 0;
+  try {
+    topupRemaining = await getTotalTopupRemaining(userId);
+  } catch (e) {
+    console.warn("[Usage] getTotalTopupRemaining failed:", e?.message);
+  }
+  const totalRemaining = subscriptionRemaining + topupRemaining;
   return {
-    proceed: usage.used < limit,
-    remaining: Math.max(0, limit - usage.used),
+    proceed: totalRemaining > 0,
+    remaining: subscriptionRemaining,
+    topupRemaining,
+    totalRemaining,
     used: usage.used,
     limit: limit,
     plan: usage.plan,
@@ -157,19 +174,37 @@ app.post(
 
     if (event.type === "checkout.session.completed") {
       const session = event.data.object;
-      console.log("[Stripe] Webhook received: checkout.session.completed", "metadata:", session.metadata);
+      const meta = session.metadata || {};
+      console.log("[Stripe] Webhook received: checkout.session.completed", "mode:", session.mode, "metadata:", meta);
 
       try {
-        const { userId, targetPlan } = session.metadata;
+        const { userId, type, targetPlan, packSize } = meta;
 
-        if (!userId || !targetPlan) {
-          console.error("Missing metadata in checkout session:", session.id);
+        if (!userId) {
+          console.error("Missing userId in checkout session:", session.id);
           return res.status(400).json({ error: "Missing required metadata" });
         }
 
-        if (!["pro", "pro_plus"].includes(targetPlan)) {
-          console.error("Invalid target plan in metadata:", targetPlan);
-          return res.status(400).json({ error: "Invalid target plan" });
+        // Top-up (one-time payment)
+        if (session.mode === "payment" && type === "topup") {
+          const pack = parseInt(packSize, 10);
+          if (![100, 500].includes(pack)) {
+            console.error("Invalid top-up pack size:", packSize);
+            return res.status(400).json({ error: "Invalid top-up pack" });
+          }
+          const now = new Date();
+          const purchaseDate = now.toISOString();
+          const expiryDate = new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000).toISOString();
+          const paymentIntentId = session.payment_intent || null;
+          await createTopup(userId, pack, purchaseDate, expiryDate, paymentIntentId);
+          console.log(`[Stripe] Top-up ${pack} replies added for user ${userId}`);
+          return res.status(200).json({ received: true });
+        }
+
+        // Subscription
+        if (!targetPlan || !["pro", "pro_plus"].includes(targetPlan)) {
+          console.error("Missing or invalid targetPlan in checkout session:", session.id);
+          return res.status(400).json({ error: "Missing required metadata" });
         }
 
         const stripeCustomerId = session.customer;
@@ -295,6 +330,7 @@ app.post("/generate-reply", requireAuth, async (req, res) => {
       return res.status(403).json({
         error: "usage_limit_exceeded",
         remaining: usageCheck.remaining,
+        topupRemaining: usageCheck.topupRemaining ?? 0,
       });
     }
 
@@ -486,8 +522,10 @@ ${additionalInstruction ? `- Additional instruction: ${additionalInstruction}` :
           used: updatedUsage.used,
           limit: updatedUsage.limit,
           remaining: updatedUsage.remaining,
+          topupRemaining: updatedUsage.topupRemaining ?? 0,
           cancelScheduled: updatedUsage.cancelScheduled,
           periodEndDate: updatedUsage.periodEndDate,
+          nextResetAt: updatedUsage.nextResetAt ?? null,
         },
       });
     } catch (error) {
@@ -504,7 +542,7 @@ ${additionalInstruction ? `- Additional instruction: ${additionalInstruction}` :
   }
 });
 
-// Create Stripe checkout session (requires auth)
+// Create Stripe checkout session for subscription (requires auth)
 app.post("/billing/create-checkout-session", requireAuth, async (req, res) => {
   try {
     const { targetPlan } = req.body;
@@ -544,6 +582,50 @@ app.post("/billing/create-checkout-session", requireAuth, async (req, res) => {
   } catch (error) {
     console.error("Stripe checkout session error:", error);
     res.status(500).json({ error: "Failed to create checkout session" });
+  }
+});
+
+// Create Stripe checkout session for top-up pack (one-time payment)
+app.post("/billing/create-topup-checkout", requireAuth, async (req, res) => {
+  try {
+    const { pack } = req.body;
+    const userId = req.userId;
+    const userEmail = req.headers["x-user-email"] || null;
+
+    const packSize = pack === "100" ? 100 : pack === "500" ? 500 : null;
+    if (!packSize) {
+      return res
+        .status(400)
+        .json({ error: "Invalid pack. Must be '100' or '500'" });
+    }
+
+    const priceId = TOPUP_PRICE_IDS[packSize];
+    if (!priceId) {
+      return res
+        .status(500)
+        .json({ error: `Stripe price ID not configured for top-up ${packSize}` });
+    }
+
+    const session = await stripe.checkout.sessions.create({
+      mode: "payment",
+      payment_method_types: ["card"],
+      line_items: [{ price: priceId, quantity: 1 }],
+      success_url: `${req.protocol}://${req.get("host")}/billing/success?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${req.protocol}://${req.get("host")}/billing/cancel`,
+      metadata: {
+        userId,
+        type: "topup",
+        packSize: String(packSize),
+      },
+      customer_email: userEmail || undefined,
+      allow_promotion_codes: true,
+      billing_address_collection: "auto",
+    });
+
+    res.json({ checkoutUrl: session.url });
+  } catch (error) {
+    console.error("Stripe top-up checkout error:", error);
+    res.status(500).json({ error: "Failed to create top-up checkout session" });
   }
 });
 

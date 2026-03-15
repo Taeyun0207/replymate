@@ -197,28 +197,42 @@ async function updateUserPlan(
 }
 
 async function recordUsage(userId) {
-  const now = new Date().toISOString();
+  const { PLAN_LIMITS } = require("./config/plans");
+  const { consumeTopupReply } = require("./topup");
 
   const { data: row, error: fetchErr } = await supabase
     .from(TABLE_NAME)
-    .select("used")
+    .select("used, plan")
     .eq("user_id", userId)
     .single();
 
   if (fetchErr || !row) throw fetchErr || new Error("User not found");
 
-  const newUsed = (row.used ?? 0) + 1;
-  const { error: updateErr } = await supabase
-    .from(TABLE_NAME)
-    .update({ used: newUsed, updated_at: now })
-    .eq("user_id", userId);
+  const limit = PLAN_LIMITS[row.plan] || PLAN_LIMITS.free;
+  const used = row.used ?? 0;
 
-  if (updateErr) {
-    console.error("[DB] recordUsage failed:", updateErr.message, updateErr.details);
-    throw updateErr;
+  // Priority 1: consume from subscription (monthly quota)
+  if (used < limit) {
+    const now = new Date().toISOString();
+    const newUsed = used + 1;
+    const { error: updateErr } = await supabase
+      .from(TABLE_NAME)
+      .update({ used: newUsed, updated_at: now })
+      .eq("user_id", userId);
+
+    if (updateErr) {
+      console.error("[DB] recordUsage failed:", updateErr.message, updateErr.details);
+      throw updateErr;
+    }
+    console.log("[DB] Usage incremented (subscription) for user:", userId);
+    return 1;
   }
-  console.log("[DB] Usage incremented for user:", userId);
-  return 1;
+
+  // Priority 2: consume from top-up (earliest expiry first)
+  const consumed = await consumeTopupReply(userId);
+  if (consumed) return 1;
+
+  throw new Error("No replies available");
 }
 
 function closeDatabase() {

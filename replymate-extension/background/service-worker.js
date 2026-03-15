@@ -1,7 +1,9 @@
 // ReplyMate background service worker (MV3).
 importScripts("../lib/auth-config.js", "../lib/auth-shared.js");
 
-// Shared function to create Stripe checkout session (requires auth)
+const BACKEND_URL = "https://replymate-backend-bot8.onrender.com";
+
+// Shared function to create Stripe checkout session for subscription (requires auth)
 async function createStripeCheckout(targetPlan) {
   console.log(`[ReplyMate Background] Creating Stripe checkout for ${targetPlan} plan`);
 
@@ -13,7 +15,7 @@ async function createStripeCheckout(targetPlan) {
   }
 
   try {
-    const response = await fetch("https://replymate-backend-bot8.onrender.com/billing/create-checkout-session", {
+    const response = await fetch(`${BACKEND_URL}/billing/create-checkout-session`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -57,6 +59,46 @@ async function createStripeCheckout(targetPlan) {
   }
 }
 
+// Create Stripe checkout for top-up pack (one-time payment)
+async function createStripeTopupCheckout(pack) {
+  console.log(`[ReplyMate Background] Creating Stripe top-up checkout for +${pack} replies`);
+
+  const token = await ReplyMateAuthShared.getAccessToken();
+  if (!token) {
+    console.error("[ReplyMate Background] Not logged in - cannot create top-up checkout");
+    chrome.tabs.create({ url: "https://replymate.ai/upgrade", active: true });
+    return false;
+  }
+
+  try {
+    const response = await fetch(`${BACKEND_URL}/billing/create-topup-checkout`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`,
+      },
+      body: JSON.stringify({ pack: String(pack) })
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || `HTTP ${response.status}: ${response.statusText}`);
+    }
+
+    const data = await response.json();
+    if (!data.checkoutUrl) {
+      throw new Error("No checkout URL received from server");
+    }
+
+    chrome.tabs.create({ url: data.checkoutUrl, active: true });
+    return true;
+  } catch (error) {
+    console.error("[ReplyMate Background] Failed to create top-up checkout:", error);
+    chrome.tabs.create({ url: "https://replymate.ai/upgrade", active: true });
+    return false;
+  }
+}
+
 // Handle messages from popup and content scripts
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === "GET_ACCESS_TOKEN") {
@@ -68,6 +110,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     // Handle Stripe checkout request from popup or Gmail content script
     console.log(`[ReplyMate Background] Received Stripe checkout request for ${message.targetPlan} plan`);
     createStripeCheckout(message.targetPlan);
+    sendResponse({ success: true });
+  } else if (message.type === "CREATE_STRIPE_TOPUP" && message.pack) {
+    // Handle Stripe top-up checkout (100 or 500 replies)
+    console.log(`[ReplyMate Background] Received Stripe top-up request for +${message.pack} replies`);
+    createStripeTopupCheckout(message.pack);
     sendResponse({ success: true });
   } else if (message.type === "OPEN_POPUP_FOR_LOGIN") {
     // Open popup so user can sign in (called when AI Reply clicked while not logged in)
