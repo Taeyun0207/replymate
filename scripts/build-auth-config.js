@@ -29,6 +29,13 @@ const url = process.env.SUPABASE_URL || "";
 const key = process.env.SUPABASE_ANON_KEY || "";
 const googleClientId = process.env.GOOGLE_CLIENT_ID || "";
 
+// Supabase anon keys are JWTs (start with "eyJ"). Stripe keys start with "pk_" or "sb_publishable_".
+if (key && !key.startsWith("eyJ")) {
+  console.warn("\n⚠️  WARNING: SUPABASE_ANON_KEY does not look like a Supabase key (expected JWT starting with eyJ).");
+  console.warn("   You may have used a Stripe key by mistake. Get the correct key from:");
+  console.warn("   Supabase Dashboard → Project Settings → API → anon public\n");
+}
+
 const content = `/**
  * Supabase Auth configuration (generated from env).
  * Works in popup, content script, and service worker.

@@ -147,6 +147,10 @@ function getCachedUsage() {
 // Cache usage data with timestamp
 function setCachedUsage(usageData) {
   try {
+    if (usageData === null || usageData === undefined) {
+      chrome.storage.local.remove([USAGE_CACHE_KEY]);
+      return;
+    }
     const cacheData = {
       data: usageData,
       timestamp: Date.now()
@@ -185,14 +189,11 @@ async function fetchUsageFromBackend() {
 }
 
 // Shared function to get usage (cache first, then backend)
-async function getUsageData() {
-  // Try cache first
-  const cached = await getCachedUsage();
-  if (cached) {
-    return cached;
+async function getUsageData(forceRefresh = false) {
+  if (!forceRefresh) {
+    const cached = await getCachedUsage();
+    if (cached) return cached;
   }
-  
-  // Fetch fresh data
   return await fetchUsageFromBackend();
 }
 
@@ -223,7 +224,7 @@ function updatePlanUsageDisplay(usageData, language = DEFAULT_LANGUAGE) {
 }
 
 // Update upgrade link based on current plan with language support
-function updateUpgradeLink(plan, language = DEFAULT_LANGUAGE) {
+function updateUpgradeLink(plan, language = DEFAULT_LANGUAGE, cancelScheduled = false, periodEndDate = null) {
   const upgradeProLink = document.getElementById("upgradeProLink");
   const upgradeProPlusLink = document.getElementById("upgradeProPlusLink");
   const upgradeTitle = document.querySelector(".upgrade-title");
@@ -234,11 +235,23 @@ function updateUpgradeLink(plan, language = DEFAULT_LANGUAGE) {
   
   if (!upgradeProLink || !upgradeProPlusLink || !upgradeTitle || !upgradeBox || !upgradeButtons) return;
 
-  // Show cancel section only for pro / pro_plus
+  // Show cancel section only for pro / pro_plus (hide Cancel button if cancellation already scheduled)
   if (cancelSection && cancelLink) {
     if (plan === "pro" || plan === "pro_plus") {
       cancelSection.style.display = "block";
-      cancelLink.textContent = getTranslation("cancelSubscription", language);
+      if (cancelScheduled && periodEndDate) {
+        const endDate = new Date(periodEndDate);
+        const dateStr = endDate.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+        cancelLink.textContent = `Cancellation scheduled · active until ${dateStr}`;
+        cancelLink.setAttribute("data-cancel-scheduled", "true");
+        cancelLink.style.pointerEvents = "none";
+        cancelLink.style.opacity = "0.8";
+      } else {
+        cancelLink.textContent = getTranslation("cancelSubscription", language);
+        cancelLink.removeAttribute("data-cancel-scheduled");
+        cancelLink.style.pointerEvents = "";
+        cancelLink.style.opacity = "";
+      }
     } else {
       cancelSection.style.display = "none";
     }
@@ -404,11 +417,10 @@ function applyLanguageToUI(language = DEFAULT_LANGUAGE, participants = []) {
 // Listen for usage updates from Gmail content script
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === "USAGE_UPDATED" && message.data) {
-    // Get current language and update popup display
     chrome.storage.local.get([LANGUAGE_KEY], (result) => {
       const language = result[LANGUAGE_KEY] || DEFAULT_LANGUAGE;
       updatePlanUsageDisplay(message.data, language);
-      updateUpgradeLink(message.data.plan, language);
+      updateUpgradeLink(message.data.plan, language, message.data.cancelScheduled, message.data.periodEndDate);
     });
   }
   
@@ -561,28 +573,40 @@ document.addEventListener("DOMContentLoaded", () => {
   if (cancelSubscriptionLink) {
     cancelSubscriptionLink.addEventListener("click", async (e) => {
       e.preventDefault();
+      if (cancelSubscriptionLink.getAttribute("data-cancel-scheduled") === "true") return;
+      const language = languageSelect?.value || DEFAULT_LANGUAGE;
       const token = await getAccessToken();
       if (!token) {
-        alert(getTranslation("signInRequired", languageSelect?.value || DEFAULT_LANGUAGE));
+        console.error("[ReplyMate] Cancel failed: no access token (sign in may have expired)");
+        alert(getTranslation("signInRequired", language));
         return;
       }
-      const language = languageSelect?.value || DEFAULT_LANGUAGE;
       const confirmMsg = getTranslation("cancelConfirmMessage", language);
       if (!confirm(confirmMsg)) return;
+      cancelSubscriptionLink.style.pointerEvents = "none";
+      cancelSubscriptionLink.textContent = "Cancelling...";
       try {
         const response = await fetch("https://replymate-backend-bot8.onrender.com/billing/cancel-subscription", {
           method: "POST",
           headers: { "Authorization": `Bearer ${token}` },
         });
         const data = await response.json().catch(() => ({}));
-        if (!response.ok) throw new Error(data.error || "Failed");
+        if (!response.ok) {
+          const errMsg = data.error || `Request failed (${response.status})`;
+          console.error("[ReplyMate] Cancel subscription error:", response.status, errMsg);
+          throw new Error(errMsg);
+        }
         const days = data.remainingDays ?? 0;
         const successMsg = getTranslation("cancelSuccessMessage", language).replace("{days}", days);
         alert(successMsg);
         setCachedUsage(null);
-        loadUsageData(language);
+        await loadUsageData(language, true);
       } catch (err) {
-        alert(getTranslation("cancelError", language));
+        const msg = err?.message || getTranslation("cancelError", language);
+        alert(msg);
+        cancelSubscriptionLink.textContent = getTranslation("cancelSubscription", language);
+      } finally {
+        cancelSubscriptionLink.style.pointerEvents = "";
       }
     });
   }
@@ -609,9 +633,9 @@ document.addEventListener("DOMContentLoaded", () => {
     toneSelect.value = tone;
     lengthSelect.value = length;
     languageSelect.value = language;
-    // Load usage data only when logged in
+    // Load usage data only when logged in (force refresh on popup open for fresh plan/usage)
     if (typeof ReplyMateAuth !== "undefined" && (await ReplyMateAuth.isSignedIn())) {
-      loadUsageData(language);
+      loadUsageData(language, true);
     }
   });
 
@@ -674,16 +698,15 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
 // Load usage data and update UI with language
-async function loadUsageData(language = DEFAULT_LANGUAGE) {
-  const usageData = await getUsageData();
+async function loadUsageData(language = DEFAULT_LANGUAGE, forceRefresh = false) {
+  const usageData = await getUsageData(forceRefresh);
   
   if (usageData) {
     updatePlanUsageDisplay(usageData, language);
-    updateUpgradeLink(usageData.plan, language);
+    updateUpgradeLink(usageData.plan, language, usageData.cancelScheduled, usageData.periodEndDate);
   } else {
-    // Fallback display
     updatePlanUsageDisplay(null, language);
-    updateUpgradeLink('free', language);
+    updateUpgradeLink("free", language);
   }
 }
 });

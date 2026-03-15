@@ -1,4 +1,22 @@
-# Supabase Users Table Setup
+# Supabase Setup
+
+## 0. API keys (required for auth)
+
+**Get keys from Supabase Dashboard → Project Settings → API**
+
+- `SUPABASE_ANON_KEY` – **anon public** key (JWT format, starts with `eyJ`)
+- `SUPABASE_SERVICE_ROLE_KEY` – **service_role** key (JWT format)
+
+⚠️ **Do not use Stripe keys.** Keys starting with `sb_publishable_` or `pk_` are wrong.  
+Add both to `replymate-backend/.env`, then run:
+
+```bash
+node scripts/build-auth-config.js
+```
+
+Reload the extension after rebuilding auth-config.
+
+---
 
 ## 1. Create the table
 

@@ -527,8 +527,19 @@ app.post("/billing/cancel-subscription", requireAuth, async (req, res) => {
     });
 
     const periodEnd = subscription.current_period_end;
-    const periodEndDate = new Date(periodEnd * 1000).toISOString();
-    const remainingDays = Math.ceil((periodEnd * 1000 - Date.now()) / (24 * 60 * 60 * 1000));
+    if (periodEnd == null || typeof periodEnd !== "number" || periodEnd <= 0) {
+      console.error("Cancel subscription: invalid current_period_end from Stripe", { subscriptionId, periodEnd });
+      return res.status(500).json({ error: "Invalid subscription data from Stripe" });
+    }
+    const periodEndMs = periodEnd * 1000;
+    let periodEndDate;
+    try {
+      periodEndDate = new Date(periodEndMs).toISOString();
+    } catch (e) {
+      console.error("Cancel subscription: invalid date from period_end", { periodEnd, periodEndMs, err: e.message });
+      return res.status(500).json({ error: "Invalid subscription period" });
+    }
+    const remainingDays = Math.ceil((periodEndMs - Date.now()) / (24 * 60 * 60 * 1000));
 
     await updateUserCancelScheduled(userId, periodEndDate);
 
