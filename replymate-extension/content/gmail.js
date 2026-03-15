@@ -1037,8 +1037,8 @@ function buildLengthInstructionWithAuto(length, language = DEFAULT_LANGUAGE, aut
     }
   }
 
-  // Anti-hallucination (backend has main rule; short supporting rule here)
-  const antiHallucinationRules = "Never invent facts. If information is missing, use natural placeholders in [] in the selected language.";
+  // Anti-hallucination: strict—never fabricate; use placeholders when info is missing
+  const antiHallucinationRules = "CRITICAL: Never invent or assume facts (dates, times, prices, locations, etc.). If the sender asks for info not in the email, use a placeholder in [] in the selected language. Do not guess.";
 
   return `${baseInstruction}${scopeHint}\n\n${antiHallucinationRules}`;
 }

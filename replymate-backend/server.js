@@ -391,8 +391,9 @@ Core Quality Rules:
 - Acknowledgement only (thanks, okay, yes, 네, 알겠습니다, はい) → brief reply, not full email.
 - No question/request in latest message → no unnecessary follow-up.
 - Avoid generic AI phrases or script tone. Sound like a real person. Prefer natural paragraphs over robotic summaries.
-- NEVER invent facts (dates, times, prices, locations, URLs, attachments, confirmation status, or any unstated detail). If info is missing, use natural placeholders in [] in the selected output language (e.g. EN [date], KO [날짜], JP [日付]). Do not confirm or assume facts the sender asked about unless explicitly given.
 - LENGTH: Short=brief, Medium=balanced, Long=fuller, Auto=decide by context. TONE: each must feel distinct.
+
+CRITICAL—NO FABRICATION: Never invent, assume, or fabricate any fact not explicitly stated in the email or user instructions. This includes: dates, times, prices, locations, URLs, document names, meeting links, availability, confirmation status, release dates, delivery dates, or any other specific detail. If the sender asks "when?", "what time?", "how much?", "is it ready?", "can you confirm?" and the answer is not in the email—use a placeholder in [] in the selected language. Examples: EN [date], [time], [price]; KO [날짜], [시간], [가격]; JP [日付], [時間], [価格]. Do not guess or infer. Placeholder is mandatory when info is missing.
 
 Instructions:
 - Write only the email body.
@@ -404,11 +405,11 @@ ${additionalInstruction ? `- Additional instruction: ${additionalInstruction}` :
 
     const languageSystemPrompts = {
       english:
-        "CRITICAL: Generate replies ONLY in English. Never use any other language. Placeholders for missing info must be in English inside [] (e.g. [date], [time], [price]). Output must be natural, idiomatic English—not stiff or translated-sounding. Match the tone and length instructions exactly. Produce replies that native English speakers would find natural and well-written.",
+        "CRITICAL: Generate replies ONLY in English. Never use any other language. ANTI-HALLUCINATION: Never invent facts. If the sender asks for a date, time, price, location, or any detail not in the email, you MUST use a placeholder in [] (e.g. [date], [time], [price], [meeting link]). Never guess or assume. Output must be natural, idiomatic English—not stiff or translated-sounding. Match the tone and length instructions exactly. Produce replies that native English speakers would find natural and well-written.",
       korean:
-        "CRITICAL: Generate replies ONLY in Korean (한국어). Never use any other language. Placeholders for missing info must be in Korean inside [] (e.g. [날짜], [시간], [가격]). Output must be natural, idiomatic Korean—appropriate register (존댓말), natural expressions, and culturally appropriate phrasing. Match the tone and length instructions exactly. Produce replies that native Korean speakers would find natural and well-written.",
+        "CRITICAL: Generate replies ONLY in Korean (한국어). Never use any other language. ANTI-HALLUCINATION: Never invent facts. If the sender asks for a date, time, price, location, or any detail not in the email, you MUST use a placeholder in [] (e.g. [날짜], [시간], [가격], [회의 링크]). Never guess or assume. Output must be natural, idiomatic Korean—appropriate register (존댓말), natural expressions, and culturally appropriate phrasing. Match the tone and length instructions exactly. Produce replies that native Korean speakers would find natural and well-written.",
       japanese:
-        "CRITICAL: Generate replies ONLY in Japanese (日本語). Never use any other language. Placeholders for missing info must be in Japanese inside [] (e.g. [日付], [時間], [価格]). Output must be natural, idiomatic Japanese—appropriate keigo (敬語), natural expressions, and culturally appropriate phrasing. Match the tone and length instructions exactly. Produce replies that native Japanese speakers would find natural and well-written.",
+        "CRITICAL: Generate replies ONLY in Japanese (日本語). Never use any other language. ANTI-HALLUCINATION: Never invent facts. If the sender asks for a date, time, price, location, or any detail not in the email, you MUST use a placeholder in [] (e.g. [日付], [時間], [価格], [会議リンク]). Never guess or assume. Output must be natural, idiomatic Japanese—appropriate keigo (敬語), natural expressions, and culturally appropriate phrasing. Match the tone and length instructions exactly. Produce replies that native Japanese speakers would find natural and well-written.",
     };
 
     try {
