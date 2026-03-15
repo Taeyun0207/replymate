@@ -192,11 +192,7 @@ app.post(
             console.error("Invalid top-up pack size:", packSize);
             return res.status(400).json({ error: "Invalid top-up pack" });
           }
-          const now = new Date();
-          const purchaseDate = now.toISOString();
-          const expiryDate = new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000).toISOString();
-          const paymentIntentId = session.payment_intent || null;
-          await createTopup(userId, pack, purchaseDate, expiryDate, paymentIntentId);
+          await createTopup(userId, pack);
           console.log(`[Stripe] Top-up ${pack} replies added for user ${userId}`);
           return res.status(200).json({ received: true });
         }

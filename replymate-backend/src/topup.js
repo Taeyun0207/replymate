@@ -8,91 +8,115 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 const TOPUP_TABLE = "user_topups";
 
 /**
- * Create a top-up record after purchase.
+ * Add top-up credits after purchase. One row per user.
+ * Adds packSize to existing balance; sets expiry to 1 year from now (lenient).
  * @param {string} userId
  * @param {number} packSize - 100 or 500
- * @param {string} purchaseDateIso
- * @param {string} expiryDateIso
- * @param {string} stripePaymentIntentId - optional, for idempotency
  */
-async function createTopup(userId, packSize, purchaseDateIso, expiryDateIso, stripePaymentIntentId = null) {
-  const { data, error } = await supabase
-    .from(TOPUP_TABLE)
-    .insert({
-      user_id: userId,
-      pack_size: packSize,
-      remaining_replies: packSize,
-      purchase_date: purchaseDateIso,
-      expiry_date: expiryDateIso,
-      stripe_payment_intent_id: stripePaymentIntentId,
-    })
-    .select("id")
-    .single();
+async function createTopup(userId, packSize) {
+  try {
+    const now = new Date();
+    const expiryDate = new Date(now.getTime() + 365 * 24 * 60 * 60 * 1000).toISOString();
+    const nowIso = now.toISOString();
 
-  if (error) {
-    console.error("[DB] createTopup failed:", error.message);
-    throw error;
+    const { data: existing, error: fetchErr } = await supabase
+      .from(TOPUP_TABLE)
+      .select("remaining_replies")
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    if (fetchErr) {
+      console.warn("[DB] createTopup fetch failed:", fetchErr.message);
+      throw fetchErr;
+    }
+
+    if (existing) {
+      const newRemaining = (existing.remaining_replies || 0) + packSize;
+      const { error: updateErr } = await supabase
+        .from(TOPUP_TABLE)
+        .update({
+          remaining_replies: newRemaining,
+          expiry_date: expiryDate,
+          updated_at: nowIso,
+        })
+        .eq("user_id", userId);
+
+      if (updateErr) throw updateErr;
+      console.log("[DB] Top-up added:", userId, "+" + packSize, "total:", newRemaining);
+    } else {
+      const { error: insertErr } = await supabase
+        .from(TOPUP_TABLE)
+        .insert({
+          user_id: userId,
+          remaining_replies: packSize,
+          expiry_date: expiryDate,
+          updated_at: nowIso,
+        });
+
+      if (insertErr) throw insertErr;
+      console.log("[DB] Top-up created:", userId, packSize, "replies");
+    }
+  } catch (e) {
+    console.error("[DB] createTopup failed:", e?.message);
+    throw e;
   }
-  console.log("[DB] Top-up created:", userId, packSize, "replies, id:", data?.id);
-  return data;
 }
 
 /**
- * Get valid (non-expired) top-ups for user, ordered by expiry (earliest first).
- * Returns [] if table does not exist or query fails (graceful degradation).
+ * Get total remaining top-up replies for user (one row per user).
+ * Returns 0 if expired, no row, or table missing.
  */
-async function getValidTopups(userId) {
+async function getTotalTopupRemaining(userId) {
   try {
     const now = new Date().toISOString();
     const { data, error } = await supabase
       .from(TOPUP_TABLE)
-      .select("id, remaining_replies, expiry_date")
+      .select("remaining_replies, expiry_date")
       .eq("user_id", userId)
-      .gt("expiry_date", now)
-      .gt("remaining_replies", 0)
-      .order("expiry_date", { ascending: true });
+      .maybeSingle();
 
     if (error) {
-      console.warn("[DB] getValidTopups failed (table may not exist):", error.message);
-      return [];
+      console.warn("[DB] getTotalTopupRemaining failed:", error.message);
+      return 0;
     }
-    return data || [];
+    if (!data || !data.expiry_date || data.expiry_date <= now) return 0;
+    return Math.max(0, data.remaining_replies || 0);
   } catch (e) {
-    console.warn("[DB] getValidTopups error:", e?.message);
-    return [];
+    console.warn("[DB] getTotalTopupRemaining error:", e?.message);
+    return 0;
   }
 }
 
 /**
- * Get total remaining top-up replies for user.
- */
-async function getTotalTopupRemaining(userId) {
-  const topups = await getValidTopups(userId);
-  return topups.reduce((sum, t) => sum + (t.remaining_replies || 0), 0);
-}
-
-/**
- * Consume 1 reply from top-up. Uses earliest-expiry-first.
- * @returns {boolean} true if consumed, false if no top-up available or table missing
+ * Consume 1 reply from top-up.
+ * @returns {boolean} true if consumed, false if none available
  */
 async function consumeTopupReply(userId) {
   try {
-    const topups = await getValidTopups(userId);
-    if (topups.length === 0) return false;
+    const now = new Date().toISOString();
+    const { data, error: fetchErr } = await supabase
+      .from(TOPUP_TABLE)
+      .select("remaining_replies, expiry_date")
+      .eq("user_id", userId)
+      .single();
 
-    const topup = topups[0];
-    const newRemaining = Math.max(0, (topup.remaining_replies || 0) - 1);
+    if (fetchErr || !data) return false;
+    if (!data.expiry_date || data.expiry_date <= now) return false;
 
-    const { error } = await supabase
+    const current = data.remaining_replies || 0;
+    if (current <= 0) return false;
+
+    const newRemaining = current - 1;
+    const { error: updateErr } = await supabase
       .from(TOPUP_TABLE)
       .update({
         remaining_replies: newRemaining,
-        updated_at: new Date().toISOString(),
+        updated_at: now,
       })
-      .eq("id", topup.id);
+      .eq("user_id", userId);
 
-    if (error) {
-      console.warn("[DB] consumeTopupReply failed:", error.message);
+    if (updateErr) {
+      console.warn("[DB] consumeTopupReply failed:", updateErr.message);
       return false;
     }
     console.log("[DB] Top-up consumed 1 for user:", userId, "remaining:", newRemaining);
@@ -105,7 +129,6 @@ async function consumeTopupReply(userId) {
 
 module.exports = {
   createTopup,
-  getValidTopups,
   getTotalTopupRemaining,
   consumeTopupReply,
 };

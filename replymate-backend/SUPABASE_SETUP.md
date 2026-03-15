@@ -63,26 +63,26 @@ ALTER TABLE public.users ADD COLUMN IF NOT EXISTS period_end_at TIMESTAMPTZ;
 
 ## 2b. Top-up credits table (optional)
 
-For one-time reply packs (100 / 500 replies):
+For one-time reply packs (100 / 500 replies). One row per user; expiry extends to 1 year from each purchase.
 
 ```sql
 CREATE TABLE IF NOT EXISTS public.user_topups (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id TEXT NOT NULL,
-  pack_size INTEGER NOT NULL,
-  remaining_replies INTEGER NOT NULL,
-  purchase_date TIMESTAMPTZ NOT NULL,
-  expiry_date TIMESTAMPTZ NOT NULL,
-  stripe_payment_intent_id TEXT,
-  created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  user_id TEXT PRIMARY KEY,
+  remaining_replies INTEGER NOT NULL DEFAULT 0,
+  expiry_date TIMESTAMPTZ,
   updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE INDEX IF NOT EXISTS idx_user_topups_user_id ON public.user_topups(user_id);
-CREATE INDEX IF NOT EXISTS idx_user_topups_expiry ON public.user_topups(user_id, expiry_date);
-
 ALTER TABLE public.user_topups ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "Service role full access" ON public.user_topups;
 CREATE POLICY "Service role full access" ON public.user_topups FOR ALL USING (true) WITH CHECK (true);
+```
+
+**If you have the old multi-row schema**, migrate by dropping and recreating (existing top-up credits will be lost):
+
+```sql
+DROP TABLE IF EXISTS public.user_topups;
+-- Then run the CREATE TABLE above
 ```
 
 ## 3. Stripe webhook (for upgrades, renewals, and cancellations)
