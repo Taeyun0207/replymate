@@ -2348,7 +2348,8 @@ Length: ${finalLength}
         }
         if (usageResponse.ok) {
           const usage = await usageResponse.json();
-          if (usage.remaining <= 0) {
+          const totalRemaining = (usage.remaining ?? 0) + (usage.topupRemaining ?? 0);
+          if (totalRemaining <= 0) {
             const language = await getCurrentLanguage();
             showReplyMateMessage(getTranslation("replyLimitReached", language));
             await setReplyMateButtonState(button, "error");

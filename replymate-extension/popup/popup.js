@@ -49,7 +49,9 @@ const TRANSLATIONS = {
     signOut: "Sign out",
     signInRequired: "⚠️ Please sign in with Google to use ReplyMate.",
     topUpReplies: "Top up replies",
-    topupAvailable: "Top-up available: {count} replies",
+    topup100: "+100",
+    topup500: "+500",
+    topupCredits: "Top-up credits: {count}",
   },
   korean: {
     settings: "ReplyMate 설정",
@@ -89,7 +91,7 @@ const TRANSLATIONS = {
     signOut: "로그아웃",
     signInRequired: "⚠️ ReplyMate를 사용하려면 Google로 로그인해 주세요.",
     topUpReplies: "답장 충전",
-    topupAvailable: "충전 가능: {count}개 답장",
+    topupCredits: "충전 크레딧: {count}",
   },
   japanese: {
     settings: "設定",
@@ -129,7 +131,7 @@ const TRANSLATIONS = {
     signOut: "サインアウト",
     signInRequired: "⚠️ ReplyMateをご利用になるには、Googleでサインインしてください。",
     topUpReplies: "返信を追加",
-    topupAvailable: "追加可能: {count}件",
+    topupCredits: "追加クレジット: {count}",
   }
 };
 
@@ -283,7 +285,7 @@ function updateUpgradeLink(plan, language = DEFAULT_LANGUAGE, cancelScheduled = 
   // Top-up available: show when user has top-up credits
   if (topupAvailableEl) {
     if (topupRemaining > 0) {
-      topupAvailableEl.textContent = getTranslation("topupAvailable", language).replace("{count}", topupRemaining);
+      topupAvailableEl.textContent = getTranslation("topupCredits", language).replace("{count}", topupRemaining);
       topupAvailableEl.style.display = "block";
     } else {
       topupAvailableEl.style.display = "none";
@@ -407,6 +409,8 @@ function applyLanguageToUI(language = DEFAULT_LANGUAGE, participants = []) {
   document.querySelector('label[for="languageSelect"]').textContent = getTranslation("language", uiLanguage);
   document.getElementById("saveButton").textContent = getTranslation("save", uiLanguage);
   document.querySelector(".header-title").textContent = getTranslation("settings", uiLanguage);
+  const topupLabelEl = document.querySelector(".topup-label");
+  if (topupLabelEl) topupLabelEl.textContent = getTranslation("topUpReplies", uiLanguage);
   
   // Update placeholders
   document.getElementById("userNameInput").placeholder = getTranslation("yourName", uiLanguage);

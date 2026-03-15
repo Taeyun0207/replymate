@@ -39,22 +39,28 @@ async function createTopup(userId, packSize, purchaseDateIso, expiryDateIso, str
 
 /**
  * Get valid (non-expired) top-ups for user, ordered by expiry (earliest first).
+ * Returns [] if table does not exist or query fails (graceful degradation).
  */
 async function getValidTopups(userId) {
-  const now = new Date().toISOString();
-  const { data, error } = await supabase
-    .from(TOPUP_TABLE)
-    .select("id, remaining_replies, expiry_date")
-    .eq("user_id", userId)
-    .gt("expiry_date", now)
-    .gt("remaining_replies", 0)
-    .order("expiry_date", { ascending: true });
+  try {
+    const now = new Date().toISOString();
+    const { data, error } = await supabase
+      .from(TOPUP_TABLE)
+      .select("id, remaining_replies, expiry_date")
+      .eq("user_id", userId)
+      .gt("expiry_date", now)
+      .gt("remaining_replies", 0)
+      .order("expiry_date", { ascending: true });
 
-  if (error) {
-    console.error("[DB] getValidTopups failed:", error.message);
-    throw error;
+    if (error) {
+      console.warn("[DB] getValidTopups failed (table may not exist):", error.message);
+      return [];
+    }
+    return data || [];
+  } catch (e) {
+    console.warn("[DB] getValidTopups error:", e?.message);
+    return [];
   }
-  return data || [];
 }
 
 /**
@@ -67,29 +73,34 @@ async function getTotalTopupRemaining(userId) {
 
 /**
  * Consume 1 reply from top-up. Uses earliest-expiry-first.
- * @returns {boolean} true if consumed, false if no top-up available
+ * @returns {boolean} true if consumed, false if no top-up available or table missing
  */
 async function consumeTopupReply(userId) {
-  const topups = await getValidTopups(userId);
-  if (topups.length === 0) return false;
+  try {
+    const topups = await getValidTopups(userId);
+    if (topups.length === 0) return false;
 
-  const topup = topups[0];
-  const newRemaining = Math.max(0, (topup.remaining_replies || 0) - 1);
+    const topup = topups[0];
+    const newRemaining = Math.max(0, (topup.remaining_replies || 0) - 1);
 
-  const { error } = await supabase
-    .from(TOPUP_TABLE)
-    .update({
-      remaining_replies: newRemaining,
-      updated_at: new Date().toISOString(),
-    })
-    .eq("id", topup.id);
+    const { error } = await supabase
+      .from(TOPUP_TABLE)
+      .update({
+        remaining_replies: newRemaining,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", topup.id);
 
-  if (error) {
-    console.error("[DB] consumeTopupReply failed:", error.message);
-    throw error;
+    if (error) {
+      console.warn("[DB] consumeTopupReply failed:", error.message);
+      return false;
+    }
+    console.log("[DB] Top-up consumed 1 for user:", userId, "remaining:", newRemaining);
+    return true;
+  } catch (e) {
+    console.warn("[DB] consumeTopupReply error:", e?.message);
+    return false;
   }
-  console.log("[DB] Top-up consumed 1 for user:", userId, "remaining:", newRemaining);
-  return true;
 }
 
 module.exports = {
