@@ -174,11 +174,30 @@ app.post(
         const stripeCustomerId = session.customer;
         const stripeSubscriptionId = session.subscription;
 
+        let periodOptions = {};
+        if (stripeSubscriptionId) {
+          try {
+            const subscription = await stripe.subscriptions.retrieve(stripeSubscriptionId);
+            const periodEnd = subscription.current_period_end ?? subscription.items?.data?.[0]?.current_period_end;
+            const periodStart = subscription.current_period_start ?? subscription.items?.data?.[0]?.current_period_start;
+            if (periodEnd && periodStart) {
+              periodOptions = {
+                billingCycleStart: new Date(periodStart * 1000).toISOString(),
+                nextResetAt: new Date(periodEnd * 1000).toISOString(),
+              };
+              console.log("[Stripe] Using subscription period:", periodOptions);
+            }
+          } catch (subErr) {
+            console.warn("[Stripe] Could not fetch subscription for period, using default:", subErr.message);
+          }
+        }
+
         await updateUserPlan(
           userId,
           targetPlan,
           stripeCustomerId,
-          stripeSubscriptionId
+          stripeSubscriptionId,
+          periodOptions
         );
 
         console.log(`[Stripe] User ${userId} upgraded to ${targetPlan}`);

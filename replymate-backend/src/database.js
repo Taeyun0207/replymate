@@ -131,23 +131,27 @@ async function updateUserPlan(
   userId,
   plan,
   stripeCustomerId = null,
-  stripeSubscriptionId = null
+  stripeSubscriptionId = null,
+  options = {}
 ) {
   const now = new Date().toISOString();
-  const nextReset = new Date(
-    Date.now() + 30 * 24 * 60 * 60 * 1000
-  ).toISOString();
+  const nowMs = Date.now();
+  const defaultNextReset = new Date(nowMs + 30 * 24 * 60 * 60 * 1000).toISOString();
+
+  // Use Stripe period if provided; otherwise fall back to 30 days
+  const billingCycleStart = options.billingCycleStart ?? now;
+  const nextReset = options.nextResetAt ?? defaultNextReset;
 
   const existingUser = await getUser(userId);
 
   if (existingUser) {
-    console.log("[DB] Updating existing user plan:", userId, "to:", plan);
+    console.log("[DB] Updating existing user plan:", userId, "to:", plan, options.billingCycleStart ? "(Stripe period)" : "(default 30d)");
     const { data, error } = await supabase
       .from(TABLE_NAME)
       .update({
         plan,
         used: 0,
-        billing_cycle_start: now,
+        billing_cycle_start: billingCycleStart,
         next_reset_at: nextReset,
         stripe_customer_id: stripeCustomerId ?? existingUser.stripeCustomerId,
         stripe_subscription_id: stripeSubscriptionId ?? existingUser.stripeSubscriptionId,
@@ -174,7 +178,7 @@ async function updateUserPlan(
         userId,
         plan,
         used: 0,
-        billingCycleStart: now,
+        billingCycleStart,
         nextResetAt: nextReset,
         stripeCustomerId,
         stripeSubscriptionId,
