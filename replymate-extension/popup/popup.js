@@ -34,11 +34,16 @@ const TRANSLATIONS = {
     },
     repliesLeft: "replies left",
     cancelSubscription: "Cancel Subscription",
+    keepSubscription: "Keep subscription",
+    reactivating: "Reactivating...",
+    reactivateSuccess: "Subscription reactivated. Your plan will continue to renew.",
+    reactivateError: "Failed to reactivate subscription.",
     cancelConfirmMessage: "Are you sure you want to cancel your subscription? You will still be able to use ReplyMate until the end of your current billing period.",
     cancelSuccessMessage: "Subscription cancelled. You can continue using ReplyMate for {days} more days.",
     cancelError: "Failed to cancel subscription.",
     currentPlan: "Current Plan: ",
     renewsOn: "Renews on {date}",
+    activeUntil: "Active until {date}",
     cancelledActiveUntil: "Cancelled · active until {date}",
     signingIn: "Signing in...",
     cancelling: "Cancelling...",
@@ -76,11 +81,16 @@ const TRANSLATIONS = {
     },
     repliesLeft: "답장 남음",
     cancelSubscription: "구독 취소",
+    keepSubscription: "구독 유지",
+    reactivating: "복원 중...",
+    reactivateSuccess: "구독이 복원되었습니다. 플랜이 계속 갱신됩니다.",
+    reactivateError: "구독 복원에 실패했습니다.",
     cancelConfirmMessage: "구독을 취소하시겠습니까? 현재 결제 기간이 끝날 때까지 ReplyMate를 계속 사용할 수 있습니다.",
     cancelSuccessMessage: "구독이 취소되었습니다. ReplyMate를 {days}일 더 사용할 수 있습니다.",
     cancelError: "구독 취소에 실패했습니다.",
     currentPlan: "현재 플랜: ",
     renewsOn: "다음 갱신일: {date}",
+    activeUntil: "{date}까지 사용 가능",
     cancelledActiveUntil: "취소됨 · {date}까지 사용 가능",
     signingIn: "로그인 중...",
     cancelling: "취소 중...",
@@ -116,11 +126,16 @@ const TRANSLATIONS = {
     },
     repliesLeft: "残り返信可能数",
     cancelSubscription: "サブスクリプションをキャンセル",
+    keepSubscription: "サブスクリプションを継続",
+    reactivating: "復元中...",
+    reactivateSuccess: "サブスクリプションが復元されました。プランは引き続き更新されます。",
+    reactivateError: "サブスクリプションの復元に失敗しました。",
     cancelConfirmMessage: "サブスクリプションをキャンセルしますか？現在の請求期間が終わるまでReplyMateをご利用いただけます。",
     cancelSuccessMessage: "サブスクリプションがキャンセルされました。あと{days}日間ReplyMateをご利用いただけます。",
     cancelError: "キャンセルに失敗しました。",
     currentPlan: "現在のプラン: ",
     renewsOn: "更新日: {date}",
+    activeUntil: "{date}まで利用可能",
     cancelledActiveUntil: "キャンセル済み · {date}まで利用可能",
     signingIn: "サインイン中...",
     cancelling: "キャンセル処理中...",
@@ -261,7 +276,9 @@ function updateUpgradeLink(plan, language = DEFAULT_LANGUAGE, cancelScheduled = 
   const upgradeButtons = document.querySelector(".upgrade-buttons");
   const cancelSection = document.getElementById("cancelSection");
   const cancelLink = document.getElementById("cancelSubscriptionLink");
+  const keepLink = document.getElementById("keepSubscriptionLink");
   const renewalDateEl = document.getElementById("renewalDate");
+  const planExpiryEl = document.getElementById("planExpiry");
   const topupAvailableEl = document.getElementById("topupAvailable");
   const topupSection = document.getElementById("topupSection");
   const topupLabel = topupSection?.querySelector(".topup-label");
@@ -270,17 +287,28 @@ function updateUpgradeLink(plan, language = DEFAULT_LANGUAGE, cancelScheduled = 
 
   const locale = language === "korean" ? "ko-KR" : language === "japanese" ? "ja-JP" : "en-US";
 
-  // Renewal date: show for paid users only when NOT cancelled
-  if (renewalDateEl) {
-    if ((plan === "pro" || plan === "pro_plus") && !cancelScheduled && nextResetAt) {
-      const endDate = new Date(nextResetAt);
-      const dateStr = endDate.toLocaleDateString(locale, { month: "short", day: "numeric", year: "numeric" });
-      renewalDateEl.textContent = getTranslation("renewsOn", language).replace("{date}", dateStr);
-      renewalDateEl.style.display = "block";
+  // Plan expiry: show for Pro/Pro+ (renews date or active until when cancelled)
+  if (planExpiryEl) {
+    if (plan === "pro" || plan === "pro_plus") {
+      const dateToShow = cancelScheduled && periodEndDate ? periodEndDate : nextResetAt;
+      if (dateToShow) {
+        const endDate = new Date(dateToShow);
+        const dateStr = endDate.toLocaleDateString(locale, { month: "short", day: "numeric", year: "numeric" });
+        const text = cancelScheduled
+          ? getTranslation("activeUntil", language).replace("{date}", dateStr)
+          : getTranslation("renewsOn", language).replace("{date}", dateStr);
+        planExpiryEl.textContent = text;
+        planExpiryEl.style.display = "block";
+      } else {
+        planExpiryEl.style.display = "none";
+      }
     } else {
-      renewalDateEl.style.display = "none";
+      planExpiryEl.style.display = "none";
     }
   }
+
+  // Renewal date (inside upgrade box): hide - we now show plan expiry in planExpiry div above
+  if (renewalDateEl) renewalDateEl.style.display = "none";
 
   // Top-up available: show when user has top-up credits
   if (topupAvailableEl) {
@@ -297,8 +325,8 @@ function updateUpgradeLink(plan, language = DEFAULT_LANGUAGE, cancelScheduled = 
     topupLabel.textContent = getTranslation("topUpReplies", language);
   }
 
-  // Cancel section: show for pro/pro_plus; if cancelled, show "Cancelled · active until {date}"
-  if (cancelSection && cancelLink) {
+  // Cancel section: show for pro/pro_plus; if cancelled, show "Cancelled · active until {date}" + "Keep subscription"
+  if (cancelSection && cancelLink && keepLink) {
     if (plan === "pro" || plan === "pro_plus") {
       cancelSection.style.display = "block";
       if (cancelScheduled && periodEndDate) {
@@ -308,36 +336,40 @@ function updateUpgradeLink(plan, language = DEFAULT_LANGUAGE, cancelScheduled = 
         cancelLink.setAttribute("data-cancel-scheduled", "true");
         cancelLink.style.pointerEvents = "none";
         cancelLink.style.opacity = "0.8";
+        keepLink.textContent = getTranslation("keepSubscription", language);
+        keepLink.style.display = "";
       } else {
         cancelLink.textContent = getTranslation("cancelSubscription", language);
         cancelLink.removeAttribute("data-cancel-scheduled");
         cancelLink.style.pointerEvents = "";
         cancelLink.style.opacity = "";
+        keepLink.style.display = "none";
       }
     } else {
       cancelSection.style.display = "none";
+      keepLink.style.display = "none";
     }
   }
 
   console.log(`[ReplyMate] Rendering billing UI for plan: ${plan}`);
 
   if (plan === 'pro_plus') {
-    // Pro Plus plan - show enjoy message, hide all upgrade buttons
+    // Pro Plus plan - show enjoy message in yellow box, hide all upgrade buttons
     upgradeTitle.style.display = "";
     upgradeTitle.textContent = getTranslation("enjoyReplyMate", language);
+    upgradeTitle.classList.add("enjoy-box");
     upgradeButtons.style.display = "none"; // Hide all upgrade buttons
     
-    // Pro Plus 버튼과 동일한 배경색과 글자색 적용
-    upgradeBox.style.background = "linear-gradient(135deg, #FFD700 0%, #FFD700 50%, #FFFF99 100%)";
-    upgradeBox.style.border = "1px solid #FFFF99";
-    upgradeBox.style.color = "#000000";
-    upgradeTitle.style.color = "#000000";
-    upgradeTitle.style.fontWeight = "600";
-    upgradeBox.style.boxShadow = "0 2px 4px rgba(212, 175, 55, 0.3)";
+    // Keep light purple box - reset any inline overrides
+    upgradeBox.style.background = "";
+    upgradeBox.style.border = "";
+    upgradeBox.style.color = "";
+    upgradeBox.style.boxShadow = "";
     
     console.log("[ReplyMate] Billing UI rendered: Pro Plus plan (enjoy message)");
   } else if (plan === 'pro') {
     // Pro plan - hide "Current Plan" line, show upgrade to Pro Plus only
+    upgradeTitle.classList.remove("enjoy-box");
     upgradeTitle.style.display = "none";
     upgradeProLink.style.display = "none"; // Hide Pro button
     upgradeProPlusLink.style.display = "block"; // Show Pro Plus button
@@ -346,6 +378,7 @@ function updateUpgradeLink(plan, language = DEFAULT_LANGUAGE, cancelScheduled = 
     console.log("[ReplyMate] Billing UI rendered: Pro plan (upgrade to Pro Plus available)");
   } else {
     // Free plan - show both upgrade buttons
+    upgradeTitle.classList.remove("enjoy-box");
     upgradeTitle.style.display = "";
     upgradeTitle.textContent = getTranslation("upgradeMore", language);
     upgradeProLink.style.display = "block"; // Show Pro button
@@ -692,6 +725,44 @@ document.addEventListener("DOMContentLoaded", () => {
         cancelSubscriptionLink.textContent = getTranslation("cancelSubscription", language);
       } finally {
         cancelSubscriptionLink.style.pointerEvents = "";
+      }
+    });
+  }
+
+  // Add click handler for Keep subscription link
+  const keepSubscriptionLink = document.getElementById("keepSubscriptionLink");
+  if (keepSubscriptionLink) {
+    keepSubscriptionLink.addEventListener("click", async (e) => {
+      e.preventDefault();
+      const language = languageSelect?.value || DEFAULT_LANGUAGE;
+      const token = await getAccessToken();
+      if (!token) {
+        console.error("[ReplyMate] Reactivate failed: no access token (sign in may have expired)");
+        alert(getTranslation("signInRequired", language));
+        return;
+      }
+      keepSubscriptionLink.style.pointerEvents = "none";
+      keepSubscriptionLink.textContent = getTranslation("reactivating", language);
+      try {
+        const response = await fetch("https://replymate-backend-bot8.onrender.com/billing/reactivate-subscription", {
+          method: "POST",
+          headers: { "Authorization": `Bearer ${token}` },
+        });
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) {
+          const errMsg = data.error || `Request failed (${response.status})`;
+          console.error("[ReplyMate] Reactivate subscription error:", response.status, errMsg);
+          throw new Error(errMsg);
+        }
+        alert(getTranslation("reactivateSuccess", language));
+        setCachedUsage(null);
+        await loadUsageData(language, true);
+      } catch (err) {
+        const msg = err?.message || getTranslation("reactivateError", language);
+        alert(msg);
+        keepSubscriptionLink.textContent = getTranslation("keepSubscription", language);
+      } finally {
+        keepSubscriptionLink.style.pointerEvents = "";
       }
     });
   }

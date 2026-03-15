@@ -4,7 +4,7 @@ require("dotenv").config();
 const OpenAI = require("openai");
 const { createClient } = require("@supabase/supabase-js");
 const { PLAN_LIMITS } = require("./src/config/plans");
-const { getUser, updateUserPlan, recordUsage, testConnection, updateUserCancelScheduled, downgradeUserBySubscriptionId, syncPeriodBySubscriptionId } = require("./src/database");
+const { getUser, updateUserPlan, recordUsage, testConnection, updateUserCancelScheduled, clearUserCancelScheduled, downgradeUserBySubscriptionId, syncPeriodBySubscriptionId } = require("./src/database");
 const { getTotalTopupRemaining, createTopup } = require("./src/topup");
 const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 
@@ -677,6 +677,41 @@ app.post("/billing/cancel-subscription", requireAuth, async (req, res) => {
   } catch (error) {
     console.error("Cancel subscription error:", error);
     res.status(500).json({ error: "Failed to cancel subscription" });
+  }
+});
+
+// Reactivate subscription (undo cancel at period end) - requires auth
+app.post("/billing/reactivate-subscription", requireAuth, async (req, res) => {
+  try {
+    const userId = req.userId;
+
+    const user = await getUser(userId);
+    if (!user) {
+      return res.status(404).json({ error: "User not found" });
+    }
+
+    if (!user.cancelAtPeriodEnd) {
+      return res.status(400).json({ error: "No cancellation scheduled" });
+    }
+
+    const subscriptionId = user.stripeSubscriptionId;
+    if (!subscriptionId) {
+      return res.status(400).json({ error: "No active subscription found" });
+    }
+
+    await stripe.subscriptions.update(subscriptionId, {
+      cancel_at_period_end: false,
+    });
+
+    await clearUserCancelScheduled(userId);
+
+    res.json({
+      success: true,
+      cancelScheduled: false,
+    });
+  } catch (error) {
+    console.error("Reactivate subscription error:", error);
+    res.status(500).json({ error: "Failed to reactivate subscription" });
   }
 });
 

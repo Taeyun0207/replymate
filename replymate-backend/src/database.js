@@ -251,6 +251,18 @@ async function updateUserCancelScheduled(userId, periodEndAt) {
   if (error) throw error;
 }
 
+async function clearUserCancelScheduled(userId) {
+  const { error } = await supabase
+    .from(TABLE_NAME)
+    .update({
+      cancel_at_period_end: false,
+      period_end_at: null,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("user_id", userId);
+  if (error) throw error;
+}
+
 async function syncPeriodBySubscriptionId(subscriptionId, periodStartIso, periodEndIso) {
   const now = new Date().toISOString();
   const { data, error } = await supabase
@@ -308,6 +320,7 @@ module.exports = {
   closeDatabase,
   testConnection,
   updateUserCancelScheduled,
+  clearUserCancelScheduled,
   downgradeUserBySubscriptionId,
   syncPeriodBySubscriptionId,
 };
