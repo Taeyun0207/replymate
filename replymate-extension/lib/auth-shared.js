@@ -106,7 +106,7 @@
   }
 
   const global = typeof self !== "undefined" ? self : (typeof window !== "undefined" ? window : {});
-  global.ReplyMateAuthShared = {
+  const shared = {
     async getAccessToken() {
       const sessionRaw = await getStored(SESSION_KEY);
       if (!sessionRaw) return null;
@@ -146,4 +146,8 @@
       }
     },
   };
+  global.ReplyMateAuthShared = shared;
+  // Sync config from globals to storage when available (background/content script may load before popup)
+  const cfg = getConfigFromGlobal();
+  if (cfg.url && cfg.anonKey) shared.syncConfig(cfg.url, cfg.anonKey);
 })();

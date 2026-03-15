@@ -59,7 +59,12 @@ async function createStripeCheckout(targetPlan) {
 
 // Handle messages from popup and content scripts
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (message.type === "CREATE_STRIPE_CHECKOUT" && message.targetPlan) {
+  if (message.type === "GET_ACCESS_TOKEN") {
+    ReplyMateAuthShared.getAccessToken().then((token) => {
+      sendResponse({ token: token || null });
+    }).catch(() => sendResponse({ token: null }));
+    return true; // Keep channel open for async sendResponse
+  } else if (message.type === "CREATE_STRIPE_CHECKOUT" && message.targetPlan) {
     // Handle Stripe checkout request from popup or Gmail content script
     console.log(`[ReplyMate Background] Received Stripe checkout request for ${message.targetPlan} plan`);
     createStripeCheckout(message.targetPlan);

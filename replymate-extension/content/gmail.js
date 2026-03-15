@@ -118,7 +118,13 @@ const TRANSLATIONS = {
     instructionPlaceholder: "Additional details (optional, e.g. date, time, location).",
     upgradeToPro: "Upgrade to Pro",
     upgradeToProPlus: "Upgrade to Pro+",
-    enjoyReplyMate: "Enjoy ReplyMate!"
+    enjoyReplyMate: "Enjoy ReplyMate!",
+    currentPlan: "Current Plan: ",
+    replyGenerationFailed: "Reply generation failed: ",
+    invalidResponseFromServer: "Invalid response from server.",
+    unexpectedResponseFormat: "Unexpected response format.",
+    unableToExtractContent: "Unable to extract email content. Please try refreshing the page.",
+    extensionContextInvalidated: "ReplyMate was updated. Please refresh this page to continue."
   },
   korean: {
     aiReply: "AI Reply",
@@ -139,7 +145,13 @@ const TRANSLATIONS = {
     instructionPlaceholder: "추가 정보 입력 (선택 사항, 예: 날짜, 시간)",
     upgradeToPro: "Pro로 업그레이드",
     upgradeToProPlus: "Pro+로 업그레이드",
-    enjoyReplyMate: "ReplyMate를 즐겨보세요!"
+    enjoyReplyMate: "ReplyMate를 즐겨보세요!",
+    currentPlan: "현재 플랜: ",
+    replyGenerationFailed: "답장 생성 실패: ",
+    invalidResponseFromServer: "서버에서 잘못된 응답을 받았습니다.",
+    unexpectedResponseFormat: "예상치 못한 응답 형식입니다.",
+    unableToExtractContent: "이메일 내용을 추출할 수 없습니다. 페이지를 새로고침해 주세요.",
+    extensionContextInvalidated: "ReplyMate가 업데이트되었습니다. 계속하려면 페이지를 새로고침해 주세요."
   },
   japanese: {
     aiReply: "AI Reply",
@@ -160,7 +172,13 @@ const TRANSLATIONS = {
     instructionPlaceholder: "追加情報（任意：日付、時間 など）",
     upgradeToPro: "Proにアップグレード",
     upgradeToProPlus: "Pro+にアップグレード",
-    enjoyReplyMate: "ReplyMateをお楽しみください！"
+    enjoyReplyMate: "ReplyMateをお楽しみください！",
+    currentPlan: "現在のプラン: ",
+    replyGenerationFailed: "返信の生成に失敗しました: ",
+    invalidResponseFromServer: "サーバーから無効な応答を受け取りました。",
+    unexpectedResponseFormat: "予期しない応答形式です。",
+    unableToExtractContent: "メールの内容を取得できません。ページを更新してください。",
+    extensionContextInvalidated: "ReplyMateが更新されました。続行するにはページを更新してください。"
   }
 };
 
@@ -230,14 +248,19 @@ function loadReplyMateSettings() {
 
 // Check if user is signed in (uses auth-shared, no anonymous fallback)
 async function isLoggedIn() {
-  if (typeof ReplyMateAuthShared !== "undefined") {
-    return await ReplyMateAuthShared.isLoggedIn();
-  }
-  return false;
+  const token = await getAccessToken();
+  return !!token;
 }
 
-// Get access token for API calls (requires login)
+// Get access token for API calls (requires login).
+// Prefer background script (same context as popup) for reliable auth; fallback to local auth-shared.
 async function getAccessToken() {
+  try {
+    const res = await chrome.runtime.sendMessage({ type: "GET_ACCESS_TOKEN" });
+    if (res && res.token) return res.token;
+  } catch (_) {
+    // Extension context invalidated or background unavailable
+  }
   if (typeof ReplyMateAuthShared !== "undefined") {
     return await ReplyMateAuthShared.getAccessToken();
   }
@@ -481,6 +504,7 @@ async function generateAIReply(payload) {
       body: JSON.stringify(payload || {}),
     })
     .then(async (response) => {
+      const language = await getCurrentLanguage();
       console.log("[ReplyMate] Backend response status:", response.status, response.statusText);
       
       if (!response.ok) {
@@ -506,15 +530,12 @@ async function generateAIReply(payload) {
         console.log("[ReplyMate] Parsed error data:", errorData);
 
         if (response.status === 401) {
-          const language = await getCurrentLanguage();
           showReplyMateMessage(getTranslation("signInRequired", language));
           return "";
         }
 
         if (response.status === 403 || errorData.error === "usage_limit_exceeded") {
           console.warn("[ReplyMate] Monthly limit reached");
-          
-          const language = await getCurrentLanguage();
           showReplyMateMessage(getTranslation("monthlyLimitReached", language));
 
           // 리밋 도달 시 업그레이드 박스 표시
@@ -533,7 +554,7 @@ async function generateAIReply(payload) {
           : errorData.rawText || `Request failed (${response.status})`;
         const errorMsg = errorData.detail ? `${baseMsg} (${errorData.detail})` : baseMsg;
         console.error("[ReplyMate] Backend error:", response.status, response.statusText, errorMsg);
-        showReplyMateMessage(`Reply generation failed: ${errorMsg}`);
+        showReplyMateMessage(getTranslation("replyGenerationFailed", language) + errorMsg);
         return "";
       }
 
@@ -545,7 +566,7 @@ async function generateAIReply(payload) {
         data = JSON.parse(responseText);
       } catch (parseError) {
         console.error("[ReplyMate] Failed to parse success response JSON:", parseError);
-        showReplyMateMessage("Reply generation failed: Invalid response from server.");
+        showReplyMateMessage(getTranslation("invalidResponseFromServer", language));
         return "";
       }
 
@@ -555,19 +576,21 @@ async function generateAIReply(payload) {
       }
 
       console.error("[ReplyMate] Unexpected backend response shape:", data);
-      showReplyMateMessage("Reply generation failed: Unexpected response format.");
+      showReplyMateMessage(getTranslation("unexpectedResponseFormat", language));
       return "";
     })
     .catch(async (error) => {
+      const language = await getCurrentLanguage();
       const msg = error && typeof error.message === "string" ? error.message : "Network error";
       console.error("[ReplyMate] Network/fetch error:", msg);
-      showReplyMateMessage(`Reply generation failed: ${msg}`);
+      showReplyMateMessage(getTranslation("replyGenerationFailed", language) + msg);
       return "";
     });
   } catch (error) {
+    const language = await getCurrentLanguage();
     const msg = error && typeof error.message === "string" ? error.message : "Unexpected error";
     console.error("[ReplyMate] generateAIReply function error:", msg);
-    showReplyMateMessage(`Reply generation failed: ${msg}`);
+    showReplyMateMessage(getTranslation("replyGenerationFailed", language) + msg);
     return "";
   }
 }
@@ -713,14 +736,8 @@ function buildLengthInstruction(length, language = DEFAULT_LANGUAGE) {
   
   const userLanguageName = languageNames[language] || 'English';
   
-  // CRITICAL LANGUAGE RULE - Absolute priority to user setting (equal strength for all languages)
-  const criticalLanguageRule = `
-CRITICAL LANGUAGE RULE:
-Write entire reply strictly in ${userLanguageName}.
-Do not use sender's language unless it matches selected setting.
-Even if email is written in another language, reply must remain fully in ${userLanguageName}.
-Never follow email language - only follow user popup language setting.
-`;
+  // Language rule (backend system prompt enforces; this reinforces)
+  const criticalLanguageRule = `LANGUAGE: Reply strictly in ${userLanguageName}. No mixing. Placeholders in [] must be in ${userLanguageName} (e.g. EN [date], KO [날짜], JP [日付]).`;
 
   // Language-specific base instructions — equal strength and specificity for EN/KO/JP
   const languageInstructions = {
@@ -1004,25 +1021,17 @@ function buildLengthInstructionWithAuto(length, language = DEFAULT_LANGUAGE, aut
   const effectiveLength = autoDetectedLength || length || DEFAULT_LENGTH;
   const baseInstruction = buildLengthInstruction(effectiveLength, language);
   
-  // When Auto mode, append scope hint to help AI decide length
+  // When Auto mode, append scope hint
   let scopeHint = "";
   if (effectiveLength === "auto" && scopeContext && scopeContext.latestMessage) {
     const scope = getMessageScope(scopeContext.latestMessage);
     if (scope && (scope.questionCount > 0 || scope.requestCount > 0)) {
-      scopeHint = `\n\nScope: ${scope.questionCount} question(s), ${scope.requestCount} request(s). Address all points.`;
+      scopeHint = "\n\nAddress all questions and requests.";
     }
   }
-  
-  // Anti-hallucination and placeholder rules (all languages)
-  const antiHallucinationRules = `
-CRITICAL—NEVER INVENT FACTS: Do not fabricate dates, times, prices, schedules, release dates, meeting details, locations, URLs, attachments, or any specific information not present in the email or user instructions.
 
-Do not assume facts that were asked as questions. If the sender asks whether something is finalized, available, confirmed, or ready, do not confirm it unless the information is explicitly provided. Use neutral responses or placeholders instead.
-
-If information is missing, use context-aware placeholders integrated naturally into sentences. Examples: [date], [time], [price], [meeting link], [document name], [location], [availability]. Use placeholders in the reply language (EN: [time], KO: [시간], JP: [時間]).
-
-Rules: Placeholders only when info is genuinely missing. If user provides data in optional instructions, use it. Never invent specifics. Write natural professional emails—placeholders should read naturally in context.
-`;
+  // Anti-hallucination (backend has main rule; short supporting rule here)
+  const antiHallucinationRules = "Never invent facts. If information is missing, use natural placeholders in [] in the selected language.";
 
   return `${baseInstruction}${scopeHint}\n\n${antiHallucinationRules}`;
 }
@@ -1161,9 +1170,10 @@ async function createReplyMateButton() {
         return;
       }
     } catch (err) {
+      const language = await getCurrentLanguage();
       const msg = err?.message?.includes("Extension context invalidated")
-        ? "ReplyMate was updated. Please refresh this page to continue."
-        : getTranslation("signInRequired", DEFAULT_LANGUAGE);
+        ? getTranslation("extensionContextInvalidated", language)
+        : getTranslation("signInRequired", language);
       await showReplyMateMessage("⚠️ " + msg, button);
       await setReplyMateButtonState(button, "error");
       setTimeout(async () => await setReplyMateButtonState(button, "idle"), 3000);
@@ -1208,7 +1218,7 @@ async function createReplyMateButton() {
       });
       
       await setReplyMateButtonState(button, "error");
-      showReplyMateMessage("⚠️ Unable to extract email content. Please try refreshing the page.");
+      showReplyMateMessage("⚠️ " + getTranslation("unableToExtractContent", language));
       setTimeout(async () => await setReplyMateButtonState(button, "idle"), 3000);
       return;
     }
@@ -1361,7 +1371,8 @@ Length: ${finalLength}
           currentPlanText.style.fontSize = "11px";
           currentPlanText.style.color = "#188038";
           currentPlanText.style.fontWeight = "600";
-          currentPlanText.textContent = `Current Plan: ${(TRANSLATIONS[language]?.planNames || TRANSLATIONS.english.planNames).pro_plus || "Pro+ Plan"}`;
+          const planNames = TRANSLATIONS[language]?.planNames || TRANSLATIONS.english.planNames;
+          currentPlanText.textContent = getTranslation("currentPlan", language) + (planNames.pro_plus || "Pro+");
           upgradeContainer.appendChild(currentPlanText);
           console.log("[ReplyMate] Gmail UI - Billing UI rendered: Pro Plus plan (no upgrades)");
         } else {
@@ -2302,9 +2313,10 @@ Length: ${finalLength}
           return;
         }
       } catch (err) {
+        const language = await getCurrentLanguage();
         const msg = err?.message?.includes("Extension context invalidated")
-          ? "ReplyMate was updated. Please refresh this page to continue."
-          : getTranslation("signInRequired", DEFAULT_LANGUAGE);
+          ? getTranslation("extensionContextInvalidated", language)
+          : getTranslation("signInRequired", language);
         await showReplyMateMessage("⚠️ " + msg, button);
         await setReplyMateButtonState(button, "error");
         setTimeout(async () => await setReplyMateButtonState(button, "idle"), 3000);

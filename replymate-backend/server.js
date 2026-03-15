@@ -320,6 +320,10 @@ app.post("/generate-reply", requireAuth, async (req, res) => {
     // Tone instructions — each tone must feel clearly distinct in output
     let toneInstructions = "";
     switch ((tone || "").toLowerCase()) {
+      case "auto":
+        toneInstructions =
+          "TONE: Auto. Choose the most appropriate tone based on the email context, sender's style, intent, and formality cues. Be natural and context-aware.";
+        break;
       case "professional":
         toneInstructions =
           "TONE: Professional. Use work-appropriate, clear, composed language. Sound like a competent colleague or business contact: structured, reliable, and focused. Avoid casual slang, excessive warmth, or emotional language. Be respectful and efficient without being cold.";
@@ -387,7 +391,7 @@ Core Quality Rules:
 - Acknowledgement only (thanks, okay, yes, 네, 알겠습니다, はい) → brief reply, not full email.
 - No question/request in latest message → no unnecessary follow-up.
 - Avoid generic AI phrases or script tone. Sound like a real person. Prefer natural paragraphs over robotic summaries.
-- NEVER invent facts (dates, prices, times, locations, URLs, attachments) not in the email or user instructions. Use placeholders like [date], [time], [price] when info is missing.
+- NEVER invent facts (dates, times, prices, locations, URLs, attachments, confirmation status, or any unstated detail). If info is missing, use natural placeholders in [] in the selected output language (e.g. EN [date], KO [날짜], JP [日付]). Do not confirm or assume facts the sender asked about unless explicitly given.
 - LENGTH: Short=brief, Medium=balanced, Long=fuller, Auto=decide by context. TONE: each must feel distinct.
 
 Instructions:
@@ -400,11 +404,11 @@ ${additionalInstruction ? `- Additional instruction: ${additionalInstruction}` :
 
     const languageSystemPrompts = {
       english:
-        "CRITICAL: Generate replies ONLY in English. Never use any other language. Output must be natural, idiomatic English—not stiff or translated-sounding. Match the tone and length instructions exactly. Produce replies that native English speakers would find natural and well-written.",
+        "CRITICAL: Generate replies ONLY in English. Never use any other language. Placeholders for missing info must be in English inside [] (e.g. [date], [time], [price]). Output must be natural, idiomatic English—not stiff or translated-sounding. Match the tone and length instructions exactly. Produce replies that native English speakers would find natural and well-written.",
       korean:
-        "CRITICAL: Generate replies ONLY in Korean (한국어). Never use any other language. Output must be natural, idiomatic Korean—appropriate register (존댓말), natural expressions, and culturally appropriate phrasing. Match the tone and length instructions exactly. Produce replies that native Korean speakers would find natural and well-written.",
+        "CRITICAL: Generate replies ONLY in Korean (한국어). Never use any other language. Placeholders for missing info must be in Korean inside [] (e.g. [날짜], [시간], [가격]). Output must be natural, idiomatic Korean—appropriate register (존댓말), natural expressions, and culturally appropriate phrasing. Match the tone and length instructions exactly. Produce replies that native Korean speakers would find natural and well-written.",
       japanese:
-        "CRITICAL: Generate replies ONLY in Japanese (日本語). Never use any other language. Output must be natural, idiomatic Japanese—appropriate keigo (敬語), natural expressions, and culturally appropriate phrasing. Match the tone and length instructions exactly. Produce replies that native Japanese speakers would find natural and well-written.",
+        "CRITICAL: Generate replies ONLY in Japanese (日本語). Never use any other language. Placeholders for missing info must be in Japanese inside [] (e.g. [日付], [時間], [価格]). Output must be natural, idiomatic Japanese—appropriate keigo (敬語), natural expressions, and culturally appropriate phrasing. Match the tone and length instructions exactly. Produce replies that native Japanese speakers would find natural and well-written.",
     };
 
     try {

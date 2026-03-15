@@ -35,8 +35,14 @@ const TRANSLATIONS = {
     repliesLeft: "replies left",
     cancelSubscription: "Cancel Subscription",
     cancelConfirmMessage: "Are you sure you want to cancel your subscription? You will still be able to use ReplyMate until the end of your current billing period.",
-    cancelSuccessMessage: "Subscription cancellation scheduled. You can continue using ReplyMate for {days} more days.",
+    cancelSuccessMessage: "Subscription cancelled. You can continue using ReplyMate for {days} more days.",
     cancelError: "Failed to cancel subscription.",
+    currentPlan: "Current Plan: ",
+    cancelledActiveUntil: "Cancelled · active until {date}",
+    signingIn: "Signing in...",
+    cancelling: "Cancelling...",
+    authErrorGeneric: "An error occurred during sign in. Please try again.",
+    unableToExtractContent: "Unable to extract email content. Please try refreshing the page.",
     signInWithGoogle: "Sign in with Google",
     signedInAs: "Signed in as",
     signOut: "Sign out",
@@ -66,8 +72,14 @@ const TRANSLATIONS = {
     repliesLeft: "답장 남음",
     cancelSubscription: "구독 취소",
     cancelConfirmMessage: "구독을 취소하시겠습니까? 현재 결제 기간이 끝날 때까지 ReplyMate를 계속 사용할 수 있습니다.",
-    cancelSuccessMessage: "구독 취소가 예약되었습니다. ReplyMate를 {days}일 더 사용할 수 있습니다.",
+    cancelSuccessMessage: "구독이 취소되었습니다. ReplyMate를 {days}일 더 사용할 수 있습니다.",
     cancelError: "구독 취소에 실패했습니다.",
+    currentPlan: "현재 플랜: ",
+    cancelledActiveUntil: "취소됨 · {date}까지 사용 가능",
+    signingIn: "로그인 중...",
+    cancelling: "취소 중...",
+    authErrorGeneric: "로그인 중 오류가 발생했습니다. 다시 시도해 주세요.",
+    unableToExtractContent: "이메일 내용을 추출할 수 없습니다. 페이지를 새로고침해 주세요.",
     signInWithGoogle: "Google로 로그인",
     signedInAs: "로그인됨",
     signOut: "로그아웃",
@@ -97,8 +109,14 @@ const TRANSLATIONS = {
     repliesLeft: "残り返信可能数",
     cancelSubscription: "サブスクリプションをキャンセル",
     cancelConfirmMessage: "サブスクリプションをキャンセルしますか？現在の請求期間が終わるまでReplyMateをご利用いただけます。",
-    cancelSuccessMessage: "サブスクリプションのキャンセルが予約されました。あと{days}日間ReplyMateをご利用いただけます。",
+    cancelSuccessMessage: "サブスクリプションがキャンセルされました。あと{days}日間ReplyMateをご利用いただけます。",
     cancelError: "キャンセルに失敗しました。",
+    currentPlan: "現在のプラン: ",
+    cancelledActiveUntil: "キャンセル済み · {date}まで利用可能",
+    signingIn: "サインイン中...",
+    cancelling: "キャンセル処理中...",
+    authErrorGeneric: "サインイン中にエラーが発生しました。もう一度お試しください。",
+    unableToExtractContent: "メールの内容を取得できません。ページを更新してください。",
     signInWithGoogle: "Googleでサインイン",
     signedInAs: "サインイン中",
     signOut: "サインアウト",
@@ -241,8 +259,9 @@ function updateUpgradeLink(plan, language = DEFAULT_LANGUAGE, cancelScheduled = 
       cancelSection.style.display = "block";
       if (cancelScheduled && periodEndDate) {
         const endDate = new Date(periodEndDate);
-        const dateStr = endDate.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
-        cancelLink.textContent = `Cancellation scheduled · active until ${dateStr}`;
+        const locale = language === "korean" ? "ko-KR" : language === "japanese" ? "ja-JP" : "en-US";
+        const dateStr = endDate.toLocaleDateString(locale, { month: "short", day: "numeric", year: "numeric" });
+        cancelLink.textContent = getTranslation("cancelledActiveUntil", language).replace("{date}", dateStr);
         cancelLink.setAttribute("data-cancel-scheduled", "true");
         cancelLink.style.pointerEvents = "none";
         cancelLink.style.opacity = "0.8";
@@ -275,7 +294,8 @@ function updateUpgradeLink(plan, language = DEFAULT_LANGUAGE, cancelScheduled = 
     console.log("[ReplyMate] Billing UI rendered: Pro Plus plan (enjoy message)");
   } else if (plan === 'pro') {
     // Pro plan - show current plan + upgrade to Pro Plus only
-    upgradeTitle.textContent = `Current Plan: ${getTranslation("planNames", language)?.pro || "Pro Plan"}`;
+    const planNames = getTranslation("planNames", language) || TRANSLATIONS.english.planNames;
+    upgradeTitle.textContent = getTranslation("currentPlan", language) + (planNames.pro || "Pro");
     upgradeProLink.style.display = "none"; // Hide Pro button
     upgradeProPlusLink.style.display = "block"; // Show Pro Plus button
     upgradeProPlusLink.textContent = getTranslation("upgradeToProPlus", language);
@@ -510,13 +530,13 @@ document.addEventListener("DOMContentLoaded", () => {
     signInButton.addEventListener("click", async () => {
       const textEl = signInButton.querySelector(".gsi-material-button-contents");
       signInButton.disabled = true;
-      if (textEl) textEl.textContent = "Signing in...";
+      if (textEl) textEl.textContent = getTranslation("signingIn", languageSelect?.value || DEFAULT_LANGUAGE);
       const result = await ReplyMateAuth.signInWithGoogle();
       const language = languageSelect?.value || DEFAULT_LANGUAGE;
       if (result.error) {
         signInButton.disabled = false;
         if (textEl) textEl.textContent = getTranslation("signInWithGoogle", language);
-        if (result.error !== "Auth cancelled") alert(result.error);
+        if (result.error !== "Auth cancelled") alert(getTranslation("authErrorGeneric", language));
       } else {
         await updateLoginUI(language);
         setCachedUsage(null);
@@ -584,7 +604,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const confirmMsg = getTranslation("cancelConfirmMessage", language);
       if (!confirm(confirmMsg)) return;
       cancelSubscriptionLink.style.pointerEvents = "none";
-      cancelSubscriptionLink.textContent = "Cancelling...";
+      cancelSubscriptionLink.textContent = getTranslation("cancelling", language);
       try {
         const response = await fetch("https://replymate-backend-bot8.onrender.com/billing/cancel-subscription", {
           method: "POST",
