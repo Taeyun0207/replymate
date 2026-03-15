@@ -38,6 +38,7 @@ const TRANSLATIONS = {
     cancelSuccessMessage: "Subscription cancelled. You can continue using ReplyMate for {days} more days.",
     cancelError: "Failed to cancel subscription.",
     currentPlan: "Current Plan: ",
+    renewsOn: "Renews on {date}",
     cancelledActiveUntil: "Cancelled · active until {date}",
     signingIn: "Signing in...",
     cancelling: "Cancelling...",
@@ -75,6 +76,7 @@ const TRANSLATIONS = {
     cancelSuccessMessage: "구독이 취소되었습니다. ReplyMate를 {days}일 더 사용할 수 있습니다.",
     cancelError: "구독 취소에 실패했습니다.",
     currentPlan: "현재 플랜: ",
+    renewsOn: "갱신일: {date}",
     cancelledActiveUntil: "취소됨 · {date}까지 사용 가능",
     signingIn: "로그인 중...",
     cancelling: "취소 중...",
@@ -112,6 +114,7 @@ const TRANSLATIONS = {
     cancelSuccessMessage: "サブスクリプションがキャンセルされました。あと{days}日間ReplyMateをご利用いただけます。",
     cancelError: "キャンセルに失敗しました。",
     currentPlan: "現在のプラン: ",
+    renewsOn: "更新日: {date}",
     cancelledActiveUntil: "キャンセル済み · {date}まで利用可能",
     signingIn: "サインイン中...",
     cancelling: "キャンセル処理中...",
@@ -242,7 +245,7 @@ function updatePlanUsageDisplay(usageData, language = DEFAULT_LANGUAGE) {
 }
 
 // Update upgrade link based on current plan with language support
-function updateUpgradeLink(plan, language = DEFAULT_LANGUAGE, cancelScheduled = false, periodEndDate = null) {
+function updateUpgradeLink(plan, language = DEFAULT_LANGUAGE, cancelScheduled = false, periodEndDate = null, nextResetAt = null) {
   const upgradeProLink = document.getElementById("upgradeProLink");
   const upgradeProPlusLink = document.getElementById("upgradeProPlusLink");
   const upgradeTitle = document.querySelector(".upgrade-title");
@@ -250,16 +253,30 @@ function updateUpgradeLink(plan, language = DEFAULT_LANGUAGE, cancelScheduled = 
   const upgradeButtons = document.querySelector(".upgrade-buttons");
   const cancelSection = document.getElementById("cancelSection");
   const cancelLink = document.getElementById("cancelSubscriptionLink");
+  const renewalDateEl = document.getElementById("renewalDate");
   
   if (!upgradeProLink || !upgradeProPlusLink || !upgradeTitle || !upgradeBox || !upgradeButtons) return;
 
-  // Show cancel section only for pro / pro_plus (hide Cancel button if cancellation already scheduled)
+  const locale = language === "korean" ? "ko-KR" : language === "japanese" ? "ja-JP" : "en-US";
+
+  // Renewal date: show for paid users only when NOT cancelled
+  if (renewalDateEl) {
+    if ((plan === "pro" || plan === "pro_plus") && !cancelScheduled && nextResetAt) {
+      const endDate = new Date(nextResetAt);
+      const dateStr = endDate.toLocaleDateString(locale, { month: "short", day: "numeric", year: "numeric" });
+      renewalDateEl.textContent = getTranslation("renewsOn", language).replace("{date}", dateStr);
+      renewalDateEl.style.display = "block";
+    } else {
+      renewalDateEl.style.display = "none";
+    }
+  }
+
+  // Cancel section: show for pro/pro_plus; if cancelled, show "Cancelled · active until {date}"
   if (cancelSection && cancelLink) {
     if (plan === "pro" || plan === "pro_plus") {
       cancelSection.style.display = "block";
       if (cancelScheduled && periodEndDate) {
         const endDate = new Date(periodEndDate);
-        const locale = language === "korean" ? "ko-KR" : language === "japanese" ? "ja-JP" : "en-US";
         const dateStr = endDate.toLocaleDateString(locale, { month: "short", day: "numeric", year: "numeric" });
         cancelLink.textContent = getTranslation("cancelledActiveUntil", language).replace("{date}", dateStr);
         cancelLink.setAttribute("data-cancel-scheduled", "true");
@@ -440,7 +457,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     chrome.storage.local.get([LANGUAGE_KEY], (result) => {
       const language = result[LANGUAGE_KEY] || DEFAULT_LANGUAGE;
       updatePlanUsageDisplay(message.data, language);
-      updateUpgradeLink(message.data.plan, language, message.data.cancelScheduled, message.data.periodEndDate);
+      updateUpgradeLink(message.data.plan, language, message.data.cancelScheduled, message.data.periodEndDate, message.data.nextResetAt);
     });
   }
   
@@ -723,7 +740,7 @@ async function loadUsageData(language = DEFAULT_LANGUAGE, forceRefresh = false) 
   
   if (usageData) {
     updatePlanUsageDisplay(usageData, language);
-    updateUpgradeLink(usageData.plan, language, usageData.cancelScheduled, usageData.periodEndDate);
+    updateUpgradeLink(usageData.plan, language, usageData.cancelScheduled, usageData.periodEndDate, usageData.nextResetAt);
   } else {
     updatePlanUsageDisplay(null, language);
     updateUpgradeLink("free", language);
