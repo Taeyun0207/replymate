@@ -76,7 +76,7 @@ const TRANSLATIONS = {
     cancelSuccessMessage: "구독이 취소되었습니다. ReplyMate를 {days}일 더 사용할 수 있습니다.",
     cancelError: "구독 취소에 실패했습니다.",
     currentPlan: "현재 플랜: ",
-    renewsOn: "갱신일: {date}",
+    renewsOn: "다음 갱신일: {date}",
     cancelledActiveUntil: "취소됨 · {date}까지 사용 가능",
     signingIn: "로그인 중...",
     cancelling: "취소 중...",
@@ -297,6 +297,7 @@ function updateUpgradeLink(plan, language = DEFAULT_LANGUAGE, cancelScheduled = 
 
   if (plan === 'pro_plus') {
     // Pro Plus plan - show enjoy message, hide all upgrade buttons
+    upgradeTitle.style.display = "";
     upgradeTitle.textContent = getTranslation("enjoyReplyMate", language);
     upgradeButtons.style.display = "none"; // Hide all upgrade buttons
     
@@ -310,9 +311,8 @@ function updateUpgradeLink(plan, language = DEFAULT_LANGUAGE, cancelScheduled = 
     
     console.log("[ReplyMate] Billing UI rendered: Pro Plus plan (enjoy message)");
   } else if (plan === 'pro') {
-    // Pro plan - show current plan + upgrade to Pro Plus only
-    const planNames = getTranslation("planNames", language) || TRANSLATIONS.english.planNames;
-    upgradeTitle.textContent = getTranslation("currentPlan", language) + (planNames.pro || "Pro");
+    // Pro plan - hide "Current Plan" line, show upgrade to Pro Plus only
+    upgradeTitle.style.display = "none";
     upgradeProLink.style.display = "none"; // Hide Pro button
     upgradeProPlusLink.style.display = "block"; // Show Pro Plus button
     upgradeProPlusLink.textContent = getTranslation("upgradeToProPlus", language);
@@ -320,6 +320,7 @@ function updateUpgradeLink(plan, language = DEFAULT_LANGUAGE, cancelScheduled = 
     console.log("[ReplyMate] Billing UI rendered: Pro plan (upgrade to Pro Plus available)");
   } else {
     // Free plan - show both upgrade buttons
+    upgradeTitle.style.display = "";
     upgradeTitle.textContent = getTranslation("upgradeMore", language);
     upgradeProLink.style.display = "block"; // Show Pro button
     upgradeProPlusLink.style.display = "block"; // Show Pro Plus button
