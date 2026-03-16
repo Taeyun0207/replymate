@@ -1059,10 +1059,7 @@ function buildLengthInstructionWithAuto(length, language = DEFAULT_LANGUAGE, aut
     }
   }
 
-  // Anti-hallucination: strict—never fabricate; use placeholders when info is missing
-  const antiHallucinationRules = "CRITICAL: Never invent or assume facts (dates, times, prices, locations, URLs, names, etc.). If the sender asks for info not in the email or additional instruction, use a placeholder in [] in the user's language setting. Do not guess.";
-
-  return `${baseInstruction}${scopeHint}\n\n${antiHallucinationRules}`;
+  return `${baseInstruction}${scopeHint}`;
 }
 
 // Finds the reply editor associated with a clicked ReplyMate button.
