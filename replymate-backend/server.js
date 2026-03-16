@@ -490,7 +490,7 @@ ${additionalInstruction ? `- Additional instruction: ${additionalInstruction}` :
         reasoning_effort: "medium",
         verbosity: "medium",
         temperature: 0.8,
-        max_tokens: parseInt(process.env.OPENAI_MAX_TOKENS, 10) || 500,
+        max_completion_tokens: parseInt(process.env.OPENAI_MAX_TOKENS, 10) || 500,
       });
 
       const reply = completion.choices?.[0]?.message?.content?.trim();
