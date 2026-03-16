@@ -147,6 +147,51 @@ const TRANSLATIONS = {
     signInRequired: "⚠️ ReplyMateをご利用になるには、Googleでサインインしてください。",
     topUpReplies: "返信を追加",
     topupCredits: "追加クレジット: {count}",
+  },
+  spanish: {
+    settings: "Configuración de ReplyMate",
+    replyTone: "Tono de respuesta",
+    replyLength: "Longitud de respuesta",
+    yourName: "Tu nombre",
+    language: "Idioma",
+    save: "Guardar",
+    saved: "¡Guardado!",
+    loading: "Cargando...",
+    usageUnavailable: "Uso no disponible",
+    upgradeMore: "Desbloquea más respuestas con Pro",
+    upgradeUnlimited: "Desbloquea respuestas ilimitadas con Pro+",
+    enjoyReplyMate: "¡Disfruta tu ReplyMate!",
+    upgradeToPro: "Actualizar a Pro",
+    upgradeToProPlus: "Actualizar a Pro+",
+    manageSubscription: "Administrar suscripción",
+    planNames: {
+      free: "Plan gratuito",
+      pro: "Pro",
+      pro_plus: "Pro+"
+    },
+    repliesLeft: "respuestas restantes",
+    cancelSubscription: "Cancelar suscripción",
+    keepSubscription: "Mantener suscripción",
+    reactivating: "Reactivando...",
+    reactivateSuccess: "Suscripción reactivada. Tu plan continuará renovándose.",
+    reactivateError: "Error al reactivar la suscripción.",
+    cancelConfirmMessage: "¿Estás seguro de que deseas cancelar tu suscripción? Podrás seguir usando ReplyMate hasta el final de tu período de facturación actual.",
+    cancelSuccessMessage: "Suscripción cancelada. Puedes seguir usando ReplyMate durante {days} días más.",
+    cancelError: "Error al cancelar la suscripción.",
+    currentPlan: "Plan actual: ",
+    renewsOn: "Renueva el {date}",
+    activeUntil: "Activo hasta el {date}",
+    cancelledActiveUntil: "Cancelado · activo hasta el {date}",
+    signingIn: "Iniciando sesión...",
+    cancelling: "Cancelando...",
+    authErrorGeneric: "Ocurrió un error al iniciar sesión. Por favor, inténtalo de nuevo.",
+    unableToExtractContent: "No se puede extraer el contenido del correo. Por favor, actualiza la página.",
+    signInWithGoogle: "Iniciar sesión con Google",
+    signedInAs: "Conectado como",
+    signOut: "Cerrar sesión",
+    signInRequired: "⚠️ Por favor, inicia sesión con Google para usar ReplyMate.",
+    topUpReplies: "Añadir respuestas",
+    topupCredits: "Créditos adicionales: {count}",
   }
 };
 
@@ -285,7 +330,7 @@ function updateUpgradeLink(plan, language = DEFAULT_LANGUAGE, cancelScheduled = 
   
   if (!upgradeProLink || !upgradeProPlusLink || !upgradeTitle || !upgradeBox || !upgradeButtons) return;
 
-  const locale = language === "korean" ? "ko-KR" : language === "japanese" ? "ja-JP" : "en-US";
+  const locale = language === "korean" ? "ko-KR" : language === "japanese" ? "ja-JP" : language === "spanish" ? "es-ES" : "en-US";
 
   // Plan expiry: show for Pro/Pro+ (renews date or active until when cancelled)
   if (planExpiryEl) {
@@ -449,19 +494,21 @@ function applyLanguageToUI(language = DEFAULT_LANGUAGE, participants = []) {
   document.getElementById("userNameInput").placeholder = getTranslation("yourName", uiLanguage);
   
   // Update option labels for tone and length
+  const toneLabels = { korean: { auto: "자동 (추천)", professional: "전문적인", polite: "정중한", friendly: "친근한", direct: "직설적인" }, japanese: { auto: "自動（推奨）", professional: "ビジネス用に", polite: "丁寧に", friendly: "カジュアルに", direct: "簡潔に" }, spanish: { auto: "Automático (recomendado)", professional: "Profesional", polite: "Educado", friendly: "Amigable", direct: "Directo" } };
   const toneOptions = {
-    auto: uiLanguage === "korean" ? "자동 (추천)" : uiLanguage === "japanese" ? "自動（推奨）" : "Auto (recommended)",
-    professional: uiLanguage === "korean" ? "전문적인" : uiLanguage === "japanese" ? "ビジネス用に" : "Professional",
-    polite: uiLanguage === "korean" ? "정중한" : uiLanguage === "japanese" ? "丁寧に" : "Polite", 
-    friendly: uiLanguage === "korean" ? "친근한" : uiLanguage === "japanese" ? "カジュアルに" : "Friendly",
-    direct: uiLanguage === "korean" ? "직설적인" : uiLanguage === "japanese" ? "簡潔に" : "Direct"
+    auto: toneLabels[uiLanguage]?.auto || "Auto (recommended)",
+    professional: toneLabels[uiLanguage]?.professional || "Professional",
+    polite: toneLabels[uiLanguage]?.polite || "Polite",
+    friendly: toneLabels[uiLanguage]?.friendly || "Friendly",
+    direct: toneLabels[uiLanguage]?.direct || "Direct"
   };
   
+  const lengthLabels = { korean: { auto: "자동 (추천)", short: "짧음", medium: "보통", long: "김" }, japanese: { auto: "自動（推奨）", short: "短め", medium: "普通", long: "長め" }, spanish: { auto: "Automático (recomendado)", short: "Corto", medium: "Medio", long: "Largo" } };
   const lengthOptions = {
-    auto: uiLanguage === "korean" ? "자동 (추천)" : uiLanguage === "japanese" ? "自動（推奨）" : "Auto (recommended)",
-    short: uiLanguage === "korean" ? "짧음" : uiLanguage === "japanese" ? "短め" : "Short",
-    medium: uiLanguage === "korean" ? "보통" : uiLanguage === "japanese" ? "普通" : "Medium",
-    long: uiLanguage === "korean" ? "김" : uiLanguage === "japanese" ? "長め" : "Long"
+    auto: lengthLabels[uiLanguage]?.auto || "Auto (recommended)",
+    short: lengthLabels[uiLanguage]?.short || "Short",
+    medium: lengthLabels[uiLanguage]?.medium || "Medium",
+    long: lengthLabels[uiLanguage]?.long || "Long"
   };
   
   // Update language select options with native language names
@@ -471,7 +518,8 @@ function applyLanguageToUI(language = DEFAULT_LANGUAGE, participants = []) {
     const languageOptions = [
       { value: "english", label: "English" },
       { value: "korean", label: "한국어" },
-      { value: "japanese", label: "日本語" }
+      { value: "japanese", label: "日本語" },
+      { value: "spanish", label: "Español" }
     ];
     languageOptions.forEach(({ value, label }) => {
       const option = document.createElement("option");

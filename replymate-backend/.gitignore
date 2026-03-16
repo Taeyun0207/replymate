@@ -31,3 +31,6 @@ coverage/
 
 # Misc
 *.tgz
+
+# Zip files
+*.zip

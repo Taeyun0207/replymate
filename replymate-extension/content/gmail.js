@@ -179,6 +179,33 @@ const TRANSLATIONS = {
     unexpectedResponseFormat: "予期しない応答形式です。",
     unableToExtractContent: "メールの内容を取得できません。ページを更新してください。",
     extensionContextInvalidated: "ReplyMateが更新されました。続行するにはページを更新してください。"
+  },
+  spanish: {
+    aiReply: "Respuesta IA",
+    aiReplyHover: "Respuesta IA",
+    generating: "Generando...",
+    tryAgain: "Intentar de nuevo",
+    limitReached: "Límite alcanzado",
+    usageUnavailable: "Uso no disponible",
+    monthlyLimitReached: "⚠️ Has alcanzado el límite mensual de ReplyMate. Actualiza para generar más respuestas.",
+    replyLimitReached: "⚠️ Límite de ReplyMate alcanzado. Actualiza para generar más respuestas.",
+    signInRequired: "⚠️ Por favor, inicia sesión con Google para usar ReplyMate.",
+    planNames: {
+      free: "Plan gratuito",
+      pro: "Pro",
+      pro_plus: "Pro+"
+    },
+    repliesLeft: "respuestas restantes",
+    instructionPlaceholder: "Detalles adicionales (opcional, ej. fecha, hora, ubicación)",
+    upgradeToPro: "Actualizar a Pro",
+    upgradeToProPlus: "Actualizar a Pro+",
+    enjoyReplyMate: "¡Disfruta ReplyMate!",
+    currentPlan: "Plan actual: ",
+    replyGenerationFailed: "Error al generar la respuesta: ",
+    invalidResponseFromServer: "Respuesta inválida del servidor.",
+    unexpectedResponseFormat: "Formato de respuesta inesperado.",
+    unableToExtractContent: "No se puede extraer el contenido del correo. Por favor, actualiza la página.",
+    extensionContextInvalidated: "ReplyMate se actualizó. Por favor, actualiza esta página para continuar."
   }
 };
 
@@ -723,15 +750,21 @@ Acknowledgement-only (thanks, ok, got it, yes, 알겠습니다, はい) → brie
 
 考慮: 質問・依頼の数、論点、複雑さ、必要な説明、メールの長さ。
 簡潔な完全性: 重要な点をすべて扱い、不要な冗長さを避け、要約できるからといって短くしない。
-確認のみ（ありがとう、OK、はい、알겠습니다）→ 短い返信。それ以外は状況に応じてLongより長くても可。`
+確認のみ（ありがとう、OK、はい、알겠습니다）→ 短い返信。それ以外は状況に応じてLongより長くても可。`,
+  spanish: `AUTO LENGTH: Decide la longitud de la respuesta según las necesidades reales del correo. Sin límites estrictos Short/Medium/Long.
+
+Considera: número de preguntas o solicitudes, puntos de discusión, complejidad, explicación necesaria, longitud del correo.
+Completitud concisa: aborda todos los puntos importantes, evita verbosidad innecesaria, no acortes solo porque el correo podría resumirse.
+Solo confirmación (gracias, ok, de acuerdo, sí) → respuesta breve. De lo contrario, la longitud puede superar Long si la situación lo requiere.`
 };
 
 // Convert UI language to OpenAI language code
 function mapLanguageToOpenAI(language) {
   const languageMapping = {
     'english': 'en',
-    'korean': 'ko', 
-    'japanese': 'ja'
+    'korean': 'ko',
+    'japanese': 'ja',
+    'spanish': 'es'
   };
   return languageMapping[language] || 'en';
 }
@@ -739,57 +772,42 @@ function mapLanguageToOpenAI(language) {
 function buildLengthInstruction(length, language = DEFAULT_LANGUAGE) {
   const l = (length || DEFAULT_LENGTH).toLowerCase();
   
-  // Convert UI language to full language name for explicit instructions
-  const languageNames = {
-    'english': 'English',
-    'korean': 'Korean', 
-    'japanese': 'Japanese'
-  };
-  
-  const userLanguageName = languageNames[language] || 'English';
-  
-  // Language rule (backend enforces; this reinforces briefly)
-  const criticalLanguageRule = `LANGUAGE: Reply strictly in ${userLanguageName}. No mixing. Placeholders in [] must also be in ${userLanguageName}.`;
-
-  // Language-specific base instructions — equal strength and specificity for EN/KO/JP
-  const languageInstructions = {
-    english: "Write reply in English. Use natural, idiomatic English—not stiff or translated-sounding.",
-    korean: "Write reply in Korean (한국어). Use natural, idiomatic Korean with appropriate 존댓말 (formal speech level). Not stiff or translated-sounding.",
-    japanese: "Write reply in Japanese (日本語). Use natural, idiomatic Japanese with appropriate 敬語 (keigo). Not stiff or translated-sounding."
-  };
-  
-  const languageInstruction = languageInstructions[language] || languageInstructions.english;
+  // Context-based language: reply matches the email language, not user settings
+  const languageRule = "LANGUAGE: Reply in the same language as the email you are replying to. Match the language, tone, and register of the incoming message. Placeholders in [] must be in the reply language.";
 
   // Auto mode - let backend determine length
   if (l === "auto") {
-    return `${criticalLanguageRule}\n\n${languageInstruction} ${autoInstructions[language] || autoInstructions.english}`;
+    return `${languageRule}\n\n${autoInstructions[language] || autoInstructions.english}`;
   }
 
   if (l === "short") {
     const shortInstructions = {
       english: "LENGTH: Short (very brief, minimal, fast). Write exactly 1–2 sentences, maximum ~20 words. Be extremely concise. No preamble, no extra pleasantries, no follow-up questions. Reply and stop. Short must feel noticeably shorter than a typical email.",
       korean: "LENGTH: Short (매우 짧고 간결). 정확히 1–2문장, 최대 ~20단어. 극도로 간결하게. 서론·추가 인사·추가 질문 없음. 답하고 끝. Short는 일반 이메일보다 확실히 짧아야 함.",
-      japanese: "LENGTH: Short（非常に短く簡潔）. 正確に1〜2文、最大〜20語。極めて簡潔に。前置き・余計な挨拶・追加の質問なし。返事して終わり。Shortは通常のメールより明らかに短くすること。"
+      japanese: "LENGTH: Short（非常に短く簡潔）. 正確に1〜2文、最大〜20語。極めて簡潔に。前置き・余計な挨拶・追加の質問なし。返事して終わり。Shortは通常のメールより明らかに短くすること。",
+      spanish: "LENGTH: Short (muy breve, mínimo, rápido). Escribe exactamente 1–2 oraciones, máximo ~20 palabras. Sé extremadamente conciso. Sin preámbulo, sin cortesías extra, sin preguntas de seguimiento. Responde y termina. Short debe sentirse notablemente más corto que un correo típico."
     };
-    return `${criticalLanguageRule}\n\n${languageInstruction} ${shortInstructions[(language || 'english')] || shortInstructions.english}`;
+    return `${languageRule}\n\n${shortInstructions[(language || 'english')] || shortInstructions.english}`;
   }
 
   if (l === "long") {
     const longInstructions = {
       english: "LENGTH: Long (fuller, complete, thoughtful). Write 6–9 sentences, 70–150 words. Include: brief context or acknowledgment, main response with detail, appreciation or next steps, and a polished closing. Long must feel noticeably more complete and considered than a typical quick reply.",
       korean: "LENGTH: Long (충분하고 완전하며 신중함). 6–9문장, 70–150단어. 포함: 맥락/인지, 상세한 본론, 감사/다음 단계, 세련된 마무리. Long은 일반적인 짧은 답장보다 확실히 더 완전하고 신중해야 함.",
-      japanese: "LENGTH: Long（十分で丁寧な返信）. 6〜9文、70〜150語。含める：文脈・確認、詳細な本論、感謝・次のステップ、洗練された結び。Longは通常の短い返信より明らかに完全で丁寧であること。"
+      japanese: "LENGTH: Long（十分で丁寧な返信）. 6〜9文、70〜150語。含める：文脈・確認、詳細な本論、感謝・次のステップ、洗練された結び。Longは通常の短い返信より明らかに完全で丁寧であること。",
+      spanish: "LENGTH: Long (más completo, detallado, reflexivo). Escribe 6–9 oraciones, 70–150 palabras. Incluye: breve contexto o reconocimiento, respuesta principal con detalle, agradecimiento o próximos pasos, y un cierre pulido. Long debe sentirse notablemente más completo que una respuesta rápida típica."
     };
-    return `${criticalLanguageRule}\n\n${languageInstruction} ${longInstructions[(language || 'english')] || longInstructions.english}`;
+    return `${languageRule}\n\n${longInstructions[(language || 'english')] || longInstructions.english}`;
   }
 
   // medium / default
   const mediumInstructions = {
     english: "LENGTH: Medium (balanced, natural). Write 3–5 sentences, 25–70 words. One brief acknowledgment, the main point, and a natural closing. Not too brief, not too long. Medium should feel like a normal, well-proportioned email reply.",
     korean: "LENGTH: Medium (균형 잡힌 자연스러운 길이). 3–5문장, 25–70단어. 짧은 인지, 핵심 내용, 자연스러운 마무리. 너무 짧지도 길지도 않게. Medium은 일반적이고 균형 잡힌 이메일 답장처럼 느껴져야 함.",
-    japanese: "LENGTH: Medium（バランスの取れた自然な長さ）. 3〜5文、25〜70語。短い確認、本題、自然な結び。短すぎず長すぎず。Mediumは普通のバランスの取れた返信のように感じること。"
+    japanese: "LENGTH: Medium（バランスの取れた自然な長さ）. 3〜5文、25〜70語。短い確認、本題、自然な結び。短すぎず長すぎず。Mediumは普通のバランスの取れた返信のように感じること。",
+    spanish: "LENGTH: Medium (equilibrado, natural). Escribe 3–5 oraciones, 25–70 palabras. Un breve reconocimiento, el punto principal y un cierre natural. Ni muy breve ni muy largo. Medium debe sentirse como una respuesta de correo normal y bien proporcionada."
   };
-  return `${criticalLanguageRule}\n\n${languageInstruction} ${mediumInstructions[(language || 'english')] || mediumInstructions.english}`;
+  return `${languageRule}\n\n${mediumInstructions[(language || 'english')] || mediumInstructions.english}`;
 }
 
 // Auto-detect optimal tone based on email context — intentional, not generic
@@ -801,9 +819,9 @@ function detectOptimalTone(threadContext, latestMessage) {
   let intent = 'unknown';
   let complexity = 'simple';
   
-  if (message.includes('thank') || message.includes('감사') || message.includes('ありがとう') || 
-      message.includes('got it') || message.includes('알겠습니다') || 
-      message.includes('received') || message.includes('받았습니다') ||
+  if (message.includes('thank') || message.includes('감사') || message.includes('ありがとう') || message.includes('gracias') ||
+      message.includes('got it') || message.includes('알겠습니다') || message.includes('de acuerdo') || message.includes('entendido') ||
+      message.includes('received') || message.includes('받았습니다') || message.includes('recibido') ||
       message.includes('ok ') || message.includes('okay') || message.includes('네 ') || message.includes('예 ')) {
     intent = 'acknowledgement';
     complexity = 'simple';
@@ -1043,7 +1061,7 @@ function buildLengthInstructionWithAuto(length, language = DEFAULT_LANGUAGE, aut
   }
 
   // Anti-hallucination: strict—never fabricate; use placeholders when info is missing
-  const antiHallucinationRules = "CRITICAL: Never invent or assume facts (dates, times, prices, locations, etc.). If the sender asks for info not in the email, use a placeholder in [] in the selected language. Do not guess.";
+  const antiHallucinationRules = "CRITICAL: Never invent or assume facts (dates, times, prices, locations, etc.). If the sender asks for info not in the email, use a placeholder in [] in the same language as your reply. Do not guess.";
 
   return `${baseInstruction}${scopeHint}\n\n${antiHallucinationRules}`;
 }
@@ -1664,6 +1682,12 @@ function detectLanguage(text) {
   // Chinese detection (basic patterns)
   if (/[\u4e00-\u9fff]/.test(text)) {
     return 'chinese';
+  }
+  
+  // Spanish detection - accented chars and common words
+  if (/[ñáéíóúü]/.test(lowerText) ||
+      /\b(gracias|por favor|que|para|con|estoy|tengo|hola|buenos|días|noche|favor|información|solicitud|correo|respuesta)\b/i.test(lowerText)) {
+    return 'spanish';
   }
   
   // Default to English

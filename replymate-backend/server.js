@@ -464,7 +464,7 @@ Core Quality Rules:
 - Avoid generic AI phrases or script tone. Sound like a real person. Prefer natural paragraphs over robotic summaries.
 - LENGTH: Short=brief, Medium=balanced, Long=fuller, Auto=decide by context. TONE: each must feel distinct.
 
-CRITICAL—NO FABRICATION: Never invent, assume, or fabricate any fact not explicitly stated in the email or user instructions. This includes: dates, times, prices, locations, URLs, document names, meeting links, availability, confirmation status, release dates, delivery dates, or any other specific detail. If the sender asks "when?", "what time?", "how much?", "is it ready?", "can you confirm?" and the answer is not in the email—use a placeholder in [] in the selected language. Examples: EN [date], [time], [price]; KO [날짜], [시간], [가격]; JP [日付], [時間], [価格]. Do not guess or infer. Placeholder is mandatory when info is missing.
+CRITICAL—NO FABRICATION: Never invent, assume, or fabricate any fact not explicitly stated in the email or user instructions. This includes: dates, times, prices, locations, URLs, document names, meeting links, availability, confirmation status, release dates, delivery dates, or any other specific detail. If the sender asks "when?", "what time?", "how much?", "is it ready?", "can you confirm?" and the answer is not in the email—use a placeholder in [] in the same language as your reply. Examples: EN [date], [time], [price]; KO [날짜], [시간], [가격]; JP [日付], [時間], [価格]. Do not guess or infer. Placeholder is mandatory when info is missing.
 
 Instructions:
 - Write only the email body.
@@ -474,14 +474,9 @@ Instructions:
 ${additionalInstruction ? `- Additional instruction: ${additionalInstruction}` : ""}
 `;
 
-    const languageSystemPrompts = {
-      english:
-        "CRITICAL: Generate replies ONLY in English. Never use any other language. ANTI-HALLUCINATION: Never invent facts. If the sender asks for a date, time, price, location, or any detail not in the email, you MUST use a placeholder in [] (e.g. [date], [time], [price], [meeting link]). Never guess or assume. Output must be natural, idiomatic English—not stiff or translated-sounding. Match the tone and length instructions exactly. Produce replies that native English speakers would find natural and well-written.",
-      korean:
-        "CRITICAL: Generate replies ONLY in Korean (한국어). Never use any other language. ANTI-HALLUCINATION: Never invent facts. If the sender asks for a date, time, price, location, or any detail not in the email, you MUST use a placeholder in [] (e.g. [날짜], [시간], [가격], [회의 링크]). Never guess or assume. Output must be natural, idiomatic Korean—appropriate register (존댓말), natural expressions, and culturally appropriate phrasing. Match the tone and length instructions exactly. Produce replies that native Korean speakers would find natural and well-written.",
-      japanese:
-        "CRITICAL: Generate replies ONLY in Japanese (日本語). Never use any other language. ANTI-HALLUCINATION: Never invent facts. If the sender asks for a date, time, price, location, or any detail not in the email, you MUST use a placeholder in [] (e.g. [日付], [時間], [価格], [会議リンク]). Never guess or assume. Output must be natural, idiomatic Japanese—appropriate keigo (敬語), natural expressions, and culturally appropriate phrasing. Match the tone and length instructions exactly. Produce replies that native Japanese speakers would find natural and well-written.",
-    };
+    // Context-based language: reply in the same language as the email, not user settings
+    const contextBasedSystemPrompt =
+      "CRITICAL: Generate your reply in the SAME LANGUAGE as the email you are replying to. Match the language, tone, and register of the incoming message. If the email is in Korean, reply in Korean. If in Japanese, reply in Japanese. If in English or any other language, reply in that language. ANTI-HALLUCINATION: Never invent facts. If the sender asks for a date, time, price, location, or any detail not in the email, you MUST use a placeholder in [] in the reply language (e.g. EN [date], [time]; KO [날짜], [시간]; JP [日付], [時間]). Never guess or assume. Output must be natural and idiomatic in whatever language you use. Match the tone and length instructions exactly.";
 
     try {
       const completion = await openai.chat.completions.create({
@@ -489,8 +484,7 @@ ${additionalInstruction ? `- Additional instruction: ${additionalInstruction}` :
         messages: [
           {
             role: "system",
-            content:
-              languageSystemPrompts[language] || languageSystemPrompts.english,
+            content: contextBasedSystemPrompt,
           },
           {
             role: "user",
