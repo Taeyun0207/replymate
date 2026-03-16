@@ -67,17 +67,14 @@ const REPLYMATE_CONFIG = {
     },
     upgradeUrl: "https://replymate.ai/upgrade"
   },
-  // UI configuration - light pill style (like competitor)
+  // UI configuration
   ui: {
     colors: {
-      normal: "#ffffff",
-      hover: "#f8f9fa",
-      loading: "#f1f3f4",
-      error: "#fce8e6",
-      text: "#3c4043",
-      border: "#dadce0",
-      borderError: "#d93025",
-      iconUrl: "icons/icon16.png"
+      normal: "#7943f1",
+      hover: "#b794f6",
+      loading: "#9aa0a6",
+      error: "#d93025",
+      text: "#ffffff"
     },
     timeouts: {
       cache: 30000,        // 30 seconds
@@ -688,31 +685,6 @@ const REPLYMATE_BUTTON_COLOR_HOVER = REPLYMATE_CONFIG.ui.colors.hover;
 const REPLYMATE_BUTTON_COLOR_LOADING = REPLYMATE_CONFIG.ui.colors.loading;
 const REPLYMATE_BUTTON_COLOR_ERROR = REPLYMATE_CONFIG.ui.colors.error;
 const REPLYMATE_BUTTON_TEXT_COLOR = REPLYMATE_CONFIG.ui.colors.text;
-const REPLYMATE_BUTTON_BORDER = REPLYMATE_CONFIG.ui.colors.border;
-const REPLYMATE_BUTTON_BORDER_ERROR = REPLYMATE_CONFIG.ui.colors.borderError;
-
-// Build button content: icon + text span (for light pill style)
-function buildReplyMateButtonContent(button, text) {
-  button.innerHTML = "";
-  button.style.display = "inline-flex";
-  button.style.alignItems = "center";
-  button.style.gap = "6px";
-  const iconUrl = chrome.runtime?.getURL?.(REPLYMATE_CONFIG.ui.colors.iconUrl) || "";
-  if (iconUrl) {
-    const img = document.createElement("img");
-    img.src = iconUrl;
-    img.alt = "";
-    img.className = "replymate-btn-icon";
-    img.style.width = "14px";
-    img.style.height = "14px";
-    img.style.flexShrink = "0";
-    button.appendChild(img);
-  }
-  const span = document.createElement("span");
-  span.className = "replymate-btn-text";
-  span.textContent = text;
-  button.appendChild(span);
-}
 
 // Set button state with language support
 async function setReplyMateButtonState(button, state) {
@@ -721,36 +693,26 @@ async function setReplyMateButtonState(button, state) {
   button.dataset.replymateState = state;
   console.log("[ReplyMate] setReplyMateButtonState", { state, button });
 
-  const textEl = button.querySelector(".replymate-btn-text");
-  const updateText = (t) => {
-    if (textEl) textEl.textContent = t;
-    else button.textContent = t;
-  };
-
   if (state === "loading") {
     button.disabled = true;
     button.style.cursor = "default";
-    updateText(getTranslation("generating", language));
+    button.textContent = getTranslation("generating", language);
     button.style.backgroundColor = REPLYMATE_BUTTON_COLOR_LOADING;
-    button.style.borderColor = REPLYMATE_BUTTON_BORDER;
   } else if (state === "error") {
     button.disabled = false;
     button.style.cursor = "pointer";
-    updateText(getTranslation("tryAgain", language));
+    button.textContent = getTranslation("tryAgain", language);
     button.style.backgroundColor = REPLYMATE_BUTTON_COLOR_ERROR;
-    button.style.borderColor = REPLYMATE_BUTTON_BORDER_ERROR;
   } else {
     button.disabled = false;
     button.style.cursor = "pointer";
-    updateText(getTranslation("aiReply", language));
+    button.textContent = getTranslation("aiReply", language);
     button.style.backgroundColor = REPLYMATE_BUTTON_COLOR_NORMAL;
-    button.style.borderColor = REPLYMATE_BUTTON_BORDER;
   }
 }
 
 function attachReplyMateButtonHoverStyles(button) {
   button.style.color = REPLYMATE_BUTTON_TEXT_COLOR;
-  button.style.border = `1px solid ${REPLYMATE_BUTTON_BORDER}`;
 
   button.addEventListener("mouseenter", () => {
     const state = button.dataset.replymateState || "idle";
@@ -1169,16 +1131,13 @@ async function createReplyMateButton() {
   const button = document.createElement("button");
   button.className = "replymate-generate-button";
 
-  button.style.padding = "6px 12px";
+  button.style.padding = "6px 10px";
   button.style.backgroundColor = REPLYMATE_BUTTON_COLOR_NORMAL;
   button.style.color = REPLYMATE_BUTTON_TEXT_COLOR;
-  button.style.border = `1px solid ${REPLYMATE_BUTTON_BORDER}`;
-  button.style.borderRadius = "20px";
+  button.style.border = "none";
+  button.style.borderRadius = "6px";
   button.style.cursor = "pointer";
   button.style.fontSize = "12px";
-  button.style.fontWeight = "500";
-
-  buildReplyMateButtonContent(button, getTranslation("aiReply", language));
 
   // Create the additional instruction input with translated placeholder
   const instructionInput = document.createElement("input");
@@ -2343,7 +2302,6 @@ Length: ${finalLength}
   }
 
   async function createHoverGenerateButton(row) {
-    const language = await getCurrentLanguage();
     const button = document.createElement("button");
     button.type = "button";
     button.className = REPLYMATE_HOVER_BUTTON_CLASS;
@@ -2351,18 +2309,14 @@ Length: ${finalLength}
     button.style.padding = "4px 10px";
     button.style.backgroundColor = REPLYMATE_BUTTON_COLOR_NORMAL;
     button.style.color = REPLYMATE_BUTTON_TEXT_COLOR;
-    button.style.border = `1px solid ${REPLYMATE_BUTTON_BORDER}`;
-    button.style.borderRadius = "16px";
+    button.style.border = "none";
+    button.style.borderRadius = "4px";
     button.style.cursor = "pointer";
     button.style.fontSize = "11px";
     button.style.fontWeight = "500";
     button.style.height = "28px";
     button.style.whiteSpace = "nowrap";
-    button.style.display = "inline-flex";
-    button.style.alignItems = "center";
-    button.style.gap = "6px";
 
-    buildReplyMateButtonContent(button, getTranslation("aiReply", language));
     attachReplyMateButtonHoverStyles(button);
     await setReplyMateButtonState(button, "idle");
 

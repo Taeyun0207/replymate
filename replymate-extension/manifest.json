@@ -21,12 +21,6 @@
     "48": "icons/icon48.png",
     "128": "icons/icon128.png"
   },
-  "web_accessible_resources": [
-    {
-      "resources": ["icons/icon16.png", "icons/icon32.png"],
-      "matches": ["https://mail.google.com/*"]
-    }
-  ],
   "host_permissions": [
     "https://mail.google.com/*",
     "https://replymate-backend-bot8.onrender.com/*",
