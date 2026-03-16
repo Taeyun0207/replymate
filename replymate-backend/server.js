@@ -444,6 +444,15 @@ app.post("/generate-reply", requireAuth, async (req, res) => {
 
     emailThreadText += `Latest message (${latestSpeakerName}):\n${latestMessage || ""}`;
 
+    const userLang = (language || "english").toLowerCase();
+    const PLACEHOLDER_BY_LANG = {
+      english: "[date], [time], [price], [location]",
+      korean: "[날짜], [시간], [가격], [장소]",
+      japanese: "[日付], [時間], [価格], [場所]",
+      spanish: "[fecha], [hora], [precio], [ubicación]",
+    };
+    const placeholderExamples = PLACEHOLDER_BY_LANG[userLang] || PLACEHOLDER_BY_LANG.english;
+
     const prompt = `
 ${effectiveLengthInstruction || ""}
 
@@ -461,9 +470,9 @@ Quality priorities (in order):
 2. Context-appropriate: A simple "Thanks!" gets a brief, warm reply. A complex request gets a thoughtful, complete response. Do not over-explain when a short reply is enough; do not under-explain when the situation needs more.
 3. Complete: Address every question and request. If there are multiple points, respond to each naturally—not as a bullet-point list unless the context warrants it.
 4. Direct: Do not restate or paraphrase the sender's message. Get to your response. No "I understand you're asking about..."—just answer.
-5. No fabrication: Never invent dates, times, prices, locations, or any detail not in the email. If the sender asks for info you don't have, use a placeholder in [].
+5. No fabrication: Never invent dates, times, prices, locations, URLs, document names, deadlines, quantities, or any detail not in the email. If the sender asks for any info you don't have, use a placeholder in [] (e.g. [date], [meeting link], [delivery date], [URL]—whatever fits the context). Never guess or fabricate.
 
-PLACEHOLDER RULE: Create context-appropriate placeholders (e.g. [date], [meeting link], [delivery date]) as needed. The placeholder text MUST be in the SAME language as your reply—no mixing. Examples by language: English [date],[time],[price],[location]; Korean [날짜],[시간],[가격],[장소]; Japanese [日付],[時間],[価格],[場所]; Spanish [fecha],[hora],[precio],[ubicación]. For other types (e.g. [meeting link]), use the equivalent in the reply language.
+PLACEHOLDER RULE: Create context-appropriate placeholders for ANY missing information—not limited to date, time, price, location. Examples: [meeting link], [delivery date], [URL], [document name], [quantity]. Placeholders MUST be in the user's language setting (${userLang}). Common examples: ${placeholderExamples}. For other types, create the appropriate placeholder in ${userLang}.
 
 Instructions:
 - Write only the email body. No subject line.
@@ -475,7 +484,7 @@ ${additionalInstruction ? `- Additional instruction: ${additionalInstruction}` :
 
     // Context-based language: reply in the same language as the email, not user settings
     const contextBasedSystemPrompt =
-      "You are an expert at writing natural, human-sounding email replies. Your goal is to sound like a real person—warm when appropriate, concise when appropriate, never robotic or generic. CRITICAL: Reply in the SAME LANGUAGE as the email. If the email is in Korean, reply in Korean. If in Japanese, reply in Japanese. If in Spanish, reply in Spanish. If in English or another language, reply in that language. Match the register and formality of the incoming message. ANTI-HALLUCINATION: Never invent facts. If the sender asks for a date, time, price, location, or any detail not in the email, use a placeholder in []. Create context-appropriate placeholders as needed. PLACEHOLDER RULE: The placeholder text must be in the SAME language as your reply—English: [date],[time],[price]; Korean: [날짜],[시간],[가격]; Japanese: [日付],[時間],[価格]; Spanish: [fecha],[hora],[precio]. Never mix (e.g. no [날짜] in an English reply). GREETING RULE: Use sender name in this order—1) signature, 2) body, 3) From field, 4) neutral (Hi,/Hello,). Never guess. Prioritize natural, idiomatic phrasing over literal translation. Avoid AI-sounding phrases: no 'I'd be happy to help,' 'Please don't hesitate to reach out,' or similar clichés unless they genuinely fit the context.";
+      "You are an expert at writing natural, human-sounding email replies. Your goal is to sound like a real person—warm when appropriate, concise when appropriate, never robotic or generic. CRITICAL: Reply in the SAME LANGUAGE as the email. If the email is in Korean, reply in Korean. If in Japanese, reply in Japanese. If in Spanish, reply in Spanish. If in English or another language, reply in that language. Match the register and formality of the incoming message. ANTI-HALLUCINATION: Never invent facts. If the sender asks for ANY information not in the email (date, time, price, link, deadline, quantity, etc.), use a placeholder in []. Create context-appropriate placeholders flexibly—e.g. [meeting link], [delivery date], [URL]—whatever fits. Never guess. PLACEHOLDER RULE: Placeholders must be in the user's language setting (see prompt). Follow the examples given in the prompt. GREETING RULE: Use sender name in this order—1) signature, 2) body, 3) From field, 4) neutral (Hi,/Hello,). Never guess. Prioritize natural, idiomatic phrasing over literal translation. Avoid AI-sounding phrases: no 'I'd be happy to help,' 'Please don't hesitate to reach out,' or similar clichés unless they genuinely fit the context.";
 
     try {
       const completion = await openai.chat.completions.create({

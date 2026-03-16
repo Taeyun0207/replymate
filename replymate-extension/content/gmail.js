@@ -771,8 +771,8 @@ function mapLanguageToOpenAI(language) {
 function buildLengthInstruction(length, language = DEFAULT_LANGUAGE) {
   const l = (length || DEFAULT_LENGTH).toLowerCase();
   
-  // Context-based language: reply matches the email language, not user settings
-  const languageRule = "LANGUAGE: Reply in the same language as the email you are replying to. Match the language, tone, and register of the incoming message. Placeholders in [] must be in the reply language.";
+  // Context-based language: reply matches the email language; placeholders follow user's language setting
+  const languageRule = "LANGUAGE: Reply in the same language as the email you are replying to. Match the language, tone, and register of the incoming message. Placeholders in [] must be in the user's language setting (from popup).";
 
   // Auto mode - let backend determine length
   if (l === "auto") {
