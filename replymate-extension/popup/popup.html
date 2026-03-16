@@ -379,6 +379,222 @@ option {
       text-decoration: underline;
     }
 
+    .support-wrap {
+      position: relative;
+      display: inline;
+    }
+
+    .support-dropdown {
+      position: absolute;
+      bottom: 100%;
+      left: 50%;
+      transform: translateX(-50%) translateY(-6px);
+      min-width: 140px;
+      padding: 4px 0;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      z-index: 100;
+      display: none;
+    }
+
+    .support-dropdown.open {
+      display: block;
+    }
+
+    .support-dropdown-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 10px;
+      color: var(--text);
+      cursor: pointer;
+      font-size: 12px;
+      border: none;
+      background: none;
+      width: 100%;
+      text-align: left;
+      font-family: inherit;
+    }
+
+    .support-dropdown-item:hover {
+      background: rgba(0,0,0,0.05);
+      color: var(--text);
+    }
+
+    @media (prefers-color-scheme: dark) {
+      .support-dropdown-item:hover {
+        background: rgba(255,255,255,0.08);
+        color: var(--text);
+      }
+    }
+
+    .support-dropdown-item svg {
+      width: 14px;
+      height: 14px;
+      flex-shrink: 0;
+      opacity: 0.8;
+    }
+
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      padding: 20px;
+      background: rgba(0,0,0,0.4);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 200;
+      overflow-y: auto;
+    }
+
+    .modal-overlay.open {
+      display: flex;
+    }
+
+    .modal {
+      background: var(--bg);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 16px;
+      width: 100%;
+      max-width: 100%;
+      max-height: calc(100vh - 40px);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+      margin: auto;
+    }
+
+    .modal-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+
+    .modal-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: var(--text);
+      margin: 0;
+    }
+
+    .modal-close {
+      background: none;
+      border: none;
+      color: var(--muted);
+      cursor: pointer;
+      padding: 4px;
+      font-size: 18px;
+      line-height: 1;
+      width: 28px;
+      height: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 4px;
+    }
+
+    .modal-close:hover {
+      color: var(--text);
+      background: rgba(0,0,0,0.05);
+    }
+
+    @media (prefers-color-scheme: dark) {
+      .modal-close:hover {
+        background: rgba(255,255,255,0.08);
+      }
+    }
+
+    .modal textarea {
+      width: 100%;
+      min-height: 64px;
+      max-height: 120px;
+      padding: 10px 12px;
+      font-size: 14px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--select-bg);
+      color: var(--select-text);
+      resize: vertical;
+      font-family: inherit;
+      margin-bottom: 12px;
+    }
+
+    .modal textarea:focus {
+      outline: none;
+      border-color: var(--button-bg);
+    }
+
+    .modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 8px;
+    }
+
+    .modal-submit {
+      padding: 8px 14px;
+      font-size: 13px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--bg);
+      color: var(--text);
+      cursor: pointer;
+      font-family: inherit;
+    }
+
+    .modal-submit:hover {
+      background: rgba(0,0,0,0.05);
+      border-color: var(--muted);
+      color: var(--text);
+    }
+
+    @media (prefers-color-scheme: dark) {
+      .modal-submit:hover {
+        background: rgba(255,255,255,0.08);
+        color: var(--text);
+      }
+    }
+
+    .modal-enquiry-content {
+      margin-bottom: 12px;
+      font-size: 14px;
+      color: var(--text);
+    }
+
+    .modal-enquiry-content a {
+      color: var(--button-bg);
+      text-decoration: underline;
+    }
+
+    .modal-copy-btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 14px;
+      font-size: 13px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: var(--bg);
+      color: var(--text);
+      cursor: pointer;
+      font-family: inherit;
+    }
+
+    .modal-copy-btn:hover {
+      background: rgba(0,0,0,0.05);
+      border-color: var(--muted);
+      color: var(--text);
+    }
+
+    @media (prefers-color-scheme: dark) {
+      .modal-copy-btn:hover {
+        background: rgba(255,255,255,0.08);
+        color: var(--text);
+      }
+    }
+
     .cancel-section {
       margin-top: 10px;
       text-align: center;
@@ -598,8 +814,68 @@ option {
   </div>
   
   <div class="footer">
-    <a href="https://taeyun0207.github.io/replymate-legal/index.html" target="_blank">Privacy Policy</a> | 
-    <a href="mailto:replymate.support@gmail.com">Support</a>
+    <a id="privacyPolicyLink" href="https://taeyun0207.github.io/replymate-legal/index.html" target="_blank">Privacy Policy</a> | 
+    <span class="support-wrap">
+      <a href="#" id="supportTrigger">Support</a>
+      <div id="supportDropdown" class="support-dropdown">
+        <button type="button" class="support-dropdown-item" data-action="report">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>
+          <span id="supportReportLabel">Report issue</span>
+        </button>
+        <button type="button" class="support-dropdown-item" data-action="feedback">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M1 21h4V9H1v12zm22-11c0-1.1-.9-2-2-2h-6.31l.95-4.57.03-.32c0-.41-.17-.79-.44-1.06L14.17 1 7.59 7.41C7.22 7.79 7 8.26 7 8.76v13c0 1.1.9 2 2 2h9c.83 0 1.54-.5 1.84-1.22l3.02-7.05c.09-.23.14-.47.14-.73v-2z"/></svg>
+          <span id="supportFeedbackLabel">Give feedback</span>
+        </button>
+        <button type="button" class="support-dropdown-item" data-action="enquiry">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 4l-8 5-8-5V6l8 5 8-5v2z"/></svg>
+          <span id="supportEnquiryLabel">Enquiry</span>
+        </button>
+      </div>
+    </span>
+  </div>
+
+  <div id="modalReport" class="modal-overlay">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 class="modal-title" id="modalReportTitle">Report Issue</h3>
+        <button type="button" class="modal-close" data-close="modalReport" aria-label="Close">&times;</button>
+      </div>
+      <textarea id="reportText" placeholder="Please describe the issue you faced."></textarea>
+      <div class="modal-actions">
+        <button type="button" class="modal-submit" id="reportSubmit">Submit</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="modalFeedback" class="modal-overlay">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 class="modal-title" id="modalFeedbackTitle">Provide Feedback</h3>
+        <button type="button" class="modal-close" data-close="modalFeedback" aria-label="Close">&times;</button>
+      </div>
+      <textarea id="feedbackText" placeholder="Your feedback will help in improving the product."></textarea>
+      <div class="modal-actions">
+        <button type="button" class="modal-submit" id="feedbackSubmit">Submit</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="modalEnquiry" class="modal-overlay">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 class="modal-title" id="modalEnquiryTitle">Submit Enquiry</h3>
+        <button type="button" class="modal-close" data-close="modalEnquiry" aria-label="Close">&times;</button>
+      </div>
+      <div class="modal-enquiry-content">
+        <span id="enquiryMessage">Write to us at </span><a href="mailto:replymate.support@gmail.com" id="enquiryMailto">replymate.support@gmail.com</a>
+      </div>
+      <div class="modal-actions">
+        <button type="button" class="modal-copy-btn" id="copyEmailBtn">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
+          <span id="copyEmailLabel">Copy Email</span>
+        </button>
+      </div>
+    </div>
   </div>
   
   <script src="../lib/supabase.min.js"></script>

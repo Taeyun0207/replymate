@@ -393,7 +393,7 @@ app.post("/generate-reply", requireAuth, async (req, res) => {
     switch ((tone || "").toLowerCase()) {
       case "auto":
         toneInstructions =
-          "TONE: Auto. Choose the most appropriate tone based on the email context, sender's style, intent, and formality cues. Be natural and context-aware.";
+          "TONE: Auto (you decide). Read the email thread carefully and choose the most natural, appropriate tone. Match the sender's style and the relationship implied by the conversation. A quick 'thanks!' deserves a brief, warm reply; a formal business inquiry deserves professional clarity; a friendly check-in deserves conversational warmth. Vary your tone naturally—do not default to generic polite. Sound like a real person who has read the email and cares about the response.";
         break;
       case "professional":
         toneInstructions =
@@ -454,21 +454,17 @@ Email thread:
 ${emailThreadText}
 
 Task:
-Write an email reply from You to the latest message. Match the specified TONE and LENGTH exactly.
+Write an email reply from You to the latest message. Your reply should feel like it was written by a real person who read the email and is responding naturally—not by a template or script.
 
-Core Quality Rules:
-- Reply directly; do not restate or paraphrase the latest message.
-- Address all questions and requests. If multiple points, respond to each naturally.
-- Acknowledgement only (thanks, okay, yes, 네, 알겠습니다, はい) → brief reply, not full email.
-- No question/request in latest message → no unnecessary follow-up.
-- Avoid generic AI phrases or script tone. Sound like a real person. Prefer natural paragraphs over robotic summaries.
-- LENGTH: Short=brief, Medium=balanced, Long=fuller, Auto=decide by context. TONE: each must feel distinct.
-
-CRITICAL—NO FABRICATION: Never invent, assume, or fabricate any fact not explicitly stated in the email or user instructions. This includes: dates, times, prices, locations, URLs, document names, meeting links, availability, confirmation status, release dates, delivery dates, or any other specific detail. If the sender asks "when?", "what time?", "how much?", "is it ready?", "can you confirm?" and the answer is not in the email—use a placeholder in [] in the same language as your reply. Examples: EN [date], [time], [price]; KO [날짜], [시간], [가격]; JP [日付], [時間], [価格]. Do not guess or infer. Placeholder is mandatory when info is missing.
+Quality priorities (in order):
+1. Natural and human: Write as a real person would. Vary sentence structure. Use contractions when appropriate. Avoid stiff, formulaic openings like "I hope this email finds you well" or "Thank you for reaching out." Match the energy and formality of the incoming message.
+2. Context-appropriate: A simple "Thanks!" gets a brief, warm reply. A complex request gets a thoughtful, complete response. Do not over-explain when a short reply is enough; do not under-explain when the situation needs more.
+3. Complete: Address every question and request. If there are multiple points, respond to each naturally—not as a bullet-point list unless the context warrants it.
+4. Direct: Do not restate or paraphrase the sender's message. Get to your response. No "I understand you're asking about..."—just answer.
+5. No fabrication: Never invent dates, times, prices, locations, or any detail not in the email. If the sender asks for info you don't have, use a placeholder in [] (e.g. [date], [time], [price]; [날짜], [시간]; [日付], [時間]) in the reply language.
 
 Instructions:
-- Write only the email body.
-- Do not include a subject line.
+- Write only the email body. No subject line.
 - ${toneInstructions}
 - End with an appropriate closing. ${userName ? `Sign off with the name: "${userName}". Use this name exactly as written, regardless of the reply language.` : "Omit the sender name if unknown."}
 ${additionalInstruction ? `- Additional instruction: ${additionalInstruction}` : ""}
@@ -476,7 +472,7 @@ ${additionalInstruction ? `- Additional instruction: ${additionalInstruction}` :
 
     // Context-based language: reply in the same language as the email, not user settings
     const contextBasedSystemPrompt =
-      "CRITICAL: Generate your reply in the SAME LANGUAGE as the email you are replying to. Match the language, tone, and register of the incoming message. If the email is in Korean, reply in Korean. If in Japanese, reply in Japanese. If in English or any other language, reply in that language. ANTI-HALLUCINATION: Never invent facts. If the sender asks for a date, time, price, location, or any detail not in the email, you MUST use a placeholder in [] in the reply language (e.g. EN [date], [time]; KO [날짜], [시간]; JP [日付], [時間]). Never guess or assume. Output must be natural and idiomatic in whatever language you use. Match the tone and length instructions exactly.";
+      "You are an expert at writing natural, human-sounding email replies. Your goal is to sound like a real person—warm when appropriate, concise when appropriate, never robotic or generic. CRITICAL: Reply in the SAME LANGUAGE as the email. If the email is in Korean, reply in Korean. If in Japanese, reply in Japanese. If in English or another language, reply in that language. Match the register and formality of the incoming message. ANTI-HALLUCINATION: Never invent facts. If the sender asks for a date, time, price, location, or any detail not in the email, use a placeholder in [] in the reply language (e.g. [date], [time]; [날짜], [시간]; [日付], [時間]). Never guess. Prioritize natural, idiomatic phrasing over literal translation. Avoid AI-sounding phrases: no 'I'd be happy to help,' 'Please don't hesitate to reach out,' or similar clichés unless they genuinely fit the context.";
 
     try {
       const completion = await openai.chat.completions.create({
@@ -491,8 +487,8 @@ ${additionalInstruction ? `- Additional instruction: ${additionalInstruction}` :
             content: prompt,
           },
         ],
-        temperature: 0.7,
-        max_tokens: parseInt(process.env.OPENAI_MAX_TOKENS, 10) || 350,
+        temperature: 0.8,
+        max_tokens: parseInt(process.env.OPENAI_MAX_TOKENS, 10) || 500,
       });
 
       const reply = completion.choices?.[0]?.message?.content?.trim();

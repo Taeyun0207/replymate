@@ -57,6 +57,20 @@ const TRANSLATIONS = {
     topup100: "+100",
     topup500: "+500",
     topupCredits: "Top-up credits: {count}",
+    privacyPolicy: "Privacy Policy",
+    support: "Support",
+    reportIssue: "Report issue",
+    giveFeedback: "Give feedback",
+    enquiry: "Enquiry",
+    reportIssueTitle: "Report Issue",
+    reportIssuePlaceholder: "Please describe the issue you faced.",
+    giveFeedbackTitle: "Provide Feedback",
+    giveFeedbackPlaceholder: "Your feedback will help in improving the product.",
+    enquiryTitle: "Submit Enquiry",
+    enquiryMessage: "Write to us at",
+    copyEmail: "Copy Email",
+    submit: "Submit",
+    copied: "Copied!",
   },
   korean: {
     settings: "ReplyMate 설정",
@@ -102,6 +116,20 @@ const TRANSLATIONS = {
     signInRequired: "⚠️ ReplyMate를 사용하려면 Google로 로그인해 주세요.",
     topUpReplies: "답장 충전",
     topupCredits: "충전 크레딧: {count}",
+    privacyPolicy: "개인정보 처리방침",
+    support: "지원",
+    reportIssue: "문제 신고",
+    giveFeedback: "피드백 보내기",
+    enquiry: "문의",
+    reportIssueTitle: "문제 신고",
+    reportIssuePlaceholder: "발생한 문제를 설명해 주세요.",
+    giveFeedbackTitle: "피드백 제공",
+    giveFeedbackPlaceholder: "피드백은 제품 개선에 도움이 됩니다.",
+    enquiryTitle: "문의하기",
+    enquiryMessage: "다음으로 연락해 주세요",
+    copyEmail: "이메일 복사",
+    submit: "제출",
+    copied: "복사됨!",
   },
   japanese: {
     settings: "設定",
@@ -147,6 +175,20 @@ const TRANSLATIONS = {
     signInRequired: "⚠️ ReplyMateをご利用になるには、Googleでサインインしてください。",
     topUpReplies: "返信を追加",
     topupCredits: "追加クレジット: {count}",
+    privacyPolicy: "プライバシーポリシー",
+    support: "サポート",
+    reportIssue: "問題を報告",
+    giveFeedback: "フィードバックを送る",
+    enquiry: "お問い合わせ",
+    reportIssueTitle: "問題を報告",
+    reportIssuePlaceholder: "発生した問題を説明してください。",
+    giveFeedbackTitle: "フィードバックを提供",
+    giveFeedbackPlaceholder: "フィードバックは製品の改善に役立ちます。",
+    enquiryTitle: "お問い合わせ",
+    enquiryMessage: "以下のアドレスまでご連絡ください",
+    copyEmail: "メールをコピー",
+    submit: "送信",
+    copied: "コピーしました！",
   },
   spanish: {
     settings: "Configuración de ReplyMate",
@@ -192,6 +234,20 @@ const TRANSLATIONS = {
     signInRequired: "⚠️ Por favor, inicia sesión con Google para usar ReplyMate.",
     topUpReplies: "Añadir respuestas",
     topupCredits: "Créditos adicionales: {count}",
+    privacyPolicy: "Política de Privacidad",
+    support: "Soporte",
+    reportIssue: "Reportar problema",
+    giveFeedback: "Enviar comentarios",
+    enquiry: "Consulta",
+    reportIssueTitle: "Reportar problema",
+    reportIssuePlaceholder: "Por favor describe el problema que encontraste.",
+    giveFeedbackTitle: "Proporcionar comentarios",
+    giveFeedbackPlaceholder: "Tus comentarios ayudarán a mejorar el producto.",
+    enquiryTitle: "Enviar consulta",
+    enquiryMessage: "Escríbenos a",
+    copyEmail: "Copiar correo",
+    submit: "Enviar",
+    copied: "¡Copiado!",
   }
 };
 
@@ -489,9 +545,39 @@ function applyLanguageToUI(language = DEFAULT_LANGUAGE, participants = []) {
   document.querySelector(".header-title").textContent = getTranslation("settings", uiLanguage);
   const topupLabelEl = document.querySelector(".topup-label");
   if (topupLabelEl) topupLabelEl.textContent = getTranslation("topUpReplies", uiLanguage);
+  const privacyPolicyLink = document.getElementById("privacyPolicyLink");
+  if (privacyPolicyLink) privacyPolicyLink.textContent = getTranslation("privacyPolicy", uiLanguage);
   
   // Update placeholders
   document.getElementById("userNameInput").placeholder = getTranslation("yourName", uiLanguage);
+
+  // Support dropdown and modal labels
+  const supportTrigger = document.getElementById("supportTrigger");
+  if (supportTrigger) supportTrigger.textContent = getTranslation("support", uiLanguage);
+  const supportReportLabel = document.getElementById("supportReportLabel");
+  if (supportReportLabel) supportReportLabel.textContent = getTranslation("reportIssue", uiLanguage);
+  const supportFeedbackLabel = document.getElementById("supportFeedbackLabel");
+  if (supportFeedbackLabel) supportFeedbackLabel.textContent = getTranslation("giveFeedback", uiLanguage);
+  const supportEnquiryLabel = document.getElementById("supportEnquiryLabel");
+  if (supportEnquiryLabel) supportEnquiryLabel.textContent = getTranslation("enquiry", uiLanguage);
+  const modalReportTitle = document.getElementById("modalReportTitle");
+  if (modalReportTitle) modalReportTitle.textContent = getTranslation("reportIssueTitle", uiLanguage);
+  const reportText = document.getElementById("reportText");
+  if (reportText) reportText.placeholder = getTranslation("reportIssuePlaceholder", uiLanguage);
+  const modalFeedbackTitle = document.getElementById("modalFeedbackTitle");
+  if (modalFeedbackTitle) modalFeedbackTitle.textContent = getTranslation("giveFeedbackTitle", uiLanguage);
+  const feedbackText = document.getElementById("feedbackText");
+  if (feedbackText) feedbackText.placeholder = getTranslation("giveFeedbackPlaceholder", uiLanguage);
+  const modalEnquiryTitle = document.getElementById("modalEnquiryTitle");
+  if (modalEnquiryTitle) modalEnquiryTitle.textContent = getTranslation("enquiryTitle", uiLanguage);
+  const enquiryMessage = document.getElementById("enquiryMessage");
+  if (enquiryMessage) enquiryMessage.textContent = getTranslation("enquiryMessage", uiLanguage) + " ";
+  const copyEmailLabel = document.getElementById("copyEmailLabel");
+  if (copyEmailLabel) copyEmailLabel.textContent = getTranslation("copyEmail", uiLanguage);
+  const reportSubmit = document.getElementById("reportSubmit");
+  if (reportSubmit) reportSubmit.textContent = getTranslation("submit", uiLanguage);
+  const feedbackSubmit = document.getElementById("feedbackSubmit");
+  if (feedbackSubmit) feedbackSubmit.textContent = getTranslation("submit", uiLanguage);
   
   // Update option labels for tone and length
   const toneLabels = { korean: { auto: "자동 (추천)", professional: "전문적인", polite: "정중한", friendly: "친근한", direct: "직설적인" }, japanese: { auto: "自動（推奨）", professional: "ビジネス用に", polite: "丁寧に", friendly: "カジュアルに", direct: "簡潔に" }, spanish: { auto: "Automático (recomendado)", professional: "Profesional", polite: "Educado", friendly: "Amigable", direct: "Directo" } };
@@ -900,6 +986,90 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     );
   });
+
+  // Support dropdown and modals
+  const SUPPORT_EMAIL = "replymate.support@gmail.com";
+  const supportTrigger = document.getElementById("supportTrigger");
+  const supportDropdown = document.getElementById("supportDropdown");
+  const modalReport = document.getElementById("modalReport");
+  const modalFeedback = document.getElementById("modalFeedback");
+  const modalEnquiry = document.getElementById("modalEnquiry");
+  const reportTextEl = document.getElementById("reportText");
+  const feedbackTextEl = document.getElementById("feedbackText");
+  const reportSubmitBtn = document.getElementById("reportSubmit");
+  const feedbackSubmitBtn = document.getElementById("feedbackSubmit");
+  const copyEmailBtn = document.getElementById("copyEmailBtn");
+
+  if (supportTrigger && supportDropdown) {
+    supportTrigger.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      supportDropdown.classList.toggle("open");
+    });
+    document.addEventListener("click", () => supportDropdown.classList.remove("open"));
+    supportDropdown.addEventListener("click", (e) => e.stopPropagation());
+
+    supportDropdown.querySelectorAll(".support-dropdown-item").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        supportDropdown.classList.remove("open");
+        const action = btn.dataset.action;
+        if (action === "report") modalReport?.classList.add("open");
+        else if (action === "feedback") modalFeedback?.classList.add("open");
+        else if (action === "enquiry") modalEnquiry?.classList.add("open");
+      });
+    });
+  }
+
+  document.querySelectorAll("[data-close]").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const id = btn.dataset.close;
+      document.getElementById(id)?.classList.remove("open");
+    });
+  });
+
+  [modalReport, modalFeedback, modalEnquiry].forEach((overlay) => {
+    overlay?.addEventListener("click", (e) => {
+      if (e.target === overlay) overlay.classList.remove("open");
+    });
+  });
+
+  if (reportSubmitBtn && reportTextEl) {
+    reportSubmitBtn.addEventListener("click", () => {
+      const body = reportTextEl.value.trim() || reportTextEl.placeholder;
+      const subject = encodeURIComponent("ReplyMate - Report Issue");
+      const mailto = `mailto:${SUPPORT_EMAIL}?subject=${subject}&body=${encodeURIComponent(body)}`;
+      window.open(mailto);
+      reportTextEl.value = "";
+      modalReport?.classList.remove("open");
+    });
+  }
+
+  if (feedbackSubmitBtn && feedbackTextEl) {
+    feedbackSubmitBtn.addEventListener("click", () => {
+      const body = feedbackTextEl.value.trim() || feedbackTextEl.placeholder;
+      const subject = encodeURIComponent("ReplyMate - Feedback");
+      const mailto = `mailto:${SUPPORT_EMAIL}?subject=${subject}&body=${encodeURIComponent(body)}`;
+      window.open(mailto);
+      feedbackTextEl.value = "";
+      modalFeedback?.classList.remove("open");
+    });
+  }
+
+  if (copyEmailBtn) {
+    copyEmailBtn.addEventListener("click", async () => {
+      const lang = languageSelect?.value || DEFAULT_LANGUAGE;
+      try {
+        await navigator.clipboard.writeText(SUPPORT_EMAIL);
+        const span = copyEmailBtn.querySelector("span");
+        if (span) {
+          span.textContent = getTranslation("copied", lang);
+          setTimeout(() => { span.textContent = getTranslation("copyEmail", lang); }, 1500);
+        }
+      } catch (err) {
+        console.warn("[ReplyMate] Copy failed:", err);
+      }
+    });
+  }
 
 // Load usage data and update UI with language
 async function loadUsageData(language = DEFAULT_LANGUAGE, forceRefresh = false) {

@@ -67,14 +67,17 @@ const REPLYMATE_CONFIG = {
     },
     upgradeUrl: "https://replymate.ai/upgrade"
   },
-  // UI configuration
+  // UI configuration - light pill style (like competitor)
   ui: {
     colors: {
-      normal: "#7943f1",      // Save 버튼 호버 전 색상
-      hover: "#b794f6",       // Save 버튼 호버 색상
-      loading: "#9aa0a6",
-      error: "#d93025",
-      text: "#ffffff"
+      normal: "#ffffff",
+      hover: "#f8f9fa",
+      loading: "#f1f3f4",
+      error: "#fce8e6",
+      text: "#3c4043",
+      border: "#dadce0",
+      borderError: "#d93025",
+      iconUrl: "icons/icon16.png"
     },
     timeouts: {
       cache: 30000,        // 30 seconds
@@ -685,6 +688,31 @@ const REPLYMATE_BUTTON_COLOR_HOVER = REPLYMATE_CONFIG.ui.colors.hover;
 const REPLYMATE_BUTTON_COLOR_LOADING = REPLYMATE_CONFIG.ui.colors.loading;
 const REPLYMATE_BUTTON_COLOR_ERROR = REPLYMATE_CONFIG.ui.colors.error;
 const REPLYMATE_BUTTON_TEXT_COLOR = REPLYMATE_CONFIG.ui.colors.text;
+const REPLYMATE_BUTTON_BORDER = REPLYMATE_CONFIG.ui.colors.border;
+const REPLYMATE_BUTTON_BORDER_ERROR = REPLYMATE_CONFIG.ui.colors.borderError;
+
+// Build button content: icon + text span (for light pill style)
+function buildReplyMateButtonContent(button, text) {
+  button.innerHTML = "";
+  button.style.display = "inline-flex";
+  button.style.alignItems = "center";
+  button.style.gap = "6px";
+  const iconUrl = chrome.runtime?.getURL?.(REPLYMATE_CONFIG.ui.colors.iconUrl) || "";
+  if (iconUrl) {
+    const img = document.createElement("img");
+    img.src = iconUrl;
+    img.alt = "";
+    img.className = "replymate-btn-icon";
+    img.style.width = "14px";
+    img.style.height = "14px";
+    img.style.flexShrink = "0";
+    button.appendChild(img);
+  }
+  const span = document.createElement("span");
+  span.className = "replymate-btn-text";
+  span.textContent = text;
+  button.appendChild(span);
+}
 
 // Set button state with language support
 async function setReplyMateButtonState(button, state) {
@@ -693,27 +721,36 @@ async function setReplyMateButtonState(button, state) {
   button.dataset.replymateState = state;
   console.log("[ReplyMate] setReplyMateButtonState", { state, button });
 
+  const textEl = button.querySelector(".replymate-btn-text");
+  const updateText = (t) => {
+    if (textEl) textEl.textContent = t;
+    else button.textContent = t;
+  };
+
   if (state === "loading") {
     button.disabled = true;
     button.style.cursor = "default";
-    button.textContent = getTranslation("generating", language);
+    updateText(getTranslation("generating", language));
     button.style.backgroundColor = REPLYMATE_BUTTON_COLOR_LOADING;
+    button.style.borderColor = REPLYMATE_BUTTON_BORDER;
   } else if (state === "error") {
     button.disabled = false;
     button.style.cursor = "pointer";
-    button.textContent = getTranslation("tryAgain", language);
+    updateText(getTranslation("tryAgain", language));
     button.style.backgroundColor = REPLYMATE_BUTTON_COLOR_ERROR;
+    button.style.borderColor = REPLYMATE_BUTTON_BORDER_ERROR;
   } else {
-    // idle
     button.disabled = false;
     button.style.cursor = "pointer";
-    button.textContent = getTranslation("aiReply", language);
+    updateText(getTranslation("aiReply", language));
     button.style.backgroundColor = REPLYMATE_BUTTON_COLOR_NORMAL;
+    button.style.borderColor = REPLYMATE_BUTTON_BORDER;
   }
 }
 
 function attachReplyMateButtonHoverStyles(button) {
   button.style.color = REPLYMATE_BUTTON_TEXT_COLOR;
+  button.style.border = `1px solid ${REPLYMATE_BUTTON_BORDER}`;
 
   button.addEventListener("mouseenter", () => {
     const state = button.dataset.replymateState || "idle";
@@ -734,28 +771,28 @@ function attachReplyMateButtonHoverStyles(button) {
   });
 }
 
-// Auto mode: intelligent length—no strict limits. AI decides based on context.
+// Auto mode: AI has full control. Decide length and tone from context. Prioritize natural, appropriate response.
 const autoInstructions = {
-  english: `AUTO LENGTH: Decide reply length based on the email's actual needs. No strict Short/Medium/Long limits.
+  english: `AUTO MODE (you decide everything): You have full control over tone and length. Read the email thread and respond as a real person would.
 
-Consider: number of questions or requests, discussion points, complexity, required explanation, email length.
-Aim for concise completeness: address all important points, avoid unnecessary verbosity, do not shorten just because the email could be summarized.
-Acknowledgement-only (thanks, ok, got it, yes, 알겠습니다, はい) → brief reply. Otherwise, reply length can exceed typical Long if the situation requires it.`,
-  korean: `AUTO LENGTH: 이메일의 실제 필요에 따라 답장 길이를 결정하세요. Short/Medium/Long 제한 없음.
+LENGTH: Match the situation. A quick "Thanks!" → 1–2 sentences. A complex request with multiple questions → as long as needed to address everything naturally. Do not pad short emails with filler; do not cut corners on emails that deserve a thoughtful reply. Natural > word count.
 
-고려: 질문/요청 수, 논의 포인트, 복잡도, 필요한 설명, 이메일 길이.
-간결한 완전성: 모든 중요한 포인트를 다루고, 불필요한 장황함은 피하며, 요약 가능하다고 해서 짧게 쓰지 마세요.
-확인만 (감사, ok, 알겠습니다, 예, はい) → 짧은 답장. 그 외에는 상황에 따라 Long보다 길어도 됨.`,
-  japanese: `AUTO LENGTH: メールの実際の必要に応じて返信長を決定してください。Short/Medium/Longの厳格な制限なし。
+TONE: Match the sender. Formal business email → professional. Friendly check-in → warm and conversational. Brief acknowledgment → brief and warm back. Vary naturally—avoid defaulting to generic polite.`,
+  korean: `AUTO MODE (당신이 모두 결정): 톤과 길이를 완전히 자유롭게 결정하세요. 이메일을 읽고 실제 사람처럼 답하세요.
 
-考慮: 質問・依頼の数、論点、複雑さ、必要な説明、メールの長さ。
-簡潔な完全性: 重要な点をすべて扱い、不要な冗長さを避け、要約できるからといって短くしない。
-確認のみ（ありがとう、OK、はい、알겠습니다）→ 短い返信。それ以外は状況に応じてLongより長くても可。`,
-  spanish: `AUTO LENGTH: Decide la longitud de la respuesta según las necesidades reales del correo. Sin límites estrictos Short/Medium/Long.
+LENGTH: 상황에 맞게. "감사합니다!" → 1–2문장. 복잡한 요청/여러 질문 → 필요한 만큼 자연스럽게. 짧은 이메일에 filler 추가하지 말고, 신중한 답이 필요한 이메일은 충분히 답하세요. 자연스러움 > 단어 수.
 
-Considera: número de preguntas o solicitudes, puntos de discusión, complejidad, explicación necesaria, longitud del correo.
-Completitud concisa: aborda todos los puntos importantes, evita verbosidad innecesaria, no acortes solo porque el correo podría resumirse.
-Solo confirmación (gracias, ok, de acuerdo, sí) → respuesta breve. De lo contrario, la longitud puede superar Long si la situación lo requiere.`
+TONE: 발신자에 맞게. 격식 있는 업무 이메일 → 전문적. 친근한 연락 → 따뜻하고 대화체. 짧은 확인 → 짧고 따뜻하게. 자연스럽게 변화—일반적인 정중함에만 의존하지 마세요.`,
+  japanese: `AUTO MODE（すべてあなたが決定）: トーンと長さを完全に自由に決めてください。メールを読んで実際の人のように返信してください。
+
+LENGTH: 状況に合わせて。「ありがとう！」→ 1〜2文。複雑な依頼・複数の質問 → 必要な分だけ自然に。短いメールに filler を足さず、丁寧な返信が必要なメールは十分に返してください。自然さ > 語数。
+
+TONE: 送信者に合わせて。フォーマルなビジネスメール → プロフェッショナル。親しみのある連絡 → 温かく会話調。短い確認 → 短く温かく。自然に変化—一般的な丁寧さに頼りすぎないでください。`,
+  spanish: `AUTO MODE (tú decides todo): Tienes control total sobre tono y longitud. Lee el hilo y responde como lo haría una persona real.
+
+LENGTH: Ajusta a la situación. Un "¡Gracias!" rápido → 1–2 oraciones. Una solicitud compleja con varias preguntas → lo que haga falta para responder todo naturalmente. No rellenes correos cortos; no recortes correos que merecen una respuesta reflexiva. Natural > conteo de palabras.
+
+TONE: Ajusta al remitente. Correo formal de negocios → profesional. Mensaje amigable → cálido y conversacional. Breve confirmación → breve y cálido. Varía naturalmente—evita el tono genérico cortés por defecto.`
 };
 
 // Convert UI language to OpenAI language code
@@ -1132,13 +1169,16 @@ async function createReplyMateButton() {
   const button = document.createElement("button");
   button.className = "replymate-generate-button";
 
-  button.style.padding = "6px 10px";
+  button.style.padding = "6px 12px";
   button.style.backgroundColor = REPLYMATE_BUTTON_COLOR_NORMAL;
   button.style.color = REPLYMATE_BUTTON_TEXT_COLOR;
-  button.style.border = "none";
-  button.style.borderRadius = "6px";
+  button.style.border = `1px solid ${REPLYMATE_BUTTON_BORDER}`;
+  button.style.borderRadius = "20px";
   button.style.cursor = "pointer";
   button.style.fontSize = "12px";
+  button.style.fontWeight = "500";
+
+  buildReplyMateButtonContent(button, getTranslation("aiReply", language));
 
   // Create the additional instruction input with translated placeholder
   const instructionInput = document.createElement("input");
@@ -1253,17 +1293,15 @@ async function createReplyMateButton() {
       return;
     }
 
-    // Auto-detect optimal tone and length if user selected Auto (independent control)
+    // Auto mode: pass "auto" to backend so AI decides tone and length from full context (best quality)
     const userTone = settings.tone || DEFAULT_TONE;
     const userLength = settings.length || DEFAULT_LENGTH;
     
-    // Apply correct independent logic: Tone Auto → detect; Length Auto → pass "auto" (AI decides, no pre-resolution)
-    const finalTone = userTone === "auto" ? detectOptimalTone(threadContext, threadContext.latestMessage).tone : userTone;
+    const finalTone = userTone === "auto" ? "auto" : userTone;
     const finalLength = userLength === "auto" ? "auto" : userLength;
     
-    // Generate reasons for debug logging
-    const toneReason = userTone === "auto" ? detectOptimalTone(threadContext, threadContext.latestMessage).reason : "user setting";
-    const lengthReason = userLength === "auto" ? "auto (AI decides)" : "user setting";
+    const toneReason = userTone === "auto" ? "auto (AI decides from context)" : "user setting";
+    const lengthReason = userLength === "auto" ? "auto (AI decides from context)" : "user setting";
 
     console.log("[ReplyMate Auto] User selected tone:", userTone);
     console.log("[ReplyMate Auto] User selected length:", userLength);
@@ -2177,17 +2215,15 @@ async function runHoverGenerateReplyWorkflow(row, sourceButton) {
         // Extract context from the currently opened Gmail thread.
         const threadContext = extractThreadContext();
 
-        // Auto-detect optimal tone and length if user selected Auto (independent control)
+        // Auto mode: pass "auto" to backend so AI decides tone and length from full context
         const userTone = settings.tone || DEFAULT_TONE;
         const userLength = settings.length || DEFAULT_LENGTH;
         
-        // Apply correct independent logic
-        const finalTone = userTone === "auto" ? detectOptimalTone(threadContext, threadContext.latestMessage).tone : userTone;
+        const finalTone = userTone === "auto" ? "auto" : userTone;
         const finalLength = userLength === "auto" ? "auto" : userLength;
         
-        // Generate reasons for debug logging
-        const toneReason = userTone === "auto" ? detectOptimalTone(threadContext, threadContext.latestMessage).reason : "user setting";
-        const lengthReason = userLength === "auto" ? "auto (AI decides)" : "user setting";
+        const toneReason = userTone === "auto" ? "auto (AI decides from context)" : "user setting";
+        const lengthReason = userLength === "auto" ? "auto (AI decides from context)" : "user setting";
 
         console.log("[ReplyMate Auto] Hover mode - User selected tone:", userTone);
         console.log("[ReplyMate Auto] Hover mode - User selected length:", userLength);
@@ -2307,6 +2343,7 @@ Length: ${finalLength}
   }
 
   async function createHoverGenerateButton(row) {
+    const language = await getCurrentLanguage();
     const button = document.createElement("button");
     button.type = "button";
     button.className = REPLYMATE_HOVER_BUTTON_CLASS;
@@ -2314,14 +2351,18 @@ Length: ${finalLength}
     button.style.padding = "4px 10px";
     button.style.backgroundColor = REPLYMATE_BUTTON_COLOR_NORMAL;
     button.style.color = REPLYMATE_BUTTON_TEXT_COLOR;
-    button.style.border = "none";
-    button.style.borderRadius = "4px";
+    button.style.border = `1px solid ${REPLYMATE_BUTTON_BORDER}`;
+    button.style.borderRadius = "16px";
     button.style.cursor = "pointer";
     button.style.fontSize = "11px";
     button.style.fontWeight = "500";
     button.style.height = "28px";
     button.style.whiteSpace = "nowrap";
+    button.style.display = "inline-flex";
+    button.style.alignItems = "center";
+    button.style.gap = "6px";
 
+    buildReplyMateButtonContent(button, getTranslation("aiReply", language));
     attachReplyMateButtonHoverStyles(button);
     await setReplyMateButtonState(button, "idle");
 
