@@ -790,6 +790,22 @@ ${additionalInstruction ? `- Additional instruction/information (PRIORITY—use 
   }
 });
 
+// Get current user's plan (requires auth) - for upgrade page to show cancel button
+app.get("/billing/me", requireAuth, async (req, res) => {
+  try {
+    const user = await getUser(req.userId);
+    if (!user) return res.status(404).json({ error: "User not found" });
+    res.json({
+      plan: user.plan || "free",
+      cancelAtPeriodEnd: user.cancelAtPeriodEnd || false,
+      currentPeriodEnd: user.periodEndAt || user.nextResetAt,
+    });
+  } catch (error) {
+    console.error("Billing me error:", error);
+    res.status(500).json({ error: "Failed to get subscription status" });
+  }
+});
+
 // Create Stripe checkout session for subscription (requires auth)
 app.post("/billing/create-checkout-session", requireAuth, async (req, res) => {
   try {
@@ -925,6 +941,7 @@ app.post("/billing/cancel-subscription", requireAuth, async (req, res) => {
     res.json({
       success: true,
       cancelAt: periodEndDate,
+      currentPeriodEnd: periodEndDate,
       remainingDays: Math.max(0, remainingDays),
       cancelScheduled: true,
     });

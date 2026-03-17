@@ -24,14 +24,25 @@ Your `.env` has:
 
 ---
 
-## 3. Google OAuth for Upgrade Page
+## 3. Supabase Auth – Redirect URLs
+
+1. Go to **Supabase Dashboard** → **Authentication** → **URL Configuration**
+2. Under **Redirect URLs**, add:
+   - `https://taeyun0207.github.io/replymate-site/upgrade/index.html`
+   - `https://taeyun0207.github.io/replymate-site/**` (or the exact path)
+3. Set **Site URL** to `https://taeyun0207.github.io` (or your main domain)
+
+If localhost is listed and you get "localhost refused to connect" after sign-in, remove localhost or ensure the upgrade page is opened from the production URL.
+
+---
+
+## 4. Google OAuth for Upgrade Page
 
 The upgrade page needs Google Sign-In (same Supabase project as the extension).
 
 1. Go to **Google Cloud Console** → **APIs & Services** → **Credentials**
 2. Open your OAuth 2.0 Client ID (Web application)
 3. Under **Authorized redirect URIs**, add:
-   - `https://taeyun0207.github.io/replymate-site/upgrade/index.html`
    - `https://cmmoirdihefyswerkkay.supabase.co/auth/v1/callback` (if not already there)
 4. Under **Authorized JavaScript origins**, add:
    - `https://taeyun0207.github.io`
@@ -39,7 +50,7 @@ The upgrade page needs Google Sign-In (same Supabase project as the extension).
 
 ---
 
-## 4. Upgrade Page Integration
+## 5. Upgrade Page Integration
 
 Your upgrade page must:
 1. **Sign in** the user with Supabase (Google)
@@ -88,7 +99,7 @@ Flow: User clicks → if not logged in, Google sign-in opens → after sign-in, 
 
 ---
 
-## 5. Quick Option: Open Extension Popup
+## 6. Quick Option: Open Extension Popup
 
 If you prefer not to add auth to the upgrade page, you can make the buttons open the extension popup instead:
 
@@ -105,6 +116,6 @@ Replace `YOUR_EXTENSION_ID` with your published extension ID (from Chrome Web St
 
 ---
 
-## 6. Full Option: API-Based Checkout on the Page
+## 7. Full Option: API-Based Checkout on the Page
 
 See `upgrade-page-checkout.js` in this folder for a ready-to-use script.
