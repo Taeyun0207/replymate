@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "ReplyMate",
+  "name": "ReplyMate: AI Gmail Reply Assistant & Translator",
   "version": "1.0.3",
   "description": "AI-powered Gmail reply assistant",
   "permissions": [

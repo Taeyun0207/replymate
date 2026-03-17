@@ -860,6 +860,46 @@
     showToast
   };
 
+  /**
+   * Apply saved position from storage (used on init and when another tab saves).
+   */
+  function applyStoredPositions() {
+    loadPosition(STORAGE_ICON_POS, window.innerWidth - 24 - 48, window.innerHeight - 24 - 48).then((pos) => {
+      const icon = document.getElementById(TRANSLATION_ICON_ID);
+      if (icon) {
+        const x = clamp(pos.x, 0, window.innerWidth - 48);
+        const y = clamp(pos.y, 0, window.innerHeight - 48);
+        icon.style.left = x + "px";
+        icon.style.top = y + "px";
+        icon.style.right = "auto";
+        icon.style.bottom = "auto";
+      }
+    });
+    loadPosition(STORAGE_PANEL_POS, Math.max(0, (window.innerWidth - 400) / 2), Math.max(0, (window.innerHeight - 450) / 2)).then((pos) => {
+      const panel = document.getElementById(TRANSLATION_PANEL_ID);
+      if (panel) {
+        const r = panel.getBoundingClientRect();
+        const w = r.width || 400;
+        const h = r.height || 450;
+        const x = clamp(pos.x, 0, window.innerWidth - w);
+        const y = clamp(pos.y, 0, window.innerHeight - h);
+        panel.style.left = x + "px";
+        panel.style.top = y + "px";
+        panel.style.transform = "none";
+      }
+    });
+  }
+
+  // Sync position across tabs: when user moves icon/panel in another tab, update this tab too
+  if (typeof chrome !== "undefined" && chrome.storage?.onChanged) {
+    chrome.storage.onChanged.addListener((changes, areaName) => {
+      if (areaName !== "local") return;
+      if (changes[STORAGE_ICON_POS] || changes[STORAGE_PANEL_POS]) {
+        applyStoredPositions();
+      }
+    });
+  }
+
   // Initialize when DOM is ready
   if (document.readyState === "loading") {
     document.addEventListener("DOMContentLoaded", () => setTimeout(init, 1500));

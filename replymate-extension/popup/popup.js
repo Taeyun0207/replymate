@@ -400,17 +400,13 @@ function updateUpgradeLink(plan, language = DEFAULT_LANGUAGE, cancelScheduled = 
   const locale = language === "korean" ? "ko-KR" : language === "japanese" ? "ja-JP" : language === "spanish" ? "es-ES" : "en-US";
 
   // Plan expiry / reset date: show for all plans (Pro/Pro+ renews; Free resets)
-  // When cancelled: show "Plan Cancelled" only (date is on webpage)
+  // When cancelled: show "Active until {date}" instead of "Renews on"
   if (planExpiryEl) {
     let dateToShow = null;
     let textKey = null;
     if (plan === "pro" || plan === "pro_plus") {
-      if (cancelScheduled) {
-        textKey = "planCancelled";
-      } else {
-        dateToShow = nextResetAt;
-        textKey = "renewsOn";
-      }
+      dateToShow = cancelScheduled && periodEndDate ? periodEndDate : nextResetAt;
+      textKey = cancelScheduled ? "activeUntil" : "renewsOn";
     } else if (plan === "free" && nextResetAt) {
       dateToShow = nextResetAt;
       textKey = "resetsOn";
