@@ -77,9 +77,14 @@ Copy `docs/upgrade-page-checkout.js` from this repo into your replymate-site pro
 
 <!-- Pro+ Monthly -->
 <button data-replymate-plan="pro_plus" data-replymate-billing="monthly">Monthly Plan</button>
+
+<!-- Cancel subscription (schedules cancel at period end) -->
+<button data-replymate-cancel>Cancel subscription</button>
 ```
 
 Flow: User clicks → if not logged in, Google sign-in opens → after sign-in, checkout is created → redirect to Stripe.
+
+**Cancel subscription:** Calls the same backend as the extension. Schedules cancellation at period end; user keeps access until then.
 
 ---
 

@@ -4,7 +4,7 @@ require("dotenv").config();
 const OpenAI = require("openai");
 const { createClient } = require("@supabase/supabase-js");
 const { PLAN_LIMITS } = require("./src/config/plans");
-const { getUser, updateUserPlan, recordUsage, checkTranslationLimit, recordTranslationUsage, testConnection, updateUserCancelScheduled, clearUserCancelScheduled, downgradeUserBySubscriptionId, syncPeriodBySubscriptionId } = require("./src/database");
+const { getUser, updateUserPlan, recordUsage, checkTranslationLimit, recordTranslationUsage, testConnection, updateUserCancelScheduled, clearUserCancelScheduled, downgradeUserBySubscriptionId, syncPeriodBySubscriptionId, isStripeEventProcessed, recordStripeEventProcessed } = require("./src/database");
 const { getTotalTopupRemaining, createTopup } = require("./src/topup");
 const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 
@@ -178,6 +178,27 @@ app.post(
       return res.status(400).json({ error: `Webhook Error: ${err.message}` });
     }
 
+    // Idempotency: avoid processing the same event twice (Stripe retries, duplicates)
+    try {
+      const isNew = await recordStripeEventProcessed(event.id);
+      if (!isNew) {
+        console.log("[Stripe] Event already processed, skipping:", event.id);
+        return res.status(200).json({ received: true });
+      }
+    } catch (idemErr) {
+      try {
+        if (await isStripeEventProcessed(event.id)) {
+          return res.status(200).json({ received: true });
+        }
+      } catch (_) {}
+      if (idemErr?.message?.includes("does not exist") || idemErr?.code === "42P01") {
+        console.warn("[Stripe] stripe_webhook_events table missing - run SQL from SUPABASE_SETUP.md. Proceeding without idempotency.");
+      } else {
+        console.error("[Stripe] Idempotency check failed:", idemErr?.message);
+        return res.status(500).json({ error: "Failed to process webhook" });
+      }
+    }
+
     if (event.type === "checkout.session.completed") {
       const session = event.data.object;
       const meta = session.metadata || {};
@@ -216,11 +237,29 @@ app.post(
         const existingUser = await getUser(userId);
         const existingSubId = existingUser?.stripeSubscriptionId;
         if (existingSubId && existingSubId !== stripeSubscriptionId) {
-          try {
-            await stripe.subscriptions.cancel(existingSubId);
-            console.log(`[Stripe] Cancelled previous subscription ${existingSubId} for user ${userId} (switching to new plan)`);
-          } catch (cancelErr) {
-            console.warn("[Stripe] Could not cancel previous subscription:", cancelErr.message);
+          const maxRetries = 3;
+          let cancelErr = null;
+          for (let attempt = 1; attempt <= maxRetries; attempt++) {
+            try {
+              await stripe.subscriptions.cancel(existingSubId);
+              console.log(`[Stripe] Cancelled previous subscription ${existingSubId} for user ${userId} (switching to new plan)`);
+              cancelErr = null;
+              break;
+            } catch (err) {
+              cancelErr = err;
+              console.warn(`[Stripe] Cancel attempt ${attempt}/${maxRetries} failed for ${existingSubId}:`, err.message);
+              if (attempt < maxRetries) {
+                await new Promise((r) => setTimeout(r, 1000 * attempt));
+              }
+            }
+          }
+          if (cancelErr) {
+            console.error("[Stripe] CRITICAL: Failed to cancel previous subscription after retries:", {
+              existingSubId,
+              userId,
+              error: cancelErr.message,
+            });
+            return res.status(500).json({ error: "Failed to cancel previous subscription. Please contact support." });
           }
         }
 
@@ -315,8 +354,18 @@ app.get("/health", (req, res) => {
 // Billing redirects after Stripe Checkout (success/cancel URLs)
 const BILLING_SUCCESS_URL = process.env.BILLING_SUCCESS_URL || "https://taeyun0207.github.io/replymate-site/upgrade/index.html?success=1";
 const BILLING_CANCEL_URL = process.env.BILLING_CANCEL_URL || "https://taeyun0207.github.io/replymate-site/upgrade/index.html?cancelled=1";
-app.get("/billing/success", (req, res) => res.redirect(302, BILLING_SUCCESS_URL));
-app.get("/billing/cancel", (req, res) => res.redirect(302, BILLING_CANCEL_URL));
+app.get("/billing/success", (req, res) => {
+  const sessionId = req.query.session_id;
+  const url = new URL(BILLING_SUCCESS_URL);
+  url.searchParams.set("success", "1");
+  if (sessionId) url.searchParams.set("session_id", sessionId);
+  res.redirect(302, url.toString());
+});
+app.get("/billing/cancel", (req, res) => {
+  const url = new URL(BILLING_CANCEL_URL);
+  url.searchParams.set("cancelled", "1");
+  res.redirect(302, url.toString());
+});
 
 // Debug: test Supabase connection (check Render logs)
 app.get("/api/db-check", async (req, res) => {

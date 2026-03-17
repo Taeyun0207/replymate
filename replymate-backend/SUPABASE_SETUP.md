@@ -94,6 +94,23 @@ DROP TABLE IF EXISTS public.user_topups;
 -- Then run the CREATE TABLE above
 ```
 
+## 2c. Stripe webhook idempotency (optional but recommended)
+
+Prevents processing the same Stripe event twice when Stripe retries webhooks:
+
+```sql
+CREATE TABLE IF NOT EXISTS public.stripe_webhook_events (
+  event_id TEXT PRIMARY KEY,
+  processed_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+ALTER TABLE public.stripe_webhook_events ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Service role full access" ON public.stripe_webhook_events
+  FOR ALL USING (true) WITH CHECK (true);
+```
+
+---
+
 ## 3. Stripe webhook (for upgrades, renewals, and cancellations)
 
 1. Go to **Stripe Dashboard → Developers → Webhooks**

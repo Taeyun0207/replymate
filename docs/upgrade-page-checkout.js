@@ -15,10 +15,9 @@
  *    </script>
  *    <script src="upgrade-page-checkout.js"></script>
  *
- * 3. Add data attributes to your upgrade buttons:
- *    <button data-replymate-plan="pro" data-replymate-billing="annual">Upgrade to Pro</button>
- *    <button data-replymate-plan="pro_plus" data-replymate-billing="annual">Upgrade to Pro+</button>
- *    <button data-replymate-plan="pro" data-replymate-billing="monthly">Monthly Plan</button>
+ * 3. Add data attributes to your buttons:
+ *    Upgrade: <button data-replymate-plan="pro" data-replymate-billing="annual">Upgrade to Pro</button>
+ *    Cancel:  <button data-replymate-cancel>Cancel subscription</button>
  */
 
 (function () {
@@ -81,6 +80,28 @@
     }
   }
 
+  async function cancelSubscription() {
+    const token = await getAccessToken();
+    if (!token) {
+      await signInWithGoogle();
+      return;
+    }
+
+    const res = await fetch(`${BACKEND}/billing/cancel-subscription`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${token}`
+      },
+      body: JSON.stringify({})
+    });
+
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "Failed to cancel subscription");
+
+    return data;
+  }
+
   function init() {
     document.querySelectorAll("[data-replymate-plan]").forEach((btn) => {
       btn.addEventListener("click", async (e) => {
@@ -101,6 +122,28 @@
         }
       });
       btn.setAttribute("data-replymate-original-text", btn.textContent);
+    });
+
+    document.querySelectorAll("[data-replymate-cancel]").forEach((btn) => {
+      btn.addEventListener("click", async (e) => {
+        e.preventDefault();
+        if (!confirm("Cancel your subscription? You'll keep access until the end of your billing period.")) return;
+
+        btn.disabled = true;
+        const originalText = btn.textContent;
+        btn.textContent = "Cancelling...";
+        try {
+          const data = await cancelSubscription();
+          const endDate = data.cancelAt ? new Date(data.cancelAt).toLocaleDateString() : "";
+          alert("Cancellation scheduled. You'll have access until " + endDate + ".");
+          if (typeof window.location.reload === "function") window.location.reload();
+        } catch (err) {
+          console.error("[ReplyMate Upgrade]", err);
+          alert(err.message || "Something went wrong. Please try again.");
+          btn.disabled = false;
+          btn.textContent = originalText;
+        }
+      });
     });
   }
 

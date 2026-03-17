@@ -320,6 +320,40 @@ async function testConnection() {
   return true;
 }
 
+const WEBHOOK_EVENTS_TABLE = "stripe_webhook_events";
+
+/**
+ * Check if a Stripe webhook event was already processed (idempotency).
+ * Returns true if already processed, false if new.
+ */
+async function isStripeEventProcessed(eventId) {
+  const { data, error } = await supabase
+    .from(WEBHOOK_EVENTS_TABLE)
+    .select("event_id")
+    .eq("event_id", eventId)
+    .maybeSingle();
+  if (error) return false; // Table might not exist yet
+  return !!data;
+}
+
+/**
+ * Record that a Stripe webhook event was processed.
+ * Call this at the start of processing to prevent duplicate handling.
+ * Returns true if newly recorded, false if already processed (duplicate).
+ */
+async function recordStripeEventProcessed(eventId) {
+  const now = new Date().toISOString();
+  const { error } = await supabase.from(WEBHOOK_EVENTS_TABLE).insert({
+    event_id: eventId,
+    processed_at: now,
+  });
+  if (error) {
+    if (error.code === "23505" || error.message?.includes("duplicate")) return false;
+    throw error;
+  }
+  return true;
+}
+
 /**
  * Check if user can translate (does not consume). Free: 10/day. Pro/Pro+: unlimited.
  * Returns { allowed: boolean, remaining?: number }.
@@ -417,4 +451,6 @@ module.exports = {
   clearUserCancelScheduled,
   downgradeUserBySubscriptionId,
   syncPeriodBySubscriptionId,
+  isStripeEventProcessed,
+  recordStripeEventProcessed,
 };
