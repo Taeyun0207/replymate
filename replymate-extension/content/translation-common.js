@@ -33,7 +33,8 @@
       translateToLabel: "Translate to",
       systemLanguage: "System Language",
       translating: "Translating...",
-      contentSame: "Same content.\nNo translation needed."
+      contentSame: "Same content.\nNo translation needed.",
+      signInRequired: "Please sign in with Google to use ReplyMate translation."
     },
     korean: {
       aiReply: "AI Reply",
@@ -58,7 +59,8 @@
       translateToLabel: "번역 대상 언어",
       systemLanguage: "시스템 언어",
       translating: "번역 중...",
-      contentSame: "동일한 내용입니다.\n번역할 필요가 없습니다."
+      contentSame: "동일한 내용입니다.\n번역할 필요가 없습니다.",
+      signInRequired: "ReplyMate 번역을 사용하려면 Google로 로그인해 주세요."
     },
     japanese: {
       aiReply: "AI Reply",
@@ -83,7 +85,8 @@
       translateToLabel: "翻訳先",
       systemLanguage: "システム言語",
       translating: "翻訳中...",
-      contentSame: "同じ内容です。\n翻訳の必要はありません。"
+      contentSame: "同じ内容です。\n翻訳の必要はありません。",
+      signInRequired: "ReplyMate翻訳をご利用になるには、Googleでサインインしてください。"
     },
     spanish: {
       aiReply: "Respuesta IA",
@@ -108,7 +111,8 @@
       translateToLabel: "Traducir a",
       systemLanguage: "Idioma del sistema",
       translating: "Traduciendo...",
-      contentSame: "Mismo contenido.\nNo se necesita traducción."
+      contentSame: "Mismo contenido.\nNo se necesita traducción.",
+      signInRequired: "Por favor, inicia sesión con Google para usar la traducción de ReplyMate."
     }
   };
 
@@ -139,43 +143,61 @@
     return lang[key] || TRANSLATIONS.english[key] || key;
   }
 
+  const LANG_ATTR_MAP = { ko: "korean", ja: "japanese", es: "spanish", en: "english", "en-US": "english", "en-GB": "english" };
+
+  function detectPageLanguage() {
+    try {
+      const lang = (typeof document !== "undefined" && document.documentElement?.getAttribute?.("lang")) || "";
+      const code = (lang || "").split("-")[0].toLowerCase();
+      return LANG_ATTR_MAP[code] || LANG_ATTR_MAP[lang] || null;
+    } catch (e) {
+      return null;
+    }
+  }
+
   async function getCurrentLanguage() {
     return new Promise((resolve) => {
       try {
         if (typeof chrome === "undefined" || !chrome.storage?.local) {
-          resolve(DEFAULT_LANGUAGE);
+          resolve(detectPageLanguage() || DEFAULT_LANGUAGE);
           return;
         }
         chrome.storage.local.get([LANGUAGE_KEY], (result) => {
           try {
-            if (chrome?.runtime?.lastError) resolve(DEFAULT_LANGUAGE);
-            else resolve(result?.[LANGUAGE_KEY] || DEFAULT_LANGUAGE);
+            if (chrome?.runtime?.lastError) {
+              resolve(detectPageLanguage() || DEFAULT_LANGUAGE);
+              return;
+            }
+            const stored = result?.[LANGUAGE_KEY];
+            if (stored) {
+              resolve(stored);
+              return;
+            }
+            resolve(detectPageLanguage() || DEFAULT_LANGUAGE);
           } catch (e) {
-            resolve(DEFAULT_LANGUAGE);
+            resolve(detectPageLanguage() || DEFAULT_LANGUAGE);
           }
         });
       } catch (e) {
-        resolve(DEFAULT_LANGUAGE);
+        resolve(detectPageLanguage() || DEFAULT_LANGUAGE);
       }
     });
   }
 
   async function getAccessToken() {
-    if (typeof ReplyMateAuthShared !== "undefined") {
-      const g = typeof self !== "undefined" ? self : (typeof window !== "undefined" ? window : {});
-      const url = g.REPLYMATE_SUPABASE_URL;
-      const anonKey = g.REPLYMATE_SUPABASE_ANON_KEY;
-      if (url && anonKey) await ReplyMateAuthShared.syncConfig(url, anonKey);
-    }
-    if (typeof ReplyMateAuthShared !== "undefined") {
-      const token = await ReplyMateAuthShared.getAccessToken();
-      if (token) return token;
-    }
     try {
       const res = await chrome.runtime.sendMessage({ type: "GET_ACCESS_TOKEN" });
       if (res && res.token) return res.token;
     } catch (e) {
       /* ignore */
+    }
+    if (typeof ReplyMateAuthShared !== "undefined") {
+      const g = typeof self !== "undefined" ? self : (typeof window !== "undefined" ? window : {});
+      const url = g.REPLYMATE_SUPABASE_URL;
+      const anonKey = g.REPLYMATE_SUPABASE_ANON_KEY;
+      if (url && anonKey) await ReplyMateAuthShared.syncConfig(url, anonKey);
+      const token = await ReplyMateAuthShared.getAccessToken();
+      if (token) return token;
     }
     return null;
   }

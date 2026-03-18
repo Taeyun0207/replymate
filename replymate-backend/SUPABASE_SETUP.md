@@ -61,7 +61,17 @@ ALTER TABLE public.users ADD COLUMN IF NOT EXISTS cancel_at_period_end BOOLEAN D
 ALTER TABLE public.users ADD COLUMN IF NOT EXISTS period_end_at TIMESTAMPTZ;
 ```
 
-## 2a. Translation usage columns (optional)
+## 2a. Billing interval column (optional)
+
+For tracking whether a subscription is monthly or annual:
+
+```sql
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS billing_interval TEXT;
+```
+
+Values: `'monthly'`, `'annual'`, or `null` (free users).
+
+## 2b. Translation usage columns (optional)
 
 For translation limits: free users get 15/day; Pro/Pro+ unlimited.
 
@@ -70,7 +80,7 @@ ALTER TABLE public.users ADD COLUMN IF NOT EXISTS translation_used INTEGER DEFAU
 ALTER TABLE public.users ADD COLUMN IF NOT EXISTS translation_reset_at TIMESTAMPTZ;
 ```
 
-## 2b. Top-up credits table (optional)
+## 2c. Top-up credits table (optional)
 
 For one-time reply packs (100 / 500 replies). One row per user; expiry extends to 1 year from each purchase.
 
@@ -94,7 +104,7 @@ DROP TABLE IF EXISTS public.user_topups;
 -- Then run the CREATE TABLE above
 ```
 
-## 2c. Stripe webhook idempotency (optional but recommended)
+## 2d. Stripe webhook idempotency (optional but recommended)
 
 Prevents processing the same Stripe event twice when Stripe retries webhooks:
 

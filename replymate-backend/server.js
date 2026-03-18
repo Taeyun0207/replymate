@@ -269,15 +269,24 @@ app.post(
             const subscription = await stripe.subscriptions.retrieve(stripeSubscriptionId);
             const periodEnd = subscription.current_period_end ?? subscription.items?.data?.[0]?.current_period_end;
             const periodStart = subscription.current_period_start ?? subscription.items?.data?.[0]?.current_period_start;
+            const interval = subscription.items?.data?.[0]?.plan?.interval;
+            let billingInterval = interval === "year" ? "annual" : interval === "month" ? "monthly" : null;
+            if (!billingInterval && (meta.billingType === "monthly" || meta.billingType === "annual")) billingInterval = meta.billingType;
             if (periodEnd && periodStart) {
               periodOptions = {
                 billingCycleStart: new Date(periodStart * 1000).toISOString(),
                 nextResetAt: new Date(periodEnd * 1000).toISOString(),
+                ...(billingInterval && { billingInterval }),
               };
               console.log("[Stripe] Using subscription period:", periodOptions);
+            } else if (billingInterval) {
+              periodOptions = { billingInterval };
             }
           } catch (subErr) {
             console.warn("[Stripe] Could not fetch subscription for period, using default:", subErr.message);
+            if (meta.billingType === "monthly" || meta.billingType === "annual") {
+              periodOptions = { billingInterval: meta.billingType };
+            }
           }
         }
 
@@ -311,10 +320,12 @@ app.post(
         const periodStart = subscription.current_period_start ?? subscription.items?.data?.[0]?.current_period_start;
         const cancelAtPeriodEnd = !!subscription.cancel_at_period_end;
         const periodEndAt = periodEnd ? new Date(periodEnd * 1000).toISOString() : null;
+        const interval = subscription.items?.data?.[0]?.plan?.interval;
+        const billingInterval = interval === "year" ? "annual" : interval === "month" ? "monthly" : null;
         if (periodEnd && periodStart) {
           const periodStartIso = new Date(periodStart * 1000).toISOString();
           const periodEndIso = new Date(periodEnd * 1000).toISOString();
-          const updated = await syncPeriodBySubscriptionId(subscription.id, periodStartIso, periodEndIso, cancelAtPeriodEnd, periodEndAt);
+          const updated = await syncPeriodBySubscriptionId(subscription.id, periodStartIso, periodEndIso, cancelAtPeriodEnd, periodEndAt, billingInterval);
           if (updated) {
             console.log("[Stripe] Period and cancel status synced for subscription:", subscription.id);
           }
@@ -797,6 +808,7 @@ app.get("/billing/me", requireAuth, async (req, res) => {
     if (!user) return res.status(404).json({ error: "User not found" });
     res.json({
       plan: user.plan || "free",
+      billingInterval: user.billingInterval || null,
       cancelAtPeriodEnd: user.cancelAtPeriodEnd || false,
       currentPeriodEnd: user.periodEndAt || user.nextResetAt,
     });
@@ -837,6 +849,7 @@ app.post("/billing/create-checkout-session", requireAuth, async (req, res) => {
       metadata: {
         userId,
         targetPlan,
+        billingType: billing,
         ...(userEmail && { userEmail }),
       },
       customer_email: userEmail || undefined,

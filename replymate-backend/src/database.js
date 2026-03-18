@@ -34,6 +34,7 @@ function toRow(obj) {
     nextResetAt: obj.next_reset_at ?? obj.nextResetAt,
     stripeCustomerId: obj.stripe_customer_id ?? obj.stripeCustomerId,
     stripeSubscriptionId: obj.stripe_subscription_id ?? obj.stripeSubscriptionId,
+    billingInterval: obj.billing_interval ?? obj.billingInterval ?? null,
     cancelAtPeriodEnd: !!obj.cancel_at_period_end,
     periodEndAt: obj.period_end_at ?? null,
     createdAt: obj.created_at ?? obj.createdAt,
@@ -52,6 +53,7 @@ function toDb(obj) {
     next_reset_at: obj.nextResetAt,
     stripe_customer_id: obj.stripeCustomerId ?? null,
     stripe_subscription_id: obj.stripeSubscriptionId ?? null,
+    billing_interval: obj.billingInterval ?? null,
     created_at: obj.createdAt,
     updated_at: obj.updatedAt,
   };
@@ -148,19 +150,21 @@ async function updateUserPlan(
 
   if (existingUser) {
     console.log("[DB] Updating existing user plan:", userId, "to:", plan, options.billingCycleStart ? "(Stripe period)" : "(default 30d)");
-    const { data, error } = await supabase
+    const updates = {
+    plan,
+    used: 0,
+    billing_cycle_start: billingCycleStart,
+    next_reset_at: nextReset,
+    stripe_customer_id: stripeCustomerId ?? existingUser.stripeCustomerId,
+    stripe_subscription_id: stripeSubscriptionId ?? existingUser.stripeSubscriptionId,
+    cancel_at_period_end: false,
+    period_end_at: null,
+    updated_at: now,
+  };
+  if (options.billingInterval !== undefined) updates.billing_interval = options.billingInterval;
+  const { data, error } = await supabase
       .from(TABLE_NAME)
-      .update({
-        plan,
-        used: 0,
-        billing_cycle_start: billingCycleStart,
-        next_reset_at: nextReset,
-        stripe_customer_id: stripeCustomerId ?? existingUser.stripeCustomerId,
-        stripe_subscription_id: stripeSubscriptionId ?? existingUser.stripeSubscriptionId,
-        cancel_at_period_end: false,
-        period_end_at: null,
-        updated_at: now,
-      })
+      .update(updates)
       .eq("user_id", userId)
       .select()
       .single();
@@ -265,13 +269,14 @@ async function clearUserCancelScheduled(userId) {
   if (error) throw error;
 }
 
-async function syncPeriodBySubscriptionId(subscriptionId, periodStartIso, periodEndIso, cancelAtPeriodEnd = null, periodEndAt = null) {
+async function syncPeriodBySubscriptionId(subscriptionId, periodStartIso, periodEndIso, cancelAtPeriodEnd = null, periodEndAt = null, billingInterval = null) {
   const now = new Date().toISOString();
   const updates = {
     billing_cycle_start: periodStartIso,
     next_reset_at: periodEndIso,
     updated_at: now,
   };
+  if (billingInterval !== null) updates.billing_interval = billingInterval;
   if (cancelAtPeriodEnd !== null) {
     updates.cancel_at_period_end = !!cancelAtPeriodEnd;
     updates.period_end_at = cancelAtPeriodEnd ? periodEndAt : null;
@@ -298,6 +303,7 @@ async function downgradeUserBySubscriptionId(subscriptionId) {
       billing_cycle_start: now,
       next_reset_at: nextReset,
       stripe_subscription_id: null,
+      billing_interval: null,
       cancel_at_period_end: false,
       period_end_at: null,
       updated_at: now,

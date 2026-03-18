@@ -9,7 +9,7 @@
   // Only run in main frame (not in iframes)
   if (typeof window !== "undefined" && window !== window.top) return;
 
-  /** True if we're on Gmail (has extractThreadContext / findActiveReplyEditor from gmail.js). */
+  /** True if we're on Gmail or Outlook (has extractThreadContext / findActiveReplyEditor from gmail.js or outlook.js). */
   function isGmailPage() {
     return typeof extractThreadContext === "function" && typeof findActiveReplyEditor === "function";
   }
@@ -59,6 +59,21 @@
     // Remove lines that are only "Unsubscribe" or similar
     cleaned = cleaned.replace(/^\s*(Unsubscribe|구독 취소|退订|退訂|Desuscribirse|Se désabonner)\s*$/gim, "");
 
+    // Remove Outlook UI labels in ALL languages - translation must be based on EMAIL content only
+    const outlookUiPatterns = [
+      /^받는\s*사람\s*:?\s*.*$/m, /^참조\s*:?\s*.*$/m, /^숨은\s*참조\s*:?\s*.*$/m, /^보낸\s*사람\s*:?\s*.*$/m, /^제목\s*:?\s*.*$/m,
+      /^To\s*:?\s*.*$/im, /^Cc\s*:?\s*.*$/im, /^Bcc\s*:?\s*.*$/im, /^From\s*:?\s*.*$/im, /^Subject\s*:?\s*.*$/im, /^Sent\s*:?\s*.*$/im,
+      /^宛先\s*:?\s*.*$/m, /^CC\s*:?\s*.*$/m, /^BCC\s*:?\s*.*$/m, /^差出人\s*:?\s*.*$/m, /^件名\s*:?\s*.*$/m, /^送信日時\s*:?\s*.*$/m,
+      /^Para\s*:?\s*.*$/im, /^CC\s*:?\s*.*$/im, /^CCO\s*:?\s*.*$/im, /^De\s*:?\s*.*$/im, /^Asunto\s*:?\s*.*$/im, /^Enviado\s*:?\s*.*$/im,
+      /^보내기\s*$/m, /^취소\s*$/m, /^Send\s*$/im, /^Discard\s*$/im, /^Cancel\s*$/im,
+      /^送信\s*$/m, /^キャンセル\s*$/m, /^破棄\s*$/m,
+      /^Enviar\s*$/im, /^Cancelar\s*$/im, /^Descartar\s*$/im,
+      /^추가\s*정보\s*입력.*$/m, /^답장\s*$/m, /^전체\s*답장\s*$/m, /^전달\s*$/m,
+      /^返信\s*$/m, /^全員に返信\s*$/m, /^転送\s*$/m,
+      /^Responder\s*$/im, /^Reenviar\s*$/im
+    ];
+    outlookUiPatterns.forEach((p) => { cleaned = cleaned.replace(p, ""); });
+
     // Normalize whitespace
     cleaned = cleaned.replace(/\n\s*\n\s*\n+/g, "\n\n").replace(/^\s+|\s+$/g, "");
 
@@ -66,7 +81,24 @@
   }
 
   /**
-   * Get subject + email body only (no Gmail UI) for translation.
+   * Strip UI labels so language detection is based on EMAIL content only, not Outlook/Gmail UI.
+   */
+  function stripForLanguageDetection(text) {
+    if (!text || typeof text !== "string") return "";
+    let t = text;
+    const uiLines = [
+      /^받는\s*사람\s*:?\s*.*$/gm, /^참조\s*:?\s*.*$/gm, /^숨은\s*참조\s*:?\s*.*$/gm, /^보낸\s*사람\s*:?\s*.*$/gm, /^제목\s*:?\s*.*$/gm,
+      /^To\s*:?\s*.*$/gim, /^Cc\s*:?\s*.*$/gim, /^Bcc\s*:?\s*.*$/gim, /^From\s*:?\s*.*$/gim, /^Subject\s*:?\s*.*$/gim, /^Sent\s*:?\s*.*$/gim,
+      /^宛先\s*:?\s*.*$/gm, /^差出人\s*:?\s*.*$/gm, /^件名\s*:?\s*.*$/gm, /^送信日時\s*:?\s*.*$/gm,
+      /^Para\s*:?\s*.*$/gim, /^De\s*:?\s*.*$/gim, /^Asunto\s*:?\s*.*$/gim, /^Enviado\s*:?\s*.*$/gim,
+      /^보내기\s*$/gm, /^취소\s*$/gm, /^送信\s*$/gm, /^キャンセル\s*$/gm, /^Enviar\s*$/gim, /^Cancelar\s*$/gim, /^Descartar\s*$/gim
+    ];
+    uiLines.forEach((p) => { t = t.replace(p, ""); });
+    return t.replace(/\n\s*\n\s*\n+/g, "\n\n").trim();
+  }
+
+  /**
+   * Get subject + email body only (no Gmail/Outlook UI) for translation.
    */
   function getLatestMessage() {
     try {
@@ -104,16 +136,27 @@
   const _gmailDetectLanguage = typeof detectLanguage === "function" ? detectLanguage : null;
 
   /**
-   * Detect language from text. Uses existing detectLanguage from gmail.js when available.
+   * Detect language from EMAIL content only - never from Outlook/Gmail UI language.
+   * Uses dominant script: count chars per script and pick the winner.
+   * This ensures English emails are detected as English even when UI is in Korean/Japanese/etc.
    */
   function detectLanguageForTranslation(text) {
     if (!text || typeof text !== "string") return "english";
     if (_gmailDetectLanguage) return _gmailDetectLanguage(text);
-    const lowerText = text.toLowerCase();
-    if (/[\u4e00-\u9fff\u3400-\u4dbf]/.test(text)) return "zh";
-    if (/[가-힣ㅋㅌㅎㅏ-ㅑㅒㅓㅔㅕㅟㅠㅢㅣㅡㅢㅥㅤㅦㅨㅧㅮㅯㅰㅱㅲㅴㅶㅷㅇㅈㅏㅑㅓㅒㅔㅕㅟㅠㅢㅣㅡㅢㅥㅤㅦㅨㅧㅮㅯㅰㅱㅲㅴㅶㅷㅇ]/.test(text)) return "korean";
-    if (/[\u3040-\u309F\u30A0-\u30FF]/.test(text)) return "japanese";
-    if (/[ñáéíóúü]/.test(lowerText) || /\b(gracias|por favor|que|para|con|estoy|tengo|hola|buenos|días|noche|favor)\b/i.test(lowerText)) return "spanish";
+
+    const latin = (text.match(/[a-zA-Z]/g) || []).length;
+    const korean = (text.match(/[가-힣ㄱ-ㅎㅏ-ㅣ]/g) || []).length;
+    const japanese = (text.match(/[\u3040-\u309F\u30A0-\u30FF]/g) || []).length;
+    const chinese = (text.match(/[\u4e00-\u9fff\u3400-\u4dbf]/g) || []).length;
+
+    const max = Math.max(latin, korean, japanese, chinese);
+    if (max === 0) return "english";
+    if (latin === max) return "english";
+    if (korean === max) return "korean";
+    if (japanese === max) return "japanese";
+    if (chinese === max) return "zh";
+
+    if (/[ñáéíóúü]/.test(text.toLowerCase()) || /\b(gracias|por favor|que|para|con|estoy|tengo|hola|buenos|días|noche|favor)\b/i.test(text)) return "spanish";
     return "english";
   }
 
@@ -621,7 +664,8 @@
       return;
     }
 
-    const detected = detectLanguageForTranslation(sourceText);
+    const textForDetection = stripForLanguageDetection(sourceText) || sourceText;
+    const detected = detectLanguageForTranslation(textForDetection);
     const detectedCode = mapToTargetCode(detected);
     if (detectedCode === targetCode) {
       setResult(panel, t("alreadyInYourLanguage"));
@@ -660,7 +704,10 @@
       if (err.name === "AbortError") return;
       const msg = err.message || String(err);
       const isLimitReached = msg.includes("translation_limit_reached");
-      const displayMsg = isLimitReached ? t("translateLimitReached") : t("translateError") + msg;
+      const isAuthError = msg.includes("Unauthorized") || msg.includes("Invalid or expired token") || msg.includes("Sign in required");
+      const displayMsg = isLimitReached ? t("translateLimitReached")
+        : isAuthError ? t("signInRequired")
+        : t("translateError") + msg;
       setResult(panel, displayMsg, true);
     } finally {
       setTranslateButtonsDisabled(panel, false);
