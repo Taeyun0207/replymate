@@ -857,10 +857,10 @@ app.post("/billing/create-checkout-session", requireAuth, async (req, res) => {
         items: [{ id: itemId, price: priceId }],
         proration_behavior: "always_invoice",
       });
-      const successUrl = BILLING_SUCCESS_URL.includes("?")
-        ? BILLING_SUCCESS_URL + "&switch=1"
-        : BILLING_SUCCESS_URL + "?success=1&switch=1";
-      return res.json({ checkoutUrl: successUrl });
+      const url = new URL(BILLING_SUCCESS_URL);
+      url.searchParams.set("success", "1");
+      url.searchParams.set("switch", "1");
+      return res.json({ checkoutUrl: url.toString() });
     }
 
     const session = await stripe.checkout.sessions.create({
