@@ -632,6 +632,18 @@ function applyLanguageToUI(language = DEFAULT_LANGUAGE, participants = []) {
   }
 }
 
+// Refresh login UI when auth syncs from website (e.g. user logged in on homepage)
+if (typeof chrome !== "undefined" && chrome.storage?.onChanged) {
+  chrome.storage.onChanged.addListener((changes, areaName) => {
+    if (areaName !== "local") return;
+    if (changes.replymate_supabase_session || changes.replymate_auth_user) {
+      chrome.storage.local.get([LANGUAGE_KEY], (r) => {
+        updateLoginUI(r[LANGUAGE_KEY] || DEFAULT_LANGUAGE);
+      });
+    }
+  });
+}
+
 // Listen for usage updates from Gmail content script
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === "USAGE_UPDATED" && message.data) {

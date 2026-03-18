@@ -68,6 +68,17 @@
     },
     {
       "matches": [
+        "*://taeyun0207.github.io/replymate-site/*",
+        "*://localhost/*",
+        "*://127.0.0.1/*"
+      ],
+      "js": [
+        "content/auth-sync-website.js"
+      ],
+      "run_at": "document_start"
+    },
+    {
+      "matches": [
         "<all_urls>"
       ],
       "js": [
