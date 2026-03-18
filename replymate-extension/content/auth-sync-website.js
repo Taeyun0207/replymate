@@ -91,7 +91,11 @@
 
   function runSync() {
     syncLocalStorageToChrome();
-    syncChromeToLocalStorage();
+    const hasOAuthHash = typeof window !== "undefined" && window.location.hash &&
+      (window.location.hash.includes("access_token") || window.location.hash.includes("refresh_token"));
+    if (!hasOAuthHash) {
+      syncChromeToLocalStorage();
+    }
   }
 
   runSync();

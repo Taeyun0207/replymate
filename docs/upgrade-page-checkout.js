@@ -26,6 +26,9 @@
  *
  * 4. Success banner: Add <div id="replymate-success-banner" style="display:none">...</div> and it will
  *    be shown when success=1, switch=1, or session_id is present. session_id is optional (for future use).
+ *
+ * 5. Auth-ready: The script fires "replymate-auth-ready" when auth is settled (after OAuth redirect).
+ *    Wait for this event before fetching /billing/me or rendering auth-dependent content to avoid blank page.
  */
 
 (function () {
@@ -130,6 +133,17 @@
     }
   }
 
+  async function waitForAuthReady() {
+    const hasHash = window.location.hash && (window.location.hash.includes("access_token") || window.location.hash.includes("refresh_token"));
+    if (hasHash) {
+      await new Promise((r) => setTimeout(r, 100));
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session) return session;
+    }
+    const { data: { session } } = await supabase.auth.getSession();
+    return session;
+  }
+
   function init() {
     checkSuccessAndShowBanner();
 
@@ -177,9 +191,20 @@
     });
   }
 
-  if (document.readyState === "loading") {
-    document.addEventListener("DOMContentLoaded", init);
-  } else {
+  async function runInit() {
+    try {
+      const session = await waitForAuthReady();
+      window.REPLYMATE_AUTH_READY = true;
+      window.dispatchEvent(new CustomEvent("replymate-auth-ready", { detail: { user: session?.user || null } }));
+    } catch (e) {
+      console.warn("[ReplyMate Upgrade] Auth check:", e?.message);
+    }
     init();
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", () => runInit());
+  } else {
+    runInit();
   }
 })();

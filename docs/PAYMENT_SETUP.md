@@ -115,6 +115,41 @@ Replace `YOUR_EXTENSION_ID` with your published extension ID (from Chrome Web St
 
 ---
 
-## 7. Full Option: API-Based Checkout on the Page
+## 7. Success Banner & Auth-Ready Event
+
+**Success banner:** Add `<div id="replymate-success-banner" style="display:none">Plan updated successfully!</div>`. It shows when `?success=1`, `?switch=1`, or `?session_id=` is present (both regular checkout and Switch flow).
+
+**Auth-ready event:** After OAuth redirect, Supabase needs time to parse the hash and restore the session. The script fires `replymate-auth-ready` when auth is ready. Your page should wait for this before fetching `/billing/me` or hiding/showing auth-dependent content:
+
+```javascript
+window.addEventListener("replymate-auth-ready", (e) => {
+  const user = e.detail?.user;
+  if (user) {
+    fetchBillingAndRender(); // fetch /billing/me, then show plan/cancel UI
+  } else {
+    showPricingAndSignIn();   // show upgrade buttons
+  }
+});
+```
+
+---
+
+## 8. Troubleshooting: Blank Page After Sign-In
+
+If the upgrade page shows only "Cancel subscription" (or blank) after Google sign-in:
+
+1. **Auth timing** – The page may fetch `/billing/me` before Supabase has restored the session from the OAuth hash. Wait for `replymate-auth-ready` before any auth-dependent API calls.
+
+2. **Console error** – Open DevTools → Console. A JS error can stop rendering. Fix the error first.
+
+3. **Network tab** – Check if `GET /billing/me` returns 401. If so, the token isn’t ready yet; delay the request until `replymate-auth-ready`.
+
+4. **Fallback** – Show pricing by default. If the user is logged in, they can still click Upgrade (which will use the token). Avoid hiding all content until auth resolves.
+
+5. **Supabase redirect URL** – Ensure `https://replymateai.app/upgrade` (and your exact path) is in Supabase → Authentication → URL Configuration → Redirect URLs.
+
+---
+
+## 9. Full Option: API-Based Checkout on the Page
 
 See `upgrade-page-checkout.js` in this folder for a ready-to-use script.
