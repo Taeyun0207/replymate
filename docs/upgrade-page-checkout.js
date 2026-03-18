@@ -4,6 +4,10 @@
  * Add this script to your upgrade page (e.g. replymateai.app/upgrade)
  * along with Supabase and the config below.
  *
+ * Two flows land on this page with success:
+ * - Regular checkout: User pays via Stripe Checkout → redirect with ?success=1&session_id=cs_xxx
+ * - Switch flow: User switches monthly ↔ annual → backend redirects with ?success=1&switch=1 (no session_id)
+ *
  * 1. Add to your HTML <head>:
  *    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
  *
@@ -19,6 +23,9 @@
  * 3. Add data attributes to your buttons:
  *    Upgrade: <button data-replymate-plan="pro" data-replymate-billing="annual">Upgrade to Pro</button>
  *    Cancel:  <button data-replymate-cancel>Cancel subscription</button>
+ *
+ * 4. Success banner: Add <div id="replymate-success-banner" style="display:none">...</div> and it will
+ *    be shown when success=1, switch=1, or session_id is present. session_id is optional (for future use).
  */
 
 (function () {
@@ -107,7 +114,25 @@
     return data;
   }
 
+  function checkSuccessAndShowBanner() {
+    const params = new URLSearchParams(window.location.search);
+    const success = params.get("success") === "1";
+    const switchDone = params.get("switch") === "1";
+    const sessionId = params.get("session_id");
+    const isSuccess = success || switchDone || !!sessionId;
+    if (isSuccess) {
+      const banner = document.getElementById("replymate-success-banner") || document.querySelector("[data-replymate-success-banner]");
+      if (banner) {
+        banner.style.display = "";
+      }
+      window.REPLYMATE_CHECKOUT_SUCCESS = true;
+      window.REPLYMATE_CHECKOUT_SESSION_ID = sessionId || null;
+    }
+  }
+
   function init() {
+    checkSuccessAndShowBanner();
+
     document.querySelectorAll("[data-replymate-plan]").forEach((btn) => {
       btn.addEventListener("click", async (e) => {
         e.preventDefault();
