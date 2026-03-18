@@ -964,6 +964,24 @@ app.post("/billing/cancel-subscription", requireAuth, async (req, res) => {
   }
 });
 
+// Keep subscription (undo cancel at period end) - alias for reactivate
+app.post("/billing/keep-subscription", requireAuth, async (req, res) => {
+  try {
+    const userId = req.userId;
+    const user = await getUser(userId);
+    if (!user) return res.status(404).json({ error: "User not found" });
+    if (!user.cancelAtPeriodEnd) return res.status(400).json({ error: "No cancellation scheduled" });
+    const subscriptionId = user.stripeSubscriptionId;
+    if (!subscriptionId) return res.status(400).json({ error: "No active subscription found" });
+    await stripe.subscriptions.update(subscriptionId, { cancel_at_period_end: false });
+    await clearUserCancelScheduled(userId);
+    return res.status(200).json({ success: true });
+  } catch (error) {
+    console.error("Keep subscription error:", error);
+    return res.status(500).json({ error: "Failed to keep subscription" });
+  }
+});
+
 // Reactivate subscription (undo cancel at period end) - requires auth
 app.post("/billing/reactivate-subscription", requireAuth, async (req, res) => {
   try {
