@@ -530,11 +530,9 @@
         <div style="display:flex;align-items:center;gap:8px;">
           ${logoUrl ? `<img src="${logoUrl}" alt="ReplyMate" style="width:18px;height:18px;border-radius:4px;flex-shrink:0;" />` : ""}
           <span id="replymate-translate-title" style="font-weight:600;font-size:13px;letter-spacing:0.02em;">ReplyMate Translate</span>
-          <button id="replymate-translate-toggle" type="button" style="margin-left:4px;padding:2px 8px;font-size:11px;font-weight:600;border-radius:6px;border:1px solid rgba(255,255,255,0.5);background:rgba(255,255,255,0.2);color:#fff;cursor:pointer;">ON</button>
         </div>
         <button id="replymate-translate-close" style="background:rgba(255,255,255,0.25);border:none;cursor:pointer;font-size:16px;color:#fff;width:24px;height:24px;border-radius:6px;display:flex;align-items:center;justify-content:center;transition:background 0.2s;">&times;</button>
       </div>
-      <div id="replymate-translate-usage" style="padding:8px 12px;background:#f1f3f4;font-size:12px;color:#5f6368;display:flex;align-items:center;gap:6px;"></div>
       <div style="padding:12px;background:#fafafa;">
         <div style="display:flex;flex-direction:column;gap:8px;">
           <div id="replymate-translate-gmail-buttons" style="display:flex;flex-direction:row;flex-wrap:wrap;gap:6px;">
@@ -555,7 +553,10 @@
           <div>
             <label id="replymate-translate-result-label" style="font-size:11px;color:#5f6368;margin-bottom:3px;display:block;">Result</label>
             <div id="replymate-translate-result" data-placeholder="" style="min-height:140px;max-height:400px;overflow-y:scroll;overflow-x:hidden;padding:10px;box-sizing:border-box;border:1px solid #e8eaed;border-radius:6px;background:#fff;white-space:pre-wrap;word-break:break-word;font-size:13px;color:#202124;line-height:1.5;transition:border-color 0.2s,box-shadow 0.2s;"></div>
-            <button id="replymate-translate-copy" class="replymate-translate-copy" style="margin-top:6px;">Copy</button>
+            <div style="margin-top:6px;display:flex;justify-content:space-between;align-items:center;gap:8px;">
+              <button id="replymate-translate-copy" class="replymate-translate-copy">Copy</button>
+              <span id="replymate-translate-usage" style="font-size:11px;color:#5f6368;"></span>
+            </div>
           </div>
         </div>
       </div>
@@ -584,7 +585,7 @@
   }
 
   /**
-   * Update usage bar (plan + translation usage).
+   * Update usage display (plan + translation usage) in bottom-right.
    */
   async function updateUsageDisplay(panel) {
     const usageEl = panel && panel.querySelector("#replymate-translate-usage");
@@ -614,47 +615,6 @@
   }
 
   /**
-   * Apply enabled state: when OFF, disable translate buttons and show message.
-   */
-  async function applyEnabledState(panel) {
-    const enabled = await getTranslationEnabled();
-    const toggleBtn = panel && panel.querySelector("#replymate-translate-toggle");
-    const lang = typeof getCurrentLanguage === "function" ? await getCurrentLanguage() : "english";
-    const t = (key) => (typeof getTranslation === "function" ? getTranslation(key, lang) : key);
-    if (toggleBtn) {
-      toggleBtn.textContent = enabled ? "ON" : "OFF";
-      toggleBtn.style.background = enabled ? "rgba(255,255,255,0.35)" : "rgba(255,255,255,0.15)";
-      toggleBtn.style.borderColor = enabled ? "rgba(255,255,255,0.8)" : "rgba(255,255,255,0.4)";
-    }
-    const ids = ["replymate-translate-latest", "replymate-translate-reply", "replymate-translate-manual"];
-    ids.forEach((id) => {
-      const btn = panel && panel.querySelector(`#${id}`);
-      if (btn) {
-        btn.disabled = !enabled;
-        btn.style.opacity = enabled ? "1" : "0.5";
-        btn.style.cursor = enabled ? "pointer" : "not-allowed";
-      }
-    });
-    const bodyDiv = panel && panel.querySelector("#replymate-translate-usage")?.nextElementSibling;
-    if (bodyDiv) {
-      if (!enabled) {
-        let msg = panel.querySelector("#replymate-translate-disabled-msg");
-        if (!msg) {
-          msg = document.createElement("div");
-          msg.id = "replymate-translate-disabled-msg";
-          msg.style.cssText = "padding:8px 0;color:#5f6368;font-size:12px;";
-          bodyDiv.insertBefore(msg, bodyDiv.firstChild);
-        }
-        msg.textContent = t("translationDisabled");
-        msg.style.display = "";
-      } else {
-        const msg = panel.querySelector("#replymate-translate-disabled-msg");
-        if (msg) msg.style.display = "none";
-      }
-    }
-  }
-
-  /**
    * Update panel labels with current language.
    */
   async function updatePanelLabels(panel) {
@@ -671,7 +631,6 @@
     if (toLabel) toLabel.textContent = t("translateToLabel");
 
     await updateUsageDisplay(panel);
-    await applyEnabledState(panel);
 
     const targetSelect = document.getElementById("replymate-translate-target");
     if (targetSelect) {
@@ -780,13 +739,6 @@
       setResult(panel, "");
       return;
     }
-    const enabled = await getTranslationEnabled();
-    if (!enabled) {
-      const lang = typeof getCurrentLanguage === "function" ? await getCurrentLanguage() : "english";
-      const t = (key) => (typeof getTranslation === "function" ? getTranslation(key, lang) : key);
-      setResult(panel, t("translationDisabled"), true);
-      return;
-    }
 
     const lang = typeof getCurrentLanguage === "function" ? await getCurrentLanguage() : "english";
     const t = (key) => (typeof getTranslation === "function" ? getTranslation(key, lang) : key);
@@ -843,9 +795,17 @@
         : t("translateError") + msg;
       setResult(panel, displayMsg, true);
     } finally {
-      await applyEnabledState(panel);
+      setTranslateButtonsDisabled(panel, false);
       translateAbortController = null;
     }
+  }
+
+  /**
+   * Show or hide the translation icon based on enabled state.
+   */
+  function setIconVisibility(visible) {
+    const icon = document.getElementById(TRANSLATION_ICON_ID);
+    if (icon) icon.style.display = visible ? "flex" : "none";
   }
 
   /**
@@ -945,11 +905,11 @@
         setTimeout(() => { panel.style.display = "none"; clearPanelState(panel); }, 200);
       } else {
         panel.style.display = "block";
-        await updatePanelLabels(panel);
         requestAnimationFrame(() => {
           panel.style.opacity = "1";
           panel.style.transform = "scale(1)";
         });
+        updatePanelLabels(panel); // Run in background - don't block panel open
         if (typeof getAccessToken === "function") getAccessToken().catch(() => {});
       }
     });
@@ -966,15 +926,6 @@
       setTimeout(() => { panel.style.display = "none"; clearPanelState(panel); }, 200);
     });
 
-    const toggleBtn = document.getElementById("replymate-translate-toggle");
-    toggleBtn.addEventListener("mousedown", (e) => e.stopPropagation());
-    toggleBtn.addEventListener("click", async (e) => {
-      e.stopPropagation();
-      e.preventDefault();
-      const enabled = await getTranslationEnabled();
-      setTranslationEnabled(!enabled);
-      await applyEnabledState(panel);
-    });
     document.addEventListener("keydown", (e) => {
       if (e.key === "Escape" && panel.style.display === "block") {
         panel.style.opacity = "0";
@@ -1038,6 +989,8 @@
     });
 
     document.body.appendChild(icon);
+    const enabled = await getTranslationEnabled();
+    setIconVisibility(enabled);
   }
 
   // Expose for tests / reuse
@@ -1081,11 +1034,16 @@
   }
 
   // Sync position across tabs: when user moves icon/panel in another tab, update this tab too
+  // Also show/hide icon when ReplyMate Translate is toggled in popup
   if (typeof chrome !== "undefined" && chrome.storage?.onChanged) {
     chrome.storage.onChanged.addListener((changes, areaName) => {
       if (areaName !== "local") return;
       if (changes[STORAGE_ICON_POS] || changes[STORAGE_PANEL_POS]) {
         applyStoredPositions();
+      }
+      if (changes[STORAGE_TRANSLATION_ENABLED]) {
+        const v = changes[STORAGE_TRANSLATION_ENABLED]?.newValue;
+        setIconVisibility(v === false ? false : true);
       }
     });
   }

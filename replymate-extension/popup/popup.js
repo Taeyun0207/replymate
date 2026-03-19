@@ -2,6 +2,7 @@ const TONE_KEY = "replymateTone";
 const LENGTH_KEY = "replymateLength";
 const USER_NAME_KEY = "replymateUserName";
 const LANGUAGE_KEY = "replymateLanguage";
+const TRANSLATION_ENABLED_KEY = "replymate_translation_enabled";
 const USAGE_CACHE_KEY = "replymate_usage_cache";
 const USAGE_CACHE_TTL = 30000; // 30 seconds
 
@@ -55,7 +56,7 @@ const TRANSLATIONS = {
     signInWithGoogle: "Sign in with Google",
     signedInAs: "Signed in as",
     signOut: "Sign out",
-    signInRequired: "⚠️ Please sign in with Google to use ReplyMate.",
+    signInRequired: "⚠️ Sign in with Google to use ReplyMate.",
     topUpReplies: "Top up replies",
     topup100: "+100",
     topup500: "+500",
@@ -74,6 +75,7 @@ const TRANSLATIONS = {
     copyEmail: "Copy Email",
     submit: "Submit",
     copied: "Copied!",
+    replyMateTranslate: "ReplyMate Translate",
   },
   korean: {
     settings: "ReplyMate 설정",
@@ -85,10 +87,10 @@ const TRANSLATIONS = {
     save: "저장",
     saved: "저장됨!",
     loading: "로딩 중...",
-    usageUnavailable: "사용량을 사용할 수 없음",
+    usageUnavailable: "사용량 정보 없음",
     upgradeMore: "Pro로 더 많은 답장 잠금 해제",
     upgradeUnlimited: "Pro+로 무제한 답장 잠금 해제",
-    enjoyReplyMate: "ReplyMate를 마음껏 즐기세요!",
+    enjoyReplyMate: "ReplyMate를 즐겨보세요!",
     upgradeToPro: "Pro로 업그레이드",
     upgradeToProPlus: "Pro+로 업그레이드",
     manageSubscription: "구독 관리",
@@ -132,22 +134,23 @@ const TRANSLATIONS = {
     giveFeedbackTitle: "피드백 제공",
     giveFeedbackPlaceholder: "피드백은 제품 개선에 도움이 됩니다.",
     enquiryTitle: "문의하기",
-    enquiryMessage: "다음으로 연락해 주세요",
+    enquiryMessage: "다음 주소로 연락해 주세요",
     copyEmail: "이메일 복사",
     submit: "제출",
     copied: "복사됨!",
+    replyMateTranslate: "ReplyMate 번역",
   },
   japanese: {
     settings: "ReplyMate 設定",
     settingsLabel: "設定",
     replyTone: "返信のトーン",
-    replyLength: "返信返信の長さ長さ",
+    replyLength: "返信の長さ",
     yourName: "表示名",
     language: "言語",
     save: "保存",
     saved: "保存完了",
     loading: "読み込み中...",
-    usageUnavailable: "現在この機能は利用できません",
+    usageUnavailable: "使用量を取得できません",
     upgradeMore: "Proでより多くの返信をアンロック",
     upgradeUnlimited: "Pro+で無制限の返信をアンロック",
     enjoyReplyMate: "ReplyMateをお楽しみください！",
@@ -159,7 +162,7 @@ const TRANSLATIONS = {
       pro: "Pro",
       pro_plus: "Pro+"
     },
-    repliesLeft: "残り返信可能数",
+    repliesLeft: "残りの返信数",
     cancelSubscription: "サブスクリプションをキャンセル",
     keepSubscription: "サブスクリプションを継続",
     reactivating: "復元中...",
@@ -179,9 +182,9 @@ const TRANSLATIONS = {
     authErrorGeneric: "サインイン中にエラーが発生しました。もう一度お試しください。",
     unableToExtractContent: "メールの内容を取得できません。ページを更新してください。",
     signInWithGoogle: "Googleでサインイン",
-    signedInAs: "サインイン中",
+    signedInAs: "ログイン中",
     signOut: "サインアウト",
-    signInRequired: "⚠️ ReplyMateをご利用になるには、Googleでサインインしてください。",
+    signInRequired: "⚠️ ReplyMateをご利用いただくには、Googleでログインしてください。",
     topUpReplies: "返信を追加",
     topupCredits: "追加クレジット: {count}",
     privacyPolicy: "プライバシーポリシー",
@@ -194,14 +197,15 @@ const TRANSLATIONS = {
     giveFeedbackTitle: "フィードバックを提供",
     giveFeedbackPlaceholder: "フィードバックは製品の改善に役立ちます。",
     enquiryTitle: "お問い合わせ",
-    enquiryMessage: "以下のアドレスまでご連絡ください",
+    enquiryMessage: "以下のメールアドレスまでご連絡ください",
     copyEmail: "メールをコピー",
     submit: "送信",
     copied: "コピーしました！",
+    replyMateTranslate: "ReplyMate 翻訳",
   },
   spanish: {
     settings: "Configuración de ReplyMate",
-    settingsLabel: "Configuración de",
+    settingsLabel: "Configuración",
     replyTone: "Tono de respuesta",
     replyLength: "Longitud de respuesta",
     yourName: "Tu nombre",
@@ -243,7 +247,7 @@ const TRANSLATIONS = {
     signInWithGoogle: "Iniciar sesión con Google",
     signedInAs: "Conectado como",
     signOut: "Cerrar sesión",
-    signInRequired: "⚠️ Por favor, inicia sesión con Google para usar ReplyMate.",
+    signInRequired: "⚠️ Inicia sesión con Google para usar ReplyMate.",
     topUpReplies: "Añadir respuestas",
     topupCredits: "Créditos adicionales: {count}",
     privacyPolicy: "Política de Privacidad",
@@ -260,6 +264,7 @@ const TRANSLATIONS = {
     copyEmail: "Copiar correo",
     submit: "Enviar",
     copied: "¡Copiado!",
+    replyMateTranslate: "ReplyMate Traducir",
   }
 };
 
@@ -507,6 +512,8 @@ function applyLanguageToUI(language = DEFAULT_LANGUAGE, participants = []) {
   document.querySelector('label[for="lengthSelect"]').textContent = getTranslation("replyLength", uiLanguage);
   document.querySelector('label[for="userNameInput"]').textContent = getTranslation("yourName", uiLanguage);
   document.querySelector('label[for="languageSelect"]').textContent = getTranslation("language", uiLanguage);
+  const translateToggleLabel = document.getElementById("translateToggleLabel");
+  if (translateToggleLabel) translateToggleLabel.textContent = getTranslation("replyMateTranslate", uiLanguage);
   document.getElementById("saveButton").textContent = getTranslation("save", uiLanguage);
   const headerTitle = document.querySelector(".header-title");
   if (headerTitle) {
@@ -878,17 +885,21 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-// Load saved values (tone, length, user name, and language) when the popup opens.
-  chrome.storage.local.get([TONE_KEY, LENGTH_KEY, USER_NAME_KEY, LANGUAGE_KEY], async (result) => {
+// Load saved values (tone, length, user name, language, translation toggle) when the popup opens.
+  chrome.storage.local.get([TONE_KEY, LENGTH_KEY, USER_NAME_KEY, LANGUAGE_KEY, TRANSLATION_ENABLED_KEY], async (result) => {
     const tone = result[TONE_KEY] || DEFAULT_TONE;
     const length = result[LENGTH_KEY] || DEFAULT_LENGTH;
     const userName = result[USER_NAME_KEY] || "";
     const language = result[LANGUAGE_KEY] || DEFAULT_LANGUAGE;
+    const translationEnabled = result[TRANSLATION_ENABLED_KEY];
+    const translateEnabled = translationEnabled === false ? false : true;
 
     toneSelect.value = tone;
     lengthSelect.value = length;
     userNameInput.value = userName;
     languageSelect.value = language;
+    const translateToggleSelect = document.getElementById("translateToggleSelect");
+    if (translateToggleSelect) translateToggleSelect.value = translateEnabled ? "on" : "off";
 
     // Update login UI (hides usage/upgrade when not logged in)
     await updateLoginUI(language);
@@ -905,6 +916,15 @@ document.addEventListener("DOMContentLoaded", () => {
       loadUsageData(language, true);
     }
   });
+
+  // ReplyMate Translate toggle - save immediately so icon shows/hides right away
+  const translateToggleSelect = document.getElementById("translateToggleSelect");
+  if (translateToggleSelect) {
+    translateToggleSelect.addEventListener("change", () => {
+      const enabled = translateToggleSelect.value === "on";
+      chrome.storage.local.set({ [TRANSLATION_ENABLED_KEY]: enabled });
+    });
+  }
 
   // Handle language change - don't apply immediately, wait for save
   languageSelect.addEventListener("change", () => {

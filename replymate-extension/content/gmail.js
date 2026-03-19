@@ -109,7 +109,7 @@ const TRANSLATIONS = {
     usageUnavailable: "Usage unavailable",
     monthlyLimitReached: "⚠️You've reached your monthly ReplyMate limit. Upgrade to generate more replies.",
     replyLimitReached: "⚠️ ReplyMate limit reached. Upgrade to generate more replies.",
-    signInRequired: "⚠️ Please sign in with Google to use ReplyMate.",
+    signInRequired: "⚠️ Sign in with Google to use ReplyMate.",
     planNames: {
       free: "Standard",
       pro: "Pro",
@@ -149,13 +149,13 @@ const TRANSLATIONS = {
     translating: "Translating...",
     contentSame: "Same content.\nNo translation needed."
   },
-  korean: {
-    aiReply: "AI Reply",
-    aiReplyHover: "AI Reply",
+    korean: {
+    aiReply: "AI 답장",
+    aiReplyHover: "AI 답장",
     generating: "생성 중...",
     tryAgain: "다시 시도",
     limitReached: "한도 도달",
-    usageUnavailable: "사용량을 사용할 수 없음",
+    usageUnavailable: "사용량 정보 없음",
     monthlyLimitReached: "⚠️월간 ReplyMate 한도에 도달했습니다. 더 많은 답장을 생성하려면 업그레이드하세요.",
     replyLimitReached: "⚠️ ReplyMate 한도에 도달했습니다. 더 많은 답장을 생성하려면 업그레이드하세요.",
     signInRequired: "⚠️ ReplyMate를 사용하려면 Google로 로그인해 주세요.",
@@ -199,21 +199,21 @@ const TRANSLATIONS = {
     contentSame: "동일한 내용입니다.\n번역할 필요가 없습니다."
   },
   japanese: {
-    aiReply: "AI Reply",
-    aiReplyHover: "AI Reply",
+    aiReply: "AI返信",
+    aiReplyHover: "AI返信",
     generating: "返信を生成中...",
     tryAgain: "再試行",
     limitReached: "利用上限に達しました",
-    usageUnavailable: "現在この機能は利用できません",
+    usageUnavailable: "使用量を取得できません",
     monthlyLimitReached: "⚠️ 今月の返信回数の上限に達しました。続けて利用するには、プランをアップグレードしてください。",
     replyLimitReached: "⚠️ 返信回数の上限に達しました。続けて利用するには、プランをアップグレードしてください。",
-    signInRequired: "⚠️ ReplyMateをご利用になるには、Googleでサインインしてください。",
+    signInRequired: "⚠️ ReplyMateをご利用いただくには、Googleでログインしてください。",
     planNames: {
       free: "Standard",
       pro: "Pro",
       pro_plus: "Pro+"
     },
-    repliesLeft: "残り返信可能数",
+    repliesLeft: "残りの返信数",
     instructionPlaceholder: "追加情報（任意：日付、時間 など）",
     upgradeToPro: "Proにアップグレード",
     upgradeToProPlus: "Pro+にアップグレード",
@@ -256,7 +256,7 @@ const TRANSLATIONS = {
     usageUnavailable: "Uso no disponible",
     monthlyLimitReached: "⚠️ Has alcanzado el límite mensual de ReplyMate. Actualiza para generar más respuestas.",
     replyLimitReached: "⚠️ Límite de ReplyMate alcanzado. Actualiza para generar más respuestas.",
-    signInRequired: "⚠️ Por favor, inicia sesión con Google para usar ReplyMate.",
+    signInRequired: "⚠️ Inicia sesión con Google para usar ReplyMate.",
     planNames: {
       free: "Standard",
       pro: "Pro",
