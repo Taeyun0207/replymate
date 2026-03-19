@@ -283,8 +283,15 @@ async function syncPeriodBySubscriptionId(subscriptionId, periodStartIso, period
     updates.cancel_at_period_end = !!cancelAtPeriodEnd;
     updates.period_end_at = cancelAtPeriodEnd ? periodEndAt : null;
   }
-  // Reset usage when syncing a new period (renewal, plan switch). Do NOT reset when only setting cancel_at_period_end.
-  if (cancelAtPeriodEnd !== true) {
+  // Reset usage only when the billing period actually changed (renewal, plan switch).
+  // Do NOT reset when: cancel_at_period_end only, or reactivation (undo cancel) - same period.
+  const { data: existing } = await supabase
+    .from(TABLE_NAME)
+    .select("billing_cycle_start")
+    .eq("stripe_subscription_id", subscriptionId)
+    .maybeSingle();
+  const periodChanged = !existing || !existing.billing_cycle_start || existing.billing_cycle_start !== periodStartIso;
+  if (periodChanged && cancelAtPeriodEnd !== true) {
     updates.used = 0;
     updates.translation_used = 0;
   }
@@ -296,7 +303,8 @@ async function syncPeriodBySubscriptionId(subscriptionId, periodStartIso, period
     .maybeSingle();
   if (error) throw error;
   if (data) {
-    console.log("[DB] Period synced from Stripe for user:", data.user_id, cancelAtPeriodEnd === true ? "(cancel scheduled, usage preserved)" : "(new period, usage reset)");
+    const action = cancelAtPeriodEnd === true ? "cancel scheduled, usage preserved" : periodChanged ? "new period, usage reset" : "same period, usage preserved";
+    console.log("[DB] Period synced from Stripe for user:", data.user_id, "(" + action + ")");
   }
   return data;
 }
