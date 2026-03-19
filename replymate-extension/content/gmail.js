@@ -111,7 +111,7 @@ const TRANSLATIONS = {
     replyLimitReached: "⚠️ ReplyMate limit reached. Upgrade to generate more replies.",
     signInRequired: "⚠️ Sign in with Google to use ReplyMate.",
     planNames: {
-      free: "Standard",
+      free: "Free",
       pro: "Pro",
       pro_plus: "Pro+"
     },
@@ -160,7 +160,7 @@ const TRANSLATIONS = {
     replyLimitReached: "⚠️ ReplyMate 한도에 도달했습니다. 더 많은 답장을 생성하려면 업그레이드하세요.",
     signInRequired: "⚠️ ReplyMate를 사용하려면 Google로 로그인해 주세요.",
     planNames: {
-      free: "Standard",
+      free: "Free",
       pro: "Pro",
       pro_plus: "Pro+"
     },
@@ -209,7 +209,7 @@ const TRANSLATIONS = {
     replyLimitReached: "⚠️ 返信回数の上限に達しました。続けて利用するには、プランをアップグレードしてください。",
     signInRequired: "⚠️ ReplyMateをご利用いただくには、Googleでログインしてください。",
     planNames: {
-      free: "Standard",
+      free: "Free",
       pro: "Pro",
       pro_plus: "Pro+"
     },
@@ -258,7 +258,7 @@ const TRANSLATIONS = {
     replyLimitReached: "⚠️ Límite de ReplyMate alcanzado. Actualiza para generar más respuestas.",
     signInRequired: "⚠️ Inicia sesión con Google para usar ReplyMate.",
     planNames: {
-      free: "Standard",
+      free: "Free",
       pro: "Pro",
       pro_plus: "Pro+"
     },
@@ -489,10 +489,10 @@ async function getUsageData() {
   return await fetchUsageFromBackend();
 }
 
-// Format usage display text - plan name only (same for pre-login and logged-in Standard plan)
+// Format usage display text - plan name only (same for pre-login and logged-in Free plan)
 function formatUsageDisplay(plan, remaining, limit, language = DEFAULT_LANGUAGE) {
   const planTranslations = TRANSLATIONS[language]?.planNames || TRANSLATIONS.english.planNames;
-  const planName = planTranslations[plan] || planTranslations.free || "Standard";
+  const planName = planTranslations[plan] || planTranslations.free || "Free";
   return planName;
 }
 
@@ -548,7 +548,7 @@ async function updateUsageDisplay(usageDisplay) {
     if (usageData) {
       await updateUsageDisplayFromData(usageData);
     } else {
-      // Not logged in: show "Standard" (same as logged-in Standard plan)
+      // Not logged in: show "Free" (same as logged-in Free plan)
       if (usageDisplay) {
         usageDisplay.textContent = formatUsageDisplay("free", 0, 0, language);
       }
@@ -1563,7 +1563,7 @@ Length: ${finalLength}
         );
         usageDisplay.textContent = formattedText;
       } else {
-        // Not logged in: show "Standard" (same as logged-in Standard plan)
+        // Not logged in: show "Free" (same as logged-in Free plan)
         usageDisplay.textContent = formatUsageDisplay("free", 0, 0, language);
       }
     } catch (error) {

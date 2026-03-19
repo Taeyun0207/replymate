@@ -30,7 +30,7 @@ const TRANSLATIONS = {
     upgradeToProPlus: "Upgrade to Pro+",
     manageSubscription: "Manage Subscription",
     planNames: {
-      free: "Standard",
+      free: "Free",
       pro: "Pro",
       pro_plus: "Pro+"
     },
@@ -95,7 +95,7 @@ const TRANSLATIONS = {
     upgradeToProPlus: "Pro+로 업그레이드",
     manageSubscription: "구독 관리",
     planNames: {
-      free: "Standard",
+      free: "Free",
       pro: "Pro",
       pro_plus: "Pro+"
     },
@@ -158,7 +158,7 @@ const TRANSLATIONS = {
     upgradeToProPlus: "Pro+にアップグレード",
     manageSubscription: "サブスクリプション管理",
     planNames: {
-      free: "Standard",
+      free: "Free",
       pro: "Pro",
       pro_plus: "Pro+"
     },
@@ -221,7 +221,7 @@ const TRANSLATIONS = {
     upgradeToProPlus: "Actualizar a Pro+",
     manageSubscription: "Administrar suscripción",
     planNames: {
-      free: "Standard",
+      free: "Free",
       pro: "Pro",
       pro_plus: "Pro+"
     },
@@ -371,7 +371,7 @@ function updatePlanUsageDisplay(usageData, language = DEFAULT_LANGUAGE) {
   }
 
   const planTranslations = TRANSLATIONS[language]?.planNames || TRANSLATIONS.english.planNames;
-  const planName = planTranslations[usageData.plan] || planTranslations.free || "Standard";
+  const planName = planTranslations[usageData.plan] || planTranslations.free || "Free";
   const limit = usageData.limit; // Only use backend limit, no fallback
   const remaining = usageData.remaining !== undefined ? usageData.remaining : 0;
   const repliesLeft = getTranslation("repliesLeft", language);

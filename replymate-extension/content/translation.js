@@ -592,14 +592,14 @@
     if (!usageEl) return;
     const lang = typeof getCurrentLanguage === "function" ? await getCurrentLanguage() : "english";
     const t = (key) => (typeof getTranslation === "function" ? getTranslation(key, lang) : key);
-    const planNames = (typeof getTranslation === "function" ? getTranslation("planNames", lang) : null) || { free: "Standard", pro: "Pro", pro_plus: "Pro+" };
+    const planNames = (typeof getTranslation === "function" ? getTranslation("planNames", lang) : null) || { free: "Free", pro: "Pro", pro_plus: "Pro+" };
     if (typeof planNames === "object") {
       const usage = await fetchUsage();
       if (!usage) {
         usageEl.textContent = t("signInToSeeUsage");
         return;
       }
-      const planName = planNames[usage.plan] || planNames.free || "Standard";
+      const planName = planNames[usage.plan] || planNames.free || "Free";
       const used = usage.translationUsed;
       const limit = usage.translationLimit;
       if (limit == null) {

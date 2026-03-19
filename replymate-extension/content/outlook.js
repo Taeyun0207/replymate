@@ -67,7 +67,7 @@ const TRANSLATIONS = {
     usageUnavailable: "Usage unavailable", monthlyLimitReached: "⚠️You've reached your monthly ReplyMate limit. Upgrade to generate more replies.",
     replyLimitReached: "⚠️ ReplyMate limit reached. Upgrade to generate more replies.",
     signInRequired: "⚠️ Sign in with Google to use ReplyMate.",
-    planNames: { free: "Standard", pro: "Pro", pro_plus: "Pro+" }, repliesLeft: "replies left",
+    planNames: { free: "Free", pro: "Pro", pro_plus: "Pro+" }, repliesLeft: "replies left",
     instructionPlaceholder: "Additional details (optional, e.g. date, time, location)",
     upgradeToPro: "Upgrade to Pro", upgradeToProPlus: "Upgrade to Pro+", manageSubscription: "Manage Subscription",
     enjoyReplyMate: "Enjoy ReplyMate!", currentPlan: "Current Plan: ",
@@ -88,7 +88,7 @@ const TRANSLATIONS = {
     aiReply: "AI 답장", generating: "생성 중...", tryAgain: "다시 시도", limitReached: "한도 도달",
     monthlyLimitReached: "⚠️월간 ReplyMate 한도에 도달했습니다.", replyLimitReached: "⚠️ ReplyMate 한도에 도달했습니다.",
     signInRequired: "⚠️ ReplyMate를 사용하려면 Google로 로그인해 주세요.",
-    planNames: { free: "Standard", pro: "Pro", pro_plus: "Pro+" }, repliesLeft: "답장 남음",
+    planNames: { free: "Free", pro: "Pro", pro_plus: "Pro+" }, repliesLeft: "답장 남음",
     instructionPlaceholder: "추가 정보 입력 (선택 사항)", upgradeToPro: "Pro로 업그레이드", upgradeToProPlus: "Pro+로 업그레이드",
     manageSubscription: "구독 관리", unableToExtractContent: "이메일 내용을 추출할 수 없습니다.",
     noReplyFound: "답장이 없습니다.", noMessageFound: "이 메일에서 내용을 찾을 수 없습니다.",
@@ -103,7 +103,7 @@ const TRANSLATIONS = {
     aiReply: "AI Reply", generating: "返信を生成中...", tryAgain: "再試行", limitReached: "利用上限に達しました",
     monthlyLimitReached: "⚠️ 今月の返信回数の上限に達しました。", replyLimitReached: "⚠️ 返信回数の上限に達しました。",
     signInRequired: "⚠️ ReplyMateをご利用いただくには、Googleでログインしてください。",
-    planNames: { free: "Standard", pro: "Pro", pro_plus: "Pro+" }, repliesLeft: "残りの返信数",
+    planNames: { free: "Free", pro: "Pro", pro_plus: "Pro+" }, repliesLeft: "残りの返信数",
     instructionPlaceholder: "追加情報（任意）", upgradeToPro: "Proにアップグレード", upgradeToProPlus: "Pro+にアップグレード",
     manageSubscription: "サブスクリプション管理", unableToExtractContent: "メールの内容を取得できません。",
     noReplyFound: "返信が見つかりません。", noMessageFound: "このメールに内容がありません。",
@@ -118,7 +118,7 @@ const TRANSLATIONS = {
     aiReply: "Respuesta IA", generating: "Generando...", tryAgain: "Intentar de nuevo", limitReached: "Límite alcanzado",
     monthlyLimitReached: "⚠️ Has alcanzado el límite mensual de ReplyMate.", replyLimitReached: "⚠️ Límite de ReplyMate alcanzado.",
     signInRequired: "⚠️ Inicia sesión con Google para usar ReplyMate.",
-    planNames: { free: "Standard", pro: "Pro", pro_plus: "Pro+" }, repliesLeft: "respuestas restantes",
+    planNames: { free: "Free", pro: "Pro", pro_plus: "Pro+" }, repliesLeft: "respuestas restantes",
     instructionPlaceholder: "Detalles adicionales (opcional)", upgradeToPro: "Actualizar a Pro", upgradeToProPlus: "Actualizar a Pro+",
     manageSubscription: "Gestionar suscripción", unableToExtractContent: "No se puede extraer el contenido del correo.",
     noReplyFound: "No hay respuesta.", noMessageFound: "No hay contenido en este correo.",
@@ -280,7 +280,7 @@ async function getUsageData() {
 
 function formatUsageDisplay(plan, remaining, limit, language) {
   const planNames = TRANSLATIONS[language]?.planNames || TRANSLATIONS.english.planNames;
-  return planNames[plan] || planNames.free || "Standard";
+  return planNames[plan] || planNames.free || "Free";
 }
 
 async function updateUsageDisplayFromData(usageData) {
