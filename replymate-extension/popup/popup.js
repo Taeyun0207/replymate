@@ -4,13 +4,15 @@ const USER_NAME_KEY = "replymateUserName";
 const LANGUAGE_KEY = "replymateLanguage";
 const TRANSLATION_ENABLED_KEY = "replymate_translation_enabled";
 const POPUP_THEME_KEY = "replymate_popup_theme";
+/** Same key as translation.js — Pro/Pro+ only color themes; Free resets both to basic. */
+const TRANSLATION_PANEL_THEME_KEY = "replymate_translation_panel_theme";
 /**
  * Popup look is user-controlled only (color wheel). We do not read prefers-color-scheme
  * or OS light/dark — new installs / missing key always start at DEFAULT_POPUP_THEME.
- * Order: cycle with header color wheel. Persisted immediately on change.
+ * Order: basic → light → sepia → rose → slate → dark → basic-dark (color wheel). Persisted immediately on change.
  */
 const DEFAULT_POPUP_THEME = "basic";
-const POPUP_THEME_IDS = [DEFAULT_POPUP_THEME, "light", "sepia", "rose", "dark", "basic-dark"];
+const POPUP_THEME_IDS = [DEFAULT_POPUP_THEME, "light", "sepia", "rose", "slate", "dark", "basic-dark"];
 const USAGE_CACHE_KEY = "replymate_usage_cache";
 const USAGE_CACHE_TTL = 30000; // 30 seconds
 
@@ -84,6 +86,11 @@ const TRANSLATIONS = {
     submit: "Submit",
     copied: "Copied!",
     replyMateTranslate: "ReplyMate Translate",
+    colorThemeProOnly:
+      "Color themes are a Pro feature. Upgrade to Pro or Pro+ to unlock custom looks—in settings, the translation panel, and AI Reply buttons.",
+    colorThemePlanCheckFailed: "Could not verify your plan. Check your connection and try again.",
+    colorThemeUpgradePrompt: "Unlock Pro/Pro+",
+    colorThemeToastPlanCheck: "We couldn’t verify your plan. Check your connection and try again.",
   },
   korean: {
     settings: "ReplyMate 설정",
@@ -147,6 +154,11 @@ const TRANSLATIONS = {
     submit: "제출",
     copied: "복사됨!",
     replyMateTranslate: "ReplyMate 번역",
+    colorThemeProOnly:
+      "색 테마는 Pro 전용 기능입니다. Pro 또는 Pro+로 업그레이드하면 설정, 번역 패널, AI 답장 버튼 등에서 맞춤 색상을 사용할 수 있습니다.",
+    colorThemePlanCheckFailed: "플랜을 확인할 수 없습니다. 연결을 확인한 뒤 다시 시도해 주세요.",
+    colorThemeUpgradePrompt: "Pro·Pro+ 잠금 해제",
+    colorThemeToastPlanCheck: "플랜을 확인하지 못했습니다. 연결을 확인한 뒤 다시 시도해 주세요.",
   },
   japanese: {
     settings: "ReplyMate 設定",
@@ -210,6 +222,11 @@ const TRANSLATIONS = {
     submit: "送信",
     copied: "コピーしました！",
     replyMateTranslate: "ReplyMate 翻訳",
+    colorThemeProOnly:
+      "カラーテーマはPro向けの機能です。ProまたはPro+にアップグレードすると、設定・翻訳パネル・AI返信ボタンなどでカスタム配色が使えます。",
+    colorThemePlanCheckFailed: "プランを確認できませんでした。接続を確認してもう一度お試しください。",
+    colorThemeUpgradePrompt: "Pro／Pro+解除",
+    colorThemeToastPlanCheck: "プランを確認できませんでした。接続を確認して再度お試しください。",
   },
   spanish: {
     settings: "Configuración de ReplyMate",
@@ -273,6 +290,11 @@ const TRANSLATIONS = {
     submit: "Enviar",
     copied: "¡Copiado!",
     replyMateTranslate: "ReplyMate Traducir",
+    colorThemeProOnly:
+      "Los temas de color son una función Pro. Mejora a Pro o Pro+ para desbloquear apariencias personalizadas en ajustes, el panel de traducción y los botones de respuesta con IA.",
+    colorThemePlanCheckFailed: "No se pudo verificar tu plan. Comprueba la conexión e inténtalo de nuevo.",
+    colorThemeUpgradePrompt: "Desbloquea Pro/Pro+",
+    colorThemeToastPlanCheck: "No pudimos verificar tu plan. Comprueba la conexión e inténtalo de nuevo.",
   }
 };
 
@@ -280,16 +302,144 @@ function normalizePopupTheme(theme) {
   return POPUP_THEME_IDS.includes(theme) ? theme : DEFAULT_POPUP_THEME;
 }
 
+/** Pro and Pro+ can use color-wheel themes; Free (and logged-out) stay on basic unless upgrading. */
+function planAllowsPremiumColorThemes(plan) {
+  return plan === "pro" || plan === "pro_plus";
+}
+
+/**
+ * If the user is not on Pro/Pro+, reset both popup and translation panel themes to basic.
+ * Call when usage indicates free/downgrade, or when logged out (pass plan "free").
+ */
+function enforceColorThemesForPlan(plan) {
+  return new Promise((resolve) => {
+    if (planAllowsPremiumColorThemes(plan)) {
+      resolve();
+      return;
+    }
+    chrome.storage.local.get([POPUP_THEME_KEY, TRANSLATION_PANEL_THEME_KEY], (r) => {
+      if (chrome.runtime?.lastError) {
+        resolve();
+        return;
+      }
+      const pt = normalizePopupTheme(r[POPUP_THEME_KEY]);
+      const tt = normalizePopupTheme(r[TRANSLATION_PANEL_THEME_KEY]);
+      if (pt === DEFAULT_POPUP_THEME && tt === DEFAULT_POPUP_THEME) {
+        resolve();
+        return;
+      }
+      chrome.storage.local.set(
+        {
+          [POPUP_THEME_KEY]: DEFAULT_POPUP_THEME,
+          [TRANSLATION_PANEL_THEME_KEY]: DEFAULT_POPUP_THEME,
+        },
+        () => {
+          applyPopupTheme(DEFAULT_POPUP_THEME);
+          resolve();
+        }
+      );
+    });
+  });
+}
+
 /** Apply settings popup theme (see POPUP_THEME_IDS). */
 function applyPopupTheme(theme) {
   document.documentElement.setAttribute("data-theme", normalizePopupTheme(theme));
 }
 
-/** Save theme to storage immediately (no Save button). */
+/** Save theme to storage immediately (no Save button). Keeps popup + translation panel in sync. */
 function persistPopupTheme(theme) {
   const t = normalizePopupTheme(theme);
   applyPopupTheme(t);
-  chrome.storage.local.set({ [POPUP_THEME_KEY]: t });
+  chrome.storage.local.set({
+    [POPUP_THEME_KEY]: t,
+    [TRANSLATION_PANEL_THEME_KEY]: t,
+  });
+}
+
+function hideThemeProToast() {
+  const root = document.getElementById("themeProToast");
+  if (!root) return;
+  document.documentElement.classList.remove("theme-pro-toast-open");
+  document.body.style.minWidth = "";
+  root.classList.remove("theme-pro-toast--visible");
+  setTimeout(() => {
+    root.hidden = true;
+    root.style.left = "";
+    root.style.top = "";
+    root.style.right = "";
+    root.style.bottom = "";
+  }, 280);
+  if (window.__themeProToastTimer) {
+    clearTimeout(window.__themeProToastTimer);
+    window.__themeProToastTimer = null;
+  }
+  if (window.__themeProToastReposition) {
+    window.removeEventListener("resize", window.__themeProToastReposition);
+    window.__themeProToastReposition = null;
+  }
+}
+
+/** Place toast just under the header color wheel (right-aligned with wheel). */
+function positionThemeProToastNearColorWheel() {
+  const root = document.getElementById("themeProToast");
+  const anchor = document.getElementById("themeToggleBtn");
+  if (!root || !anchor || root.hidden) return;
+  const ar = anchor.getBoundingClientRect();
+  const gap = 6;
+  const margin = 6;
+  const w = root.offsetWidth;
+  const h = root.offsetHeight;
+  let left = ar.right - w;
+  left = Math.max(margin, Math.min(left, window.innerWidth - w - margin));
+  let top = ar.bottom + gap;
+  if (top + h > window.innerHeight - margin) {
+    top = Math.max(margin, ar.top - gap - h);
+  }
+  root.style.left = `${left}px`;
+  root.style.top = `${top}px`;
+  root.style.right = "auto";
+  root.style.bottom = "auto";
+}
+
+function showThemeProToast(message) {
+  const root = document.getElementById("themeProToast");
+  const textEl = document.getElementById("themeProToastText");
+  if (!root || !textEl) return;
+  textEl.textContent = message;
+  document.documentElement.classList.add("theme-pro-toast-open");
+  root.hidden = false;
+  document.body.style.minWidth = "";
+  if (window.__themeProToastReposition) {
+    window.removeEventListener("resize", window.__themeProToastReposition);
+  }
+  window.__themeProToastReposition = () => {
+    if (!root.hidden && root.classList.contains("theme-pro-toast--visible")) {
+      positionThemeProToastNearColorWheel();
+      const w = root.offsetWidth;
+      const pad = 16;
+      const vw = document.documentElement.clientWidth || window.innerWidth;
+      document.body.style.minWidth = w + pad > vw ? `${Math.ceil(w + pad)}px` : "";
+    }
+  };
+  window.addEventListener("resize", window.__themeProToastReposition);
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      positionThemeProToastNearColorWheel();
+      root.classList.add("theme-pro-toast--visible");
+      setTimeout(() => {
+        positionThemeProToastNearColorWheel();
+        const w = root.offsetWidth;
+        const pad = 16;
+        const vw = document.documentElement.clientWidth || window.innerWidth;
+        if (w + pad > vw) {
+          document.body.style.minWidth = `${Math.ceil(w + pad)}px`;
+        }
+      }, 40);
+    });
+  });
+  if (window.__themeProToastTimer) clearTimeout(window.__themeProToastTimer);
+  window.__themeProToastTimer = setTimeout(hideThemeProToast, 5500);
 }
 
 // Get translation for current language
@@ -678,10 +828,11 @@ if (typeof chrome !== "undefined" && chrome.storage?.onChanged) {
 // Listen for usage updates from Gmail content script
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === "USAGE_UPDATED" && message.data) {
-    chrome.storage.local.get([LANGUAGE_KEY], (result) => {
+    chrome.storage.local.get([LANGUAGE_KEY], async (result) => {
       const language = result[LANGUAGE_KEY] || DEFAULT_LANGUAGE;
       updatePlanUsageDisplay(message.data, language);
       updateUpgradeLink(message.data.plan, language, message.data.cancelScheduled, message.data.periodEndDate, message.data.nextResetAt, message.data.topupRemaining ?? 0);
+      await enforceColorThemesForPlan(message.data.plan);
     });
   }
   
@@ -917,9 +1068,6 @@ document.addEventListener("DOMContentLoaded", () => {
     const language = result[LANGUAGE_KEY] || DEFAULT_LANGUAGE;
     const translationEnabled = result[TRANSLATION_ENABLED_KEY];
     const translateEnabled = translationEnabled === false ? false : true;
-    // Theme: not derived from OS — only storage or DEFAULT_POPUP_THEME (see normalizePopupTheme).
-    const savedTheme = result[POPUP_THEME_KEY];
-    applyPopupTheme(savedTheme);
 
     toneSelect.value = tone;
     lengthSelect.value = length;
@@ -938,10 +1086,16 @@ document.addEventListener("DOMContentLoaded", () => {
     toneSelect.value = tone;
     lengthSelect.value = length;
     languageSelect.value = language;
-    // Load usage data only when logged in (force refresh on popup open for fresh plan/usage)
+
     if (typeof ReplyMateAuth !== "undefined" && (await ReplyMateAuth.isSignedIn())) {
-      loadUsageData(language, true);
+      await loadUsageData(language, true);
+    } else {
+      await enforceColorThemesForPlan("free");
     }
+
+    chrome.storage.local.get([POPUP_THEME_KEY], (r) => {
+      applyPopupTheme(r[POPUP_THEME_KEY] || DEFAULT_POPUP_THEME);
+    });
   });
 
   // ReplyMate Translate toggle - save immediately so icon shows/hides right away
@@ -953,10 +1107,28 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // Color wheel: cycle themes (saved immediately)
+  // Color wheel: Pro / Pro+ only; syncs popup + translation panel storage
   const themeToggleBtn = document.getElementById("themeToggleBtn");
   if (themeToggleBtn) {
-    themeToggleBtn.addEventListener("click", () => {
+    themeToggleBtn.addEventListener("click", async () => {
+      const language = languageSelect?.value || DEFAULT_LANGUAGE;
+      let signedIn = false;
+      try {
+        if (typeof ReplyMateAuth !== "undefined") signedIn = await ReplyMateAuth.isSignedIn();
+      } catch (_) {}
+      if (!signedIn) {
+        showThemeProToast(getTranslation("colorThemeUpgradePrompt", language));
+        return;
+      }
+      const usage = await getUsageData(true);
+      if (!usage) {
+        showThemeProToast(getTranslation("colorThemeUpgradePrompt", language));
+        return;
+      }
+      if (!planAllowsPremiumColorThemes(usage.plan)) {
+        showThemeProToast(getTranslation("colorThemeUpgradePrompt", language));
+        return;
+      }
       const cur = normalizePopupTheme(document.documentElement.getAttribute("data-theme") || DEFAULT_POPUP_THEME);
       const idx = POPUP_THEME_IDS.indexOf(cur);
       const next = POPUP_THEME_IDS[(idx + 1) % POPUP_THEME_IDS.length];
@@ -1109,13 +1281,21 @@ document.addEventListener("DOMContentLoaded", () => {
 // Load usage data and update UI with language
 async function loadUsageData(language = DEFAULT_LANGUAGE, forceRefresh = false) {
   const usageData = await getUsageData(forceRefresh);
-  
+
   if (usageData) {
     updatePlanUsageDisplay(usageData, language);
     updateUpgradeLink(usageData.plan, language, usageData.cancelScheduled, usageData.periodEndDate, usageData.nextResetAt, usageData.topupRemaining ?? 0);
+    await enforceColorThemesForPlan(usageData.plan);
   } else {
     updatePlanUsageDisplay(null, language);
     updateUpgradeLink("free", language, false, null, null, 0);
+    let signedIn = false;
+    try {
+      if (typeof ReplyMateAuth !== "undefined") signedIn = await ReplyMateAuth.isSignedIn();
+    } catch (_) {}
+    if (!signedIn) {
+      await enforceColorThemesForPlan("free");
+    }
   }
 }
 });

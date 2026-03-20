@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "ReplyMate: AI Email Reply Assistant & Translator",
-  "version": "1.0.4",
+  "version": "1.0.5",
   "description": "AI-powered Gmail & Outlook reply assistant",
   "permissions": [
     "storage",
@@ -47,6 +47,7 @@
       "js": [
         "lib/auth-config.js",
         "lib/auth-shared.js",
+        "content/popup-theme-button.js",
         "content/gmail.js"
       ],
       "all_frames": true
@@ -59,6 +60,7 @@
       "js": [
         "lib/auth-config.js",
         "lib/auth-shared.js",
+        "content/popup-theme-button.js",
         "content/outlook.js",
         "content/translation-common.js",
         "content/translation.js"

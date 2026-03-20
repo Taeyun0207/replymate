@@ -28,6 +28,7 @@
       noTextToTranslate: "Please paste or enter text to translate.",
       nothingToCopy: "Nothing to copy. Translate something first.",
       translatePanelTitle: "ReplyMate Translate",
+      translateCycleTheme: "Cycle theme (saved for this panel only)",
       planNames: { free: "Free", pro: "Pro", pro_plus: "Pro+" },
       signInToSeeUsage: "Sign in to use",
       translationDisabled: "Translation is disabled",
@@ -39,7 +40,12 @@
       systemLanguage: "System Language",
       translating: "Translating...",
       contentSame: "Same content.\nNo translation needed.",
-      signInRequired: "Please sign in with Google to use ReplyMate translation."
+      signInRequired: "Please sign in with Google to use ReplyMate translation.",
+      colorThemeProOnly:
+        "Color themes are a Pro feature. Upgrade to Pro or Pro+ to unlock custom looks—in settings, the translation panel, and AI Reply buttons.",
+      colorThemePlanCheckFailed: "Could not verify your plan. Check your connection and try again.",
+      colorThemeUpgradePrompt: "Unlock Pro/Pro+",
+      colorThemeToastPlanCheck: "We couldn’t verify your plan. Check your connection and try again.",
     },
     korean: {
       aiReply: "AI 답장",
@@ -59,6 +65,7 @@
       noTextToTranslate: "번역할 텍스트를 붙여넣거나 입력해 주세요.",
       nothingToCopy: "복사할 내용이 없습니다. 먼저 번역해 주세요.",
       translatePanelTitle: "ReplyMate 번역",
+      translateCycleTheme: "색 테마 (이 패널에만 저장)",
       planNames: { free: "Free", pro: "Pro", pro_plus: "Pro+" },
       signInToSeeUsage: "로그인하여 사용",
       translationDisabled: "번역이 꺼져 있습니다",
@@ -70,7 +77,12 @@
       systemLanguage: "시스템 언어",
       translating: "번역 중...",
       contentSame: "동일한 내용입니다.\n번역이 필요하지 않습니다.",
-      signInRequired: "ReplyMate 번역을 사용하려면 Google로 로그인해 주세요."
+      signInRequired: "ReplyMate 번역을 사용하려면 Google로 로그인해 주세요.",
+      colorThemeProOnly:
+        "색 테마는 Pro 전용 기능입니다. Pro 또는 Pro+로 업그레이드하면 설정, 번역 패널, AI 답장 버튼 등에서 맞춤 색상을 사용할 수 있습니다.",
+      colorThemePlanCheckFailed: "플랜을 확인할 수 없습니다. 연결을 확인한 뒤 다시 시도해 주세요.",
+      colorThemeUpgradePrompt: "Pro·Pro+ 잠금 해제",
+      colorThemeToastPlanCheck: "플랜을 확인하지 못했습니다. 연결을 확인한 뒤 다시 시도해 주세요.",
     },
     japanese: {
       aiReply: "AI返信",
@@ -90,6 +102,7 @@
       noTextToTranslate: "翻訳するテキストを貼り付けるか入力してください。",
       nothingToCopy: "コピーする内容がありません。先に翻訳してください。",
       translatePanelTitle: "ReplyMate 翻訳",
+      translateCycleTheme: "テーマを切り替え（このパネルに保存）",
       planNames: { free: "Free", pro: "Pro", pro_plus: "Pro+" },
       signInToSeeUsage: "ログインしてご利用ください",
       translationDisabled: "翻訳はオフになっています",
@@ -101,7 +114,12 @@
       systemLanguage: "システムの言語",
       translating: "翻訳中...",
       contentSame: "同じ内容です。\n翻訳の必要はありません。",
-      signInRequired: "ReplyMate翻訳をご利用いただくには、Googleでログインしてください。"
+      signInRequired: "ReplyMate翻訳をご利用いただくには、Googleでログインしてください。",
+      colorThemeProOnly:
+        "カラーテーマはPro向けの機能です。ProまたはPro+にアップグレードすると、設定・翻訳パネル・AI返信ボタンなどでカスタム配色が使えます。",
+      colorThemePlanCheckFailed: "プランを確認できませんでした。接続を確認してもう一度お試しください。",
+      colorThemeUpgradePrompt: "Pro／Pro+解除",
+      colorThemeToastPlanCheck: "プランを確認できませんでした。接続を確認して再度お試しください。",
     },
     spanish: {
       aiReply: "Respuesta IA",
@@ -121,6 +139,7 @@
       noTextToTranslate: "Pega o escribe el texto que quieras traducir.",
       nothingToCopy: "No hay nada que copiar. Traduce algo primero.",
       translatePanelTitle: "ReplyMate Traducir",
+      translateCycleTheme: "Cambiar tema (solo guardado en este panel)",
       planNames: { free: "Free", pro: "Pro", pro_plus: "Pro+" },
       signInToSeeUsage: "Inicia sesión para usar",
       translationDisabled: "La traducción está desactivada",
@@ -132,7 +151,12 @@
       systemLanguage: "Idioma del sistema",
       translating: "Traduciendo...",
       contentSame: "Mismo contenido.\nNo hace falta traducir.",
-      signInRequired: "Inicia sesión con Google para usar la traducción de ReplyMate."
+      signInRequired: "Inicia sesión con Google para usar la traducción de ReplyMate.",
+      colorThemeProOnly:
+        "Los temas de color son una función Pro. Mejora a Pro o Pro+ para desbloquear apariencias personalizadas en ajustes, el panel de traducción y los botones de respuesta con IA.",
+      colorThemePlanCheckFailed: "No se pudo verificar tu plan. Comprueba la conexión e inténtalo de nuevo.",
+      colorThemeUpgradePrompt: "Desbloquea Pro/Pro+",
+      colorThemeToastPlanCheck: "No pudimos verificar tu plan. Comprueba la conexión e inténtalo de nuevo.",
     }
   };
 

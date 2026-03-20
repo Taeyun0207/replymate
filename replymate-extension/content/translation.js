@@ -20,8 +20,20 @@
   const BACKEND_BASE = "https://replymate-backend-bot8.onrender.com";
   const STORAGE_ICON_POS = "replymate_translation_icon_pos";
   const STORAGE_PANEL_POS = "replymate_translation_panel_pos";
+  const STORAGE_PANEL_SIZE = "replymate_translation_panel_size";
   const STORAGE_TARGET_LANG = "replymate_translation_target_lang";
+
+  /** Default panel size (matches original fixed width + typical content height). */
+  const PANEL_DEFAULT_WIDTH = 420;
+  const PANEL_DEFAULT_HEIGHT = 480;
+  const PANEL_MIN_WIDTH = 300;
+  const PANEL_MIN_HEIGHT = 260;
   const STORAGE_TRANSLATION_ENABLED = "replymate_translation_enabled";
+  /** Translate panel appearance only — same theme IDs / order as popup color wheel, separate storage. */
+  const STORAGE_TRANSLATION_PANEL_THEME = "replymate_translation_panel_theme";
+  const POPUP_THEME_KEY_SYNC = "replymate_popup_theme";
+  const TRANSLATION_PANEL_THEME_IDS = ["basic", "light", "sepia", "rose", "slate", "dark", "basic-dark"];
+  const DEFAULT_TRANSLATION_PANEL_THEME = "basic";
 
   let translateAbortController = null;
   let lastTranslatedSource = "";
@@ -252,12 +264,12 @@
   /**
    * Show temporary toast message.
    */
-  function showToast(message, withCheck = false) {
+  function showToast(message, withCheck = false, durationMs = 1800) {
     let toast = document.getElementById(TRANSLATION_TOAST_ID);
     if (!toast) {
       toast = document.createElement("div");
       toast.id = TRANSLATION_TOAST_ID;
-      toast.style.cssText = "position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#202124;color:#fff;padding:12px 24px;border-radius:12px;font-size:14px;font-weight:500;z-index:2147483647;opacity:0;transition:opacity 0.25s ease, transform 0.25s ease;pointer-events:none;box-shadow:0 4px 20px rgba(0,0,0,0.25);display:flex;align-items:center;gap:8px;white-space:pre-line;";
+      toast.style.cssText = "position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#202124;color:#fff;padding:12px 24px;border-radius:12px;font-size:14px;font-weight:500;z-index:2147483647;opacity:0;transition:opacity 0.25s ease, transform 0.25s ease;pointer-events:none;box-shadow:0 4px 20px rgba(0,0,0,0.25);display:flex;align-items:center;gap:8px;white-space:pre-line;max-width:min(420px,calc(100vw - 32px));text-align:center;line-height:1.45;";
       document.body.appendChild(toast);
     }
     if (withCheck) {
@@ -271,7 +283,102 @@
     setTimeout(() => {
       toast.style.opacity = "0";
       toast.style.transform = "translateX(-50%) translateY(8px)";
-    }, 1800);
+    }, durationMs);
+  }
+
+  const THEME_ANCHOR_TOAST_ID = "replymate-theme-anchor-toast";
+
+  function removeThemeAnchorToast() {
+    const el = document.getElementById(THEME_ANCHOR_TOAST_ID);
+    if (el) el.remove();
+  }
+
+  /** Place hint under header color wheel, inside panel (avoids viewport bottom-right bug + moves with panel). */
+  function positionThemeToastInPanel(wrap, panel, anchor) {
+    if (!wrap || !panel || !anchor) return;
+    const pr = panel.getBoundingClientRect();
+    const ar = anchor.getBoundingClientRect();
+    const w = wrap.offsetWidth || 1;
+    const h = wrap.offsetHeight || 1;
+    let left = ar.right - pr.left - w;
+    left = Math.max(6, Math.min(left, pr.width - w - 6));
+    let top = ar.bottom - pr.top + 4;
+    if (top + h > pr.height - 8) {
+      top = Math.max(6, ar.top - pr.top - h - 4);
+    }
+    wrap.style.left = `${left}px`;
+    wrap.style.top = `${top}px`;
+  }
+
+  /**
+   * Anchored under translate panel color wheel (inside #replymate-translation-panel).
+   */
+  function showThemeUpgradeNotice(message) {
+    removeThemeAnchorToast();
+    const panel = document.getElementById(TRANSLATION_PANEL_ID);
+    const anchor = document.getElementById("replymate-translate-theme");
+    if (!panel || !anchor) {
+      showToast(message, false, 5500);
+      return;
+    }
+    const wrap = document.createElement("div");
+    wrap.id = THEME_ANCHOR_TOAST_ID;
+    wrap.setAttribute("role", "status");
+    wrap.style.cssText = [
+      "position:absolute",
+      "z-index:60",
+      "left:0",
+      "top:0",
+      "display:inline-flex",
+      "flex-direction:row",
+      "flex-wrap:nowrap",
+      "align-items:center",
+      "gap:6px",
+      "padding:8px 10px",
+      "background:#2b2b2b",
+      "color:#fff",
+      "border-radius:10px",
+      "font-size:12px",
+      "line-height:1.35",
+      "font-weight:500",
+      "font-family:system-ui,-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif",
+      "box-shadow:0 4px 20px rgba(0,0,0,0.35)",
+      "white-space:nowrap",
+      "box-sizing:border-box",
+      "pointer-events:none",
+    ].join(";");
+
+    const icon = document.createElement("span");
+    icon.setAttribute("aria-hidden", "true");
+    icon.textContent = "\u26A0\uFE0F";
+    icon.style.cssText = "flex-shrink:0;font-size:13px;line-height:1";
+
+    const text = document.createElement("span");
+    text.textContent = message;
+    text.style.cssText = "white-space:nowrap";
+
+    wrap.appendChild(icon);
+    wrap.appendChild(text);
+    panel.appendChild(wrap);
+
+    const reposition = () => {
+      if (wrap.parentNode) positionThemeToastInPanel(wrap, panel, anchor);
+    };
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        reposition();
+        setTimeout(reposition, 50);
+      });
+    });
+    window.addEventListener("scroll", reposition, true);
+    window.addEventListener("resize", reposition);
+
+    const hideMs = 5500;
+    setTimeout(() => {
+      window.removeEventListener("scroll", reposition, true);
+      window.removeEventListener("resize", reposition);
+      removeThemeAnchorToast();
+    }, hideMs);
   }
 
   /**
@@ -303,6 +410,113 @@
         chrome.storage.local.set({ [key]: { x, y } });
       }
     } catch (e) { /* ignore */ }
+  }
+
+  /**
+   * Clamp translation panel size to viewport and min/max bounds.
+   */
+  function clampPanelSize(w, h) {
+    const maxW = Math.min(window.innerWidth * 0.92, 920);
+    const maxH = Math.min(window.innerHeight * 0.9, 900);
+    return {
+      w: clamp(w, PANEL_MIN_WIDTH, maxW),
+      h: clamp(h, PANEL_MIN_HEIGHT, maxH),
+    };
+  }
+
+  function savePanelSize(w, h) {
+    const c = clampPanelSize(w, h);
+    try {
+      if (typeof chrome !== "undefined" && chrome.storage?.local) {
+        chrome.storage.local.set({ [STORAGE_PANEL_SIZE]: { w: c.w, h: c.h } });
+      }
+    } catch (e) { /* ignore */ }
+  }
+
+  function loadPanelSize(defaultW, defaultH) {
+    return new Promise((resolve) => {
+      try {
+        if (typeof chrome !== "undefined" && chrome.storage?.local) {
+          chrome.storage.local.get([STORAGE_PANEL_SIZE], (r) => {
+            const v = r?.[STORAGE_PANEL_SIZE];
+            resolve(
+              v && typeof v.w === "number" && typeof v.h === "number"
+                ? { w: v.w, h: v.h }
+                : { w: defaultW, h: defaultH }
+            );
+          });
+        } else {
+          resolve({ w: defaultW, h: defaultH });
+        }
+      } catch {
+        resolve({ w: defaultW, h: defaultH });
+      }
+    });
+  }
+
+  function normalizeTranslationPanelTheme(theme) {
+    return TRANSLATION_PANEL_THEME_IDS.includes(theme) ? theme : DEFAULT_TRANSLATION_PANEL_THEME;
+  }
+
+  /** Copy theme tokens from panel → FAB so host-page CSS cannot override our gradients/shadows. */
+  function syncTranslationIconThemeVars(panel) {
+    const icon = document.getElementById(TRANSLATION_ICON_ID);
+    if (!panel || !icon) return;
+    const ps = getComputedStyle(panel);
+    const names = ["--tp-header-gradient", "--tp-fab-shadow", "--tp-fab-shadow-hover"];
+    for (const n of names) {
+      const v = ps.getPropertyValue(n).trim();
+      if (v) icon.style.setProperty(n, v);
+    }
+  }
+
+  function applyTranslationPanelTheme(panel, theme) {
+    const t = normalizeTranslationPanelTheme(theme);
+    if (panel) panel.setAttribute("data-theme", t);
+    const icon = document.getElementById(TRANSLATION_ICON_ID);
+    if (icon) icon.setAttribute("data-theme", t);
+    if (panel && icon) {
+      syncTranslationIconThemeVars(panel);
+      requestAnimationFrame(() => syncTranslationIconThemeVars(panel));
+    }
+  }
+
+  /** Pro/Pro+ only for non-basic themes; keep in sync with popup.js */
+  function planAllowsPremiumColorThemes(plan) {
+    return plan === "pro" || plan === "pro_plus";
+  }
+
+  function saveTranslationPanelTheme(theme) {
+    const t = normalizeTranslationPanelTheme(theme);
+    try {
+      if (typeof chrome !== "undefined" && chrome.storage?.local) {
+        chrome.storage.local.set({
+          [STORAGE_TRANSLATION_PANEL_THEME]: t,
+          [POPUP_THEME_KEY_SYNC]: t,
+        });
+      }
+    } catch (e) { /* ignore */ }
+  }
+
+  function loadTranslationPanelTheme() {
+    return new Promise((resolve) => {
+      try {
+        if (typeof chrome !== "undefined" && chrome.storage?.local) {
+          chrome.storage.local.get([STORAGE_TRANSLATION_PANEL_THEME], (r) => {
+            if (chrome?.runtime?.lastError) {
+              resolve(DEFAULT_TRANSLATION_PANEL_THEME);
+              return;
+            }
+            const v = r?.[STORAGE_TRANSLATION_PANEL_THEME];
+            resolve(typeof v === "string" ? normalizeTranslationPanelTheme(v) : DEFAULT_TRANSLATION_PANEL_THEME);
+          });
+        } else {
+          resolve(DEFAULT_TRANSLATION_PANEL_THEME);
+        }
+      } catch {
+        resolve(DEFAULT_TRANSLATION_PANEL_THEME);
+      }
+    });
   }
 
   /**
@@ -503,7 +717,9 @@
       if (e.button !== 0) return;
       if (
         e.target.closest
-        && e.target.closest('button, [role="button"], input, select, textarea, label, video, audio')
+        && e.target.closest(
+          'button, [role="button"], input, select, textarea, label, video, audio, #replymate-translate-resize'
+        )
       ) {
         return;
       }
@@ -560,6 +776,61 @@
   }
 
   /**
+   * Resize panel from bottom-right handle; size is clamped and persisted.
+   */
+  function makePanelResizable(panel, handle) {
+    handle.style.touchAction = "none";
+    handle.addEventListener("pointerdown", (e) => {
+      if (e.button !== 0) return;
+      e.preventDefault();
+      e.stopPropagation();
+      const rect = panel.getBoundingClientRect();
+      const startX = e.clientX;
+      const startY = e.clientY;
+      const startW = rect.width;
+      const startH = rect.height;
+      const capId = e.pointerId;
+      try {
+        handle.setPointerCapture(capId);
+      } catch (_) { /* ignore */ }
+      lockDragSurface();
+
+      const onPointerMove = (ev) => {
+        ev.preventDefault();
+        const dx = ev.clientX - startX;
+        const dy = ev.clientY - startY;
+        const { w, h } = clampPanelSize(startW + dx, startH + dy);
+        panel.style.width = `${w}px`;
+        panel.style.height = `${h}px`;
+      };
+
+      let ended = false;
+      const endResize = () => {
+        if (ended) return;
+        ended = true;
+        unlockDragSurface();
+        try {
+          handle.releasePointerCapture(capId);
+        } catch (_) { /* ignore */ }
+        handle.removeEventListener("pointermove", onPointerMove);
+        handle.removeEventListener("pointerup", endResize);
+        handle.removeEventListener("pointercancel", endResize);
+        window.removeEventListener("blur", endResize);
+        const r = panel.getBoundingClientRect();
+        const { w, h } = clampPanelSize(r.width, r.height);
+        panel.style.width = `${w}px`;
+        panel.style.height = `${h}px`;
+        savePanelSize(w, h);
+      };
+
+      handle.addEventListener("pointermove", onPointerMove, { passive: false });
+      handle.addEventListener("pointerup", endResize);
+      handle.addEventListener("pointercancel", endResize);
+      window.addEventListener("blur", endResize);
+    });
+  }
+
+  /**
    * Create and inject the translation panel UI.
    */
   function createPanel() {
@@ -569,98 +840,626 @@
     panel.id = TRANSLATION_PANEL_ID;
     panel.style.cssText = `
       position: fixed;
-      width: 420px;
+      box-sizing: border-box;
+      width: ${PANEL_DEFAULT_WIDTH}px;
+      height: ${PANEL_DEFAULT_HEIGHT}px;
       max-width: 92vw;
-      background: #ffffff;
-      color-scheme: light;
-      color: #202124;
       border-radius: 12px;
-      box-shadow: 0 12px 40px rgba(0,0,0,0.15), 0 0 1px rgba(0,0,0,0.06);
       z-index: 2147483646;
       font-family: 'Google Sans', Roboto, -apple-system, sans-serif;
       font-size: 14px;
       overflow: hidden;
       display: none;
+      flex-direction: column;
       opacity: 0;
       transform: scale(0.96);
       transition: opacity 0.2s ease, transform 0.2s ease;
     `;
     const style = document.createElement("style");
     style.textContent = `
+      /* Translate panel themes — same palette as popup (html[data-theme]); storage is still independent. */
+      #replymate-translation-panel[data-theme="basic"] {
+        color-scheme: light;
+        --tp-panel-bg: #ffffff;
+        --tp-body: #f7f7f8;
+        --tp-text: #1a1a1a;
+        --tp-muted: #6b6b6b;
+        --tp-border: #e0e0e0;
+        --tp-input-bg: #ffffff;
+        --tp-input-text: #1a1a1a;
+        --tp-result-bg: #ffffff;
+        --tp-result-text: #1a1a1a;
+        --tp-footer-bg: #f7f7f8;
+        --tp-footer-border: #dcdcdc;
+        --tp-copy-bg: #ececef;
+        --tp-copy-hover: #e2e2e8;
+        --tp-copy-text: #1a1d21;
+        --tp-copy-border: #c4c6cc;
+        --tp-spinner-track: #e0e0e0;
+        --tp-loading: #6b6b6b;
+        --tp-error: #d93025;
+        --tp-resize: rgba(0, 0, 0, 0.07);
+        --tp-resize-hover: rgba(0, 0, 0, 0.11);
+        --tp-resize-grip: rgba(121, 67, 241, 0.5);
+        --tp-focus-ring: rgba(0, 0, 0, 0.14);
+        --tp-primary: #7943f1;
+        --tp-primary-hover: #6b3ad4;
+        --tp-primary-text: #ffffff;
+        --tp-primary-shadow: rgba(0, 0, 0, 0.07);
+        --tp-primary-shadow-hover: rgba(0, 0, 0, 0.12);
+        --tp-accent-soft: #f0f0f2;
+        --tp-accent-border: #dcdcdc;
+        --tp-accent-border-strong: #525252;
+        --tp-accent-ring: rgba(0, 0, 0, 0.14);
+        --tp-accent-shadow: rgba(0, 0, 0, 0.07);
+        --tp-accent-glow: rgba(0, 0, 0, 0.04);
+      }
+      #replymate-translation-panel[data-theme="light"] {
+        color-scheme: light;
+        --tp-panel-bg: #ffffff;
+        --tp-body: #f5f5f5;
+        --tp-text: #222222;
+        --tp-muted: #5f6368;
+        --tp-border: #d0d7de;
+        --tp-input-bg: #ffffff;
+        --tp-input-text: #222222;
+        --tp-result-bg: #ffffff;
+        --tp-result-text: #222222;
+        --tp-footer-bg: #f5f5f5;
+        --tp-footer-border: #d4c9f5;
+        --tp-copy-bg: #ede7ff;
+        --tp-copy-hover: #e2dcfc;
+        --tp-copy-text: #2d1f4d;
+        --tp-copy-border: #c4b5f0;
+        --tp-spinner-track: #e8eaed;
+        --tp-loading: #5f6368;
+        --tp-error: #d93025;
+        --tp-resize: rgba(121, 67, 241, 0.12);
+        --tp-resize-hover: rgba(121, 67, 241, 0.2);
+        --tp-resize-grip: rgba(121, 67, 241, 0.5);
+        --tp-focus-ring: rgba(121, 67, 241, 0.22);
+        --tp-primary: #8b7ed4;
+        --tp-primary-hover: #7d6fc8;
+        --tp-primary-text: #ffffff;
+        --tp-primary-shadow: rgba(91, 33, 182, 0.11);
+        --tp-primary-shadow-hover: rgba(91, 33, 182, 0.17);
+        --tp-accent-soft: #f0ebff;
+        --tp-accent-border: #d4c9f5;
+        --tp-accent-border-strong: #9370db;
+        --tp-accent-ring: rgba(121, 67, 241, 0.22);
+        --tp-accent-shadow: rgba(121, 67, 241, 0.14);
+        --tp-accent-glow: rgba(121, 67, 241, 0.06);
+      }
+      #replymate-translation-panel[data-theme="sepia"] {
+        color-scheme: light;
+        --tp-panel-bg: #faf6f0;
+        --tp-body: #efe8dc;
+        --tp-text: #2c2416;
+        --tp-muted: #6b5d4a;
+        --tp-border: #c9b8a0;
+        --tp-input-bg: #faf6f0;
+        --tp-input-text: #2c2416;
+        --tp-result-bg: #faf6f0;
+        --tp-result-text: #2c2416;
+        --tp-footer-bg: #efe8dc;
+        --tp-footer-border: #c4b5c8;
+        --tp-copy-bg: #ded4c8;
+        --tp-copy-hover: #d2c6b8;
+        --tp-copy-text: #1f160c;
+        --tp-copy-border: #b5a896;
+        --tp-spinner-track: #c9b8a0;
+        --tp-loading: #6b5d4a;
+        --tp-error: #b3261e;
+        --tp-resize: rgba(107, 80, 150, 0.12);
+        --tp-resize-hover: rgba(107, 80, 150, 0.2);
+        --tp-resize-grip: rgba(121, 67, 241, 0.45);
+        --tp-focus-ring: rgba(107, 80, 150, 0.28);
+        --tp-primary: #8d7358;
+        --tp-primary-hover: #7d664d;
+        --tp-primary-text: #ffffff;
+        --tp-primary-shadow: rgba(70, 50, 35, 0.12);
+        --tp-primary-shadow-hover: rgba(70, 50, 35, 0.19);
+        --tp-accent-soft: #ebe4f0;
+        --tp-accent-border: #c4b5c8;
+        --tp-accent-border-strong: #8b6bb5;
+        --tp-accent-ring: rgba(107, 80, 150, 0.28);
+        --tp-accent-shadow: rgba(121, 67, 241, 0.12);
+        --tp-accent-glow: rgba(107, 80, 150, 0.08);
+      }
+      #replymate-translation-panel[data-theme="rose"] {
+        color-scheme: light;
+        --tp-panel-bg: #ffffff;
+        --tp-body: #fdf2f8;
+        --tp-text: #431a3a;
+        --tp-muted: #9d6b8a;
+        --tp-border: #e9c4d8;
+        --tp-input-bg: #ffffff;
+        --tp-input-text: #431a3a;
+        --tp-result-bg: #ffffff;
+        --tp-result-text: #431a3a;
+        --tp-footer-bg: #fdf2f8;
+        --tp-footer-border: #e8d4f0;
+        --tp-copy-bg: #fce8f2;
+        --tp-copy-hover: #f9d9e8;
+        --tp-copy-text: #7c0f4a;
+        --tp-copy-border: #f0b8d4;
+        --tp-spinner-track: #e9c4d8;
+        --tp-loading: #9d6b8a;
+        --tp-error: #dc2626;
+        --tp-resize: rgba(192, 132, 252, 0.14);
+        --tp-resize-hover: rgba(192, 132, 252, 0.22);
+        --tp-resize-grip: rgba(121, 67, 241, 0.5);
+        --tp-focus-ring: rgba(192, 132, 252, 0.35);
+        --tp-primary: #e06096;
+        --tp-primary-hover: #d14b84;
+        --tp-primary-text: #ffffff;
+        --tp-primary-shadow: rgba(190, 70, 130, 0.14);
+        --tp-primary-shadow-hover: rgba(190, 70, 130, 0.21);
+        --tp-accent-soft: #faf0fc;
+        --tp-accent-border: #e8d4f0;
+        --tp-accent-border-strong: #c084fc;
+        --tp-accent-ring: rgba(192, 132, 252, 0.35);
+        --tp-accent-shadow: rgba(167, 139, 250, 0.18);
+        --tp-accent-glow: rgba(192, 132, 252, 0.1);
+      }
+      #replymate-translation-panel[data-theme="slate"] {
+        color-scheme: light;
+        --tp-panel-bg: #ffffff;
+        --tp-body: #f1f5f9;
+        --tp-text: #0f172a;
+        --tp-muted: #64748b;
+        --tp-border: #cbd5e1;
+        --tp-input-bg: #ffffff;
+        --tp-input-text: #0f172a;
+        --tp-result-bg: #ffffff;
+        --tp-result-text: #0f172a;
+        --tp-footer-bg: #f1f5f9;
+        --tp-footer-border: #c7d2fe;
+        --tp-copy-bg: #e2e8f0;
+        --tp-copy-hover: #d6dee9;
+        --tp-copy-text: #0f172a;
+        --tp-copy-border: #94a3b8;
+        --tp-spinner-track: #e2e8f0;
+        --tp-loading: #64748b;
+        --tp-error: #dc2626;
+        --tp-resize: rgba(99, 102, 241, 0.14);
+        --tp-resize-hover: rgba(99, 102, 241, 0.22);
+        --tp-resize-grip: rgba(99, 102, 241, 0.5);
+        --tp-focus-ring: rgba(99, 102, 241, 0.28);
+        --tp-primary: #6670e8;
+        --tp-primary-hover: #575fde;
+        --tp-primary-text: #ffffff;
+        --tp-primary-shadow: rgba(79, 70, 229, 0.1);
+        --tp-primary-shadow-hover: rgba(79, 70, 229, 0.17);
+        --tp-accent-soft: #e8eef5;
+        --tp-accent-border: #c7d2fe;
+        --tp-accent-border-strong: #6366f1;
+        --tp-accent-ring: rgba(99, 102, 241, 0.28);
+        --tp-accent-shadow: rgba(79, 70, 229, 0.14);
+        --tp-accent-glow: rgba(99, 102, 241, 0.08);
+      }
+      #replymate-translation-panel[data-theme="dark"] {
+        color-scheme: dark;
+        --tp-panel-bg: #303134;
+        --tp-body: #202124;
+        --tp-text: #e8eaed;
+        --tp-muted: #9aa0a6;
+        --tp-border: #5f6368;
+        --tp-input-bg: #303134;
+        --tp-input-text: #e8eaed;
+        --tp-result-bg: #303134;
+        --tp-result-text: #e8eaed;
+        --tp-footer-bg: #202124;
+        --tp-footer-border: #5c4d78;
+        --tp-copy-bg: #3f4044;
+        --tp-copy-hover: #4a4b50;
+        --tp-copy-text: #ffffff;
+        --tp-copy-border: #6f7076;
+        --tp-spinner-track: #5f6368;
+        --tp-loading: #9aa0a6;
+        --tp-error: #f28b82;
+        --tp-resize: rgba(121, 67, 241, 0.2);
+        --tp-resize-hover: rgba(167, 139, 250, 0.28);
+        --tp-resize-grip: rgba(167, 139, 250, 0.55);
+        --tp-focus-ring: rgba(167, 139, 250, 0.38);
+        --tp-primary: #7d6ec8;
+        --tp-primary-hover: #7060b8;
+        --tp-primary-text: #ffffff;
+        --tp-primary-shadow: rgba(100, 80, 200, 0.2);
+        --tp-primary-shadow-hover: rgba(100, 80, 200, 0.28);
+        --tp-accent-soft: #2a2438;
+        --tp-accent-border: #5c4d78;
+        --tp-accent-border-strong: #a78bfa;
+        --tp-accent-ring: rgba(167, 139, 250, 0.38);
+        --tp-accent-shadow: rgba(121, 67, 241, 0.28);
+        --tp-accent-glow: rgba(121, 67, 241, 0.12);
+      }
+      #replymate-translation-panel[data-theme="basic-dark"] {
+        color-scheme: dark;
+        --tp-panel-bg: #2c2c2e;
+        --tp-body: #1c1c1e;
+        --tp-text: #e8e8ea;
+        --tp-muted: #a1a1a6;
+        --tp-border: #3a3a3c;
+        --tp-input-bg: #2c2c2e;
+        --tp-input-text: #f2f2f7;
+        --tp-result-bg: #2c2c2e;
+        --tp-result-text: #f2f2f7;
+        --tp-footer-bg: #1c1c1e;
+        --tp-footer-border: #48484a;
+        --tp-copy-bg: #404042;
+        --tp-copy-hover: #4a4a4e;
+        --tp-copy-text: #ffffff;
+        --tp-copy-border: #6c6c70;
+        --tp-spinner-track: #48484a;
+        --tp-loading: #a1a1a6;
+        --tp-error: #ff453a;
+        --tp-resize: rgba(255, 255, 255, 0.12);
+        --tp-resize-hover: rgba(255, 255, 255, 0.18);
+        --tp-resize-grip: rgba(255, 255, 255, 0.4);
+        --tp-focus-ring: rgba(255, 255, 255, 0.18);
+        --tp-primary: #6a6a6e;
+        --tp-primary-hover: #5c5c60;
+        --tp-primary-text: #ffffff;
+        --tp-primary-shadow: rgba(0, 0, 0, 0.28);
+        --tp-primary-shadow-hover: rgba(0, 0, 0, 0.36);
+        --tp-accent-soft: #252528;
+        --tp-accent-border: #48484a;
+        --tp-accent-border-strong: #8e8e93;
+        --tp-accent-ring: rgba(255, 255, 255, 0.18);
+        --tp-accent-shadow: rgba(0, 0, 0, 0.45);
+        --tp-accent-glow: rgba(0, 0, 0, 0.25);
+      }
+      /*
+       * Header + floating FAB share --tp-header-gradient (same as popup wordmark where applicable).
+       * In a 2-stop gradient: first color = start (135deg → toward top-left), second = end (toward bottom-right).
+       */
+      #replymate-translation-panel[data-theme="basic"],
+      #replymate-translation-icon[data-theme="basic"] {
+        --tp-header-gradient: linear-gradient(135deg, #7943f1, #9d6cf7);
+        --tp-fab-shadow: rgba(121, 67, 241, 0.32);
+        --tp-fab-shadow-hover: rgba(121, 67, 241, 0.48);
+      }
+      /* Light — soft lavender only (no dark violet #5b21b6); matches --tp-primary #8b7ed4 */
+      #replymate-translation-panel[data-theme="light"],
+      #replymate-translation-icon[data-theme="light"] {
+        --tp-header-gradient: linear-gradient(135deg, #a090e0 0%, #8b7ed4 45%, #b4a3ee 100%);
+        --tp-fab-shadow: rgba(139, 126, 212, 0.28);
+        --tp-fab-shadow-hover: rgba(139, 126, 212, 0.42);
+      }
+      #replymate-translation-panel[data-theme="sepia"],
+      #replymate-translation-icon[data-theme="sepia"] {
+        --tp-header-gradient: linear-gradient(135deg, #5c4033 0%, #8b6914 38%, #6b4f3a 100%);
+        --tp-fab-shadow: rgba(60, 40, 30, 0.35);
+        --tp-fab-shadow-hover: rgba(60, 40, 30, 0.48);
+      }
+      #replymate-translation-panel[data-theme="rose"],
+      #replymate-translation-icon[data-theme="rose"] {
+        --tp-header-gradient: linear-gradient(135deg, #a21caf 0%, #ec4899 45%, #7c3aed 100%);
+        --tp-fab-shadow: rgba(167, 80, 180, 0.3);
+        --tp-fab-shadow-hover: rgba(167, 80, 180, 0.45);
+      }
+      #replymate-translation-panel[data-theme="slate"],
+      #replymate-translation-icon[data-theme="slate"] {
+        --tp-header-gradient: linear-gradient(135deg, #6366f1 0%, #475569 48%, #7943f1 100%);
+        --tp-fab-shadow: rgba(79, 70, 229, 0.28);
+        --tp-fab-shadow-hover: rgba(79, 70, 229, 0.42);
+      }
+      #replymate-translation-panel[data-theme="dark"],
+      #replymate-translation-icon[data-theme="dark"] {
+        --tp-header-gradient: linear-gradient(135deg, #5c4d78, #7943f1);
+        --tp-fab-shadow: rgba(0, 0, 0, 0.45);
+        --tp-fab-shadow-hover: rgba(121, 67, 241, 0.42);
+      }
+      #replymate-translation-panel[data-theme="basic-dark"],
+      #replymate-translation-icon[data-theme="basic-dark"] {
+        --tp-header-gradient: linear-gradient(135deg, #48484a, #636366);
+        --tp-fab-shadow: rgba(0, 0, 0, 0.42);
+        --tp-fab-shadow-hover: rgba(0, 0, 0, 0.55);
+      }
+      #replymate-translation-panel {
+        background: var(--tp-panel-bg);
+        color: var(--tp-text);
+        border: 1px solid var(--tp-accent-border);
+        box-shadow: 0 2px 14px var(--tp-accent-shadow), 0 0 0 1px var(--tp-accent-glow);
+      }
+      #replymate-translate-header {
+        background: var(--tp-header-gradient) !important;
+        color: #fff !important;
+      }
+      #replymate-translate-theme {
+        background: transparent !important;
+        border: none;
+        box-shadow: none;
+        border-radius: 6px;
+        width: 28px;
+        height: 28px;
+        padding: 0;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+      }
+      #replymate-translate-theme:hover,
+      #replymate-translate-theme:active {
+        background: transparent !important;
+        box-shadow: none;
+      }
+      #replymate-translate-theme:focus-visible {
+        outline: 2px solid rgba(255,255,255,0.65);
+        outline-offset: 2px;
+      }
+      #replymate-translate-theme img {
+        display: block;
+        opacity: 0.92;
+        transition: opacity 0.15s ease, filter 0.15s ease;
+        pointer-events: none;
+      }
+      #replymate-translate-theme:hover img {
+        opacity: 1;
+        filter: brightness(1.12);
+      }
       #replymate-translation-panel select,
       #replymate-translation-panel textarea,
       #replymate-translation-panel select option {
-        color: #202124 !important;
-        background-color: #ffffff !important;
+        color: var(--tp-input-text) !important;
+        background-color: var(--tp-input-bg) !important;
+      }
+      #replymate-translation-panel #replymate-translate-target,
+      #replymate-translation-panel #replymate-translate-input {
+        border-color: var(--tp-border) !important;
       }
       #replymate-translation-panel #replymate-translate-input::placeholder {
-        color: #5f6368 !important;
+        color: var(--tp-muted) !important;
         opacity: 1;
       }
       #replymate-translation-panel .replymate-translate-body-inner {
-        color: #202124;
-        color-scheme: light;
+        background: linear-gradient(165deg, var(--tp-accent-soft) 0%, var(--tp-body) 38%, var(--tp-body) 100%);
+        color: var(--tp-text);
       }
-      .replymate-translate-btn { padding:6px 10px;background:#7943f1;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-weight:500;text-align:center;transition:background 0.2s,transform 0.15s,box-shadow 0.2s;box-shadow:0 1px 4px rgba(121,67,241,0.3); flex:1; min-width:0; }
-      .replymate-translate-btn:hover { background:#6b3ad4;transform:translateY(-1px);box-shadow:0 2px 8px rgba(121,67,241,0.35); }
-      .replymate-translate-btn:active { transform:translateY(0); }
-      .replymate-translate-btn:focus-visible { outline:2px solid #7943f1;outline-offset:2px; }
-      .replymate-translate-manual { padding:6px 12px;background:#7943f1;color:#fff;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-weight:500;transition:background 0.2s,transform 0.15s; }
-      .replymate-translate-manual:hover { background:#6b3ad4;transform:translateY(-1px); }
-      .replymate-translate-manual:active { transform:translateY(0); }
-      .replymate-translate-manual:focus-visible { outline:2px solid #7943f1;outline-offset:2px; }
-      .replymate-translate-copy { padding:6px 12px;background:#e8eaed;color:#3c4043;border:none;border-radius:6px;cursor:pointer;font-size:11px;font-weight:500;transition:background 0.2s,transform 0.15s; }
-      .replymate-translate-copy:hover { background:#dadce0;transform:translateY(-1px); }
-      .replymate-translate-copy:active { transform:translateY(0); }
-      .replymate-translate-copy:focus-visible { outline:2px solid #7943f1;outline-offset:2px; }
+      #replymate-translation-panel .replymate-translate-body-inner label { color: var(--tp-muted) !important; }
+      #replymate-translation-panel #replymate-translate-usage {
+        color: var(--tp-muted) !important;
+        line-height: 1.2;
+      }
+      #replymate-translation-panel .replymate-translate-main {
+        flex: 1 1 auto;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        overflow-x: hidden;
+        overflow-y: auto;
+      }
+      #replymate-translation-panel .replymate-translate-result-section {
+        flex: 1 1 auto;
+        min-height: 0;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      }
+      #replymate-translation-panel #replymate-translate-result {
+        flex: 1 1 auto;
+        min-height: 80px;
+        background: var(--tp-result-bg) !important;
+        color: var(--tp-result-text) !important;
+        border: 1px solid var(--tp-border) !important;
+        box-shadow: none;
+      }
+      #replymate-translation-panel #replymate-translate-footer {
+        flex-shrink: 0;
+        margin-top: 4px;
+        padding-top: 0;
+        padding-bottom: 0;
+        border-top: none;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 8px;
+        background: var(--tp-footer-bg);
+        box-shadow: none;
+        outline: none;
+      }
+      /* Primary actions: same highlight as panel header / FAB (--tp-header-gradient). */
+      #replymate-translation-panel .replymate-translate-btn {
+        padding: 6px 10px;
+        background: var(--tp-header-gradient) !important;
+        color: #fff !important;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 12px;
+        font-weight: 500;
+        text-align: center;
+        transition: filter 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+        flex: 1;
+        min-width: 0;
+      }
+      #replymate-translation-panel .replymate-translate-btn:hover {
+        filter: brightness(1.12) saturate(1.05);
+        transform: translateY(-1px);
+        box-shadow: 0 5px 16px rgba(0, 0, 0, 0.22), 0 2px 6px rgba(0, 0, 0, 0.12);
+      }
+      #replymate-translation-panel .replymate-translate-btn:active {
+        filter: brightness(0.96);
+        transform: translateY(0);
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.18);
+      }
+      #replymate-translation-panel .replymate-translate-btn:focus-visible {
+        outline: 2px solid rgba(255, 255, 255, 0.85);
+        outline-offset: 2px;
+      }
+      #replymate-translation-panel .replymate-translate-manual {
+        padding: 6px 12px;
+        background: var(--tp-header-gradient) !important;
+        color: #fff !important;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 12px;
+        font-weight: 500;
+        transition: filter 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+      }
+      #replymate-translation-panel .replymate-translate-manual:hover {
+        filter: brightness(1.12) saturate(1.05);
+        transform: translateY(-1px);
+        box-shadow: 0 5px 16px rgba(0, 0, 0, 0.22), 0 2px 6px rgba(0, 0, 0, 0.12);
+      }
+      #replymate-translation-panel .replymate-translate-manual:active {
+        filter: brightness(0.96);
+        transform: translateY(0);
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.18);
+      }
+      #replymate-translation-panel .replymate-translate-manual:focus-visible {
+        outline: 2px solid rgba(255, 255, 255, 0.85);
+        outline-offset: 2px;
+      }
+      #replymate-translation-panel .replymate-translate-copy {
+        padding: 6px 12px;
+        background: var(--tp-copy-bg);
+        color: var(--tp-copy-text);
+        border: 1px solid var(--tp-copy-border, var(--tp-border));
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 11px;
+        font-weight: 600;
+        transition: background 0.2s, border-color 0.2s, box-shadow 0.2s;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+      }
+      #replymate-translation-panel .replymate-translate-copy:hover {
+        background: var(--tp-copy-hover);
+        border-color: var(--tp-border);
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+      }
+      #replymate-translation-panel[data-theme="dark"] .replymate-translate-copy,
+      #replymate-translation-panel[data-theme="basic-dark"] .replymate-translate-copy {
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
+      }
+      #replymate-translation-panel[data-theme="dark"] .replymate-translate-copy:hover,
+      #replymate-translation-panel[data-theme="basic-dark"] .replymate-translate-copy:hover {
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.55);
+      }
+      #replymate-translation-panel .replymate-translate-copy:active {
+        transform: none;
+      }
+      #replymate-translation-panel .replymate-translate-copy:focus-visible {
+        outline: 2px solid var(--tp-primary);
+        outline-offset: 2px;
+      }
       #replymate-translate-close:hover { background:rgba(255,255,255,0.4) !important; }
       #replymate-translate-close:focus-visible { outline:2px solid rgba(255,255,255,0.8);outline-offset:2px; }
-      #replymate-translate-header { cursor:grab; }
+      #replymate-translate-header { cursor:grab; flex-shrink:0; }
       #replymate-translate-header:active { cursor:grabbing; }
-      #replymate-translate-input:focus { outline:none;border-color:#7943f1;box-shadow:0 0 0 2px rgba(121,67,241,0.2); }
-      #replymate-translate-target:focus { outline:none;border-color:#7943f1;box-shadow:0 0 0 2px rgba(121,67,241,0.2); }
-      #replymate-translate-result.replymate-loading { color:#5f6368;display:flex;align-items:center;gap:6px; }
-      .replymate-spinner { width:14px;height:14px;border:2px solid #e8eaed;border-top-color:#7943f1;border-radius:50%;animation:replymate-spin 0.7s linear infinite; }
+      #replymate-translate-resize {
+        position:absolute;
+        right:0;
+        bottom:0;
+        width:22px;
+        height:22px;
+        cursor:nwse-resize;
+        z-index:3;
+        border-radius:0 0 12px 0;
+        touch-action:none;
+        background:linear-gradient(135deg,transparent 52%,var(--tp-resize) 52%);
+      }
+      #replymate-translate-resize:hover { background:linear-gradient(135deg,transparent 48%,var(--tp-resize-hover) 52%); }
+      #replymate-translate-resize::after {
+        content:"";
+        position:absolute;
+        right:5px;
+        bottom:5px;
+        width:8px;
+        height:8px;
+        border-right:2px solid var(--tp-resize-grip);
+        border-bottom:2px solid var(--tp-resize-grip);
+      }
+      #replymate-translate-input:focus {
+        outline: none;
+        border-color: var(--tp-accent-border-strong) !important;
+        box-shadow: 0 0 0 2px var(--tp-accent-ring);
+      }
+      #replymate-translate-target:focus {
+        outline: none;
+        border-color: var(--tp-accent-border-strong) !important;
+        box-shadow: 0 0 0 2px var(--tp-accent-ring);
+      }
+      #replymate-translate-result.replymate-result-error { color:var(--tp-error) !important; }
+      #replymate-translate-result.replymate-loading { color:var(--tp-loading);display:flex;align-items:center;gap:6px; }
+      #replymate-translation-panel .replymate-spinner {
+        width: 14px;
+        height: 14px;
+        border: 2px solid var(--tp-spinner-track);
+        border-top-color: var(--tp-primary);
+        border-radius: 50%;
+        animation: replymate-spin 0.7s linear infinite;
+      }
+      #replymate-translation-icon {
+        transition: box-shadow 0.2s ease, transform 0.2s ease;
+        background: var(--tp-header-gradient) !important;
+        box-shadow: 0 4px 16px var(--tp-fab-shadow) !important;
+      }
+      #replymate-translation-icon:hover:not([data-replymate-dragging="1"]) {
+        box-shadow: 0 6px 20px var(--tp-fab-shadow-hover) !important;
+        transform: scale(1.05);
+      }
+      #replymate-translation-icon:focus-visible {
+        outline: 2px solid rgba(255, 255, 255, 0.75);
+        outline-offset: 2px;
+      }
+      #replymate-translation-icon[data-theme="basic-dark"]:focus-visible {
+        outline-color: rgba(255, 255, 255, 0.45);
+      }
       @keyframes replymate-spin { to { transform:rotate(360deg); } }
     `;
     document.head.appendChild(style);
 
     const logoUrl = typeof chrome !== "undefined" && chrome.runtime?.getURL ? chrome.runtime.getURL("icons/icon32.png") : "";
+    const colorWheelUrl = typeof chrome !== "undefined" && chrome.runtime?.getURL ? chrome.runtime.getURL("icons/colorWheel.png") : "";
+    panel.setAttribute("data-theme", DEFAULT_TRANSLATION_PANEL_THEME);
     panel.innerHTML = `
-      <div id="replymate-translate-header" style="padding:8px 12px;background:linear-gradient(135deg,#7943f1 0%,#9d6cf7 100%);color:#fff;display:flex;justify-content:space-between;align-items:center;user-select:none;">
+      <div id="replymate-translate-header" style="padding:8px 12px;color:#fff;display:flex;justify-content:space-between;align-items:center;user-select:none;">
         <div style="display:flex;align-items:center;gap:8px;">
           ${logoUrl ? `<img src="${logoUrl}" alt="ReplyMate" style="width:18px;height:18px;border-radius:4px;flex-shrink:0;" />` : ""}
           <span id="replymate-translate-title" style="font-weight:600;font-size:13px;letter-spacing:0.02em;">ReplyMate Translate</span>
         </div>
-        <button id="replymate-translate-close" style="background:rgba(255,255,255,0.25);border:none;cursor:pointer;font-size:16px;color:#fff;width:24px;height:24px;border-radius:6px;display:flex;align-items:center;justify-content:center;transition:background 0.2s;">&times;</button>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <button type="button" id="replymate-translate-theme" aria-label="Cycle theme" title="Cycle theme">
+            ${colorWheelUrl ? `<img src="${colorWheelUrl}" alt="" width="18" height="18" style="display:block;pointer-events:none;" />` : `<span style="font-size:14px;line-height:1;">◐</span>`}
+          </button>
+          <button type="button" id="replymate-translate-close" style="background:rgba(255,255,255,0.25);border:none;cursor:pointer;font-size:16px;color:#fff;width:28px;height:28px;border-radius:6px;display:flex;align-items:center;justify-content:center;transition:background 0.2s;">&times;</button>
       </div>
-      <div class="replymate-translate-body-inner" style="padding:12px;background:#fafafa;color:#202124;color-scheme:light;">
-        <div style="display:flex;flex-direction:column;gap:8px;">
-          <div id="replymate-translate-gmail-buttons" style="display:flex;flex-direction:row;flex-wrap:wrap;gap:6px;">
+      </div>
+      <div class="replymate-translate-body-inner" style="padding:12px;flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden;">
+        <div id="replymate-translate-main" class="replymate-translate-main">
+          <div id="replymate-translate-gmail-buttons" style="display:flex;flex-direction:row;flex-wrap:wrap;gap:6px;flex-shrink:0;">
             <button id="replymate-translate-latest" class="replymate-translate-btn">Translate latest message</button>
             <button id="replymate-translate-reply" class="replymate-translate-btn">Translate reply</button>
           </div>
-          <div>
-            <label id="replymate-translate-to-label" style="font-size:11px;color:#5f6368;margin-bottom:3px;display:block;">Translate to</label>
-            <select id="replymate-translate-target" style="width:100%;padding:6px 10px;border:1px solid #dadce0;border-radius:6px;font-size:12px;box-sizing:border-box;font-family:inherit;background:#fff;color:#202124;margin-bottom:8px;cursor:pointer;">
+          <div style="flex-shrink:0;">
+            <label id="replymate-translate-to-label" style="font-size:11px;margin-bottom:3px;display:block;">Translate to</label>
+            <select id="replymate-translate-target" style="width:100%;padding:6px 10px;border:1px solid;border-radius:6px;font-size:12px;box-sizing:border-box;font-family:inherit;margin-bottom:8px;cursor:pointer;">
               <option value="">System Language</option>
             </select>
           </div>
-          <div>
-            <label id="replymate-translate-paste-label" style="font-size:11px;color:#5f6368;margin-bottom:3px;display:block;">Paste text to translate</label>
-            <textarea id="replymate-translate-input" placeholder="Paste text to translate..." rows="5" style="width:100%;min-height:100px;padding:10px;border:1px solid #dadce0;border-radius:6px;font-size:13px;box-sizing:border-box;resize:vertical;font-family:inherit;background:#fff;color:#202124;"></textarea>
+          <div style="flex-shrink:0;">
+            <label id="replymate-translate-paste-label" style="font-size:11px;margin-bottom:3px;display:block;">Paste text to translate</label>
+            <textarea id="replymate-translate-input" placeholder="Paste text to translate..." rows="5" style="width:100%;min-height:100px;padding:10px;border:1px solid;border-radius:6px;font-size:13px;box-sizing:border-box;resize:vertical;font-family:inherit;"></textarea>
             <button id="replymate-translate-manual" class="replymate-translate-manual" style="margin-top:6px;">Translate</button>
           </div>
-          <div>
-            <label id="replymate-translate-result-label" style="font-size:11px;color:#5f6368;margin-bottom:3px;display:block;">Result</label>
-            <div id="replymate-translate-result" data-placeholder="" style="min-height:140px;max-height:400px;overflow-y:scroll;overflow-x:hidden;padding:10px;box-sizing:border-box;border:1px solid #e8eaed;border-radius:6px;background:#fff;white-space:pre-wrap;word-break:break-word;font-size:13px;color:#202124;line-height:1.5;transition:border-color 0.2s,box-shadow 0.2s;"></div>
-            <div style="margin-top:6px;display:flex;justify-content:space-between;align-items:center;gap:8px;">
-              <button id="replymate-translate-copy" class="replymate-translate-copy">Copy</button>
-              <span id="replymate-translate-usage" style="font-size:11px;color:#5f6368;"></span>
-            </div>
+          <div class="replymate-translate-result-section">
+            <label id="replymate-translate-result-label" style="font-size:11px;margin-bottom:3px;display:block;flex-shrink:0;">Result</label>
+            <div id="replymate-translate-result" data-placeholder="" style="overflow-y:auto;overflow-x:hidden;padding:10px;box-sizing:border-box;border-radius:6px;white-space:pre-wrap;word-break:break-word;font-size:13px;line-height:1.5;transition:border-color 0.2s,box-shadow 0.2s;"></div>
           </div>
         </div>
+        <div id="replymate-translate-footer">
+          <button id="replymate-translate-copy" class="replymate-translate-copy">Copy</button>
+          <span id="replymate-translate-usage" style="font-size:11px;text-align:right;"></span>
       </div>
+      </div>
+      <div id="replymate-translate-resize" title="Resize" aria-label="Resize panel" role="separator"></div>
     `;
 
     document.body.appendChild(panel);
@@ -690,29 +1489,31 @@
    */
   async function updateUsageDisplay(panel) {
     const usageEl = panel && panel.querySelector("#replymate-translate-usage");
-    if (!usageEl) return;
     const lang = typeof getCurrentLanguage === "function" ? await getCurrentLanguage() : "english";
     const t = (key) => (typeof getTranslation === "function" ? getTranslation(key, lang) : key);
-    const planNames = (typeof getTranslation === "function" ? getTranslation("planNames", lang) : null) || { free: "Free", pro: "Pro", pro_plus: "Pro+" };
-    if (typeof planNames === "object") {
-      const usage = await fetchUsage();
-      if (!usage) {
-        usageEl.textContent = t("signInToSeeUsage");
-        return;
-      }
-      const planName = planNames[usage.plan] || planNames.free || "Free";
-      const used = usage.translationUsed;
-      const limit = usage.translationLimit;
-      if (limit == null) {
-        usageEl.textContent = `${planName} · ${t("unlimitedTranslations")}`;
-      } else if (typeof used === "number" && typeof limit === "number") {
-        usageEl.textContent = `${planName} · ${used} / ${limit} ${t("translationsToday")}`;
+    const usage = await fetchUsage();
+    if (usageEl) {
+      const planNames = (typeof getTranslation === "function" ? getTranslation("planNames", lang) : null) || { free: "Free", pro: "Pro", pro_plus: "Pro+" };
+      if (typeof planNames === "object") {
+        if (!usage) {
+          usageEl.textContent = t("signInToSeeUsage");
+        } else {
+          const planName = planNames[usage.plan] || planNames.free || "Free";
+          const used = usage.translationUsed;
+          const limit = usage.translationLimit;
+          if (limit == null) {
+            usageEl.textContent = `${planName} · ${t("unlimitedTranslations")}`;
+          } else if (typeof used === "number" && typeof limit === "number") {
+            usageEl.textContent = `${planName} · ${used} / ${limit} ${t("translationsToday")}`;
+          } else {
+            usageEl.textContent = planName;
+          }
+        }
       } else {
-        usageEl.textContent = planName;
+        usageEl.textContent = "";
       }
-    } else {
-      usageEl.textContent = "";
     }
+    return usage;
   }
 
   /**
@@ -731,7 +1532,21 @@
     const toLabel = document.getElementById("replymate-translate-to-label");
     if (toLabel) toLabel.textContent = t("translateToLabel");
 
-    await updateUsageDisplay(panel);
+    const usageForLock = await updateUsageDisplay(panel);
+
+    const themeBtnLock = document.getElementById("replymate-translate-theme");
+    if (themeBtnLock) {
+      const locked = !usageForLock || !planAllowsPremiumColorThemes(usageForLock.plan);
+      if (locked) {
+        const hint = t("colorThemeUpgradePrompt");
+        themeBtnLock.setAttribute("aria-label", hint);
+        themeBtnLock.title = hint;
+      } else {
+        const tt = t("translateCycleTheme");
+        themeBtnLock.setAttribute("aria-label", tt);
+        themeBtnLock.title = tt;
+      }
+    }
 
     const targetSelect = document.getElementById("replymate-translate-target");
     if (targetSelect) {
@@ -795,7 +1610,8 @@
     const el = panel && panel.querySelector("#replymate-translate-result");
     if (!el) return;
     el.classList.remove("replymate-loading");
-    el.style.color = isError ? "#d93025" : "#202124";
+    el.classList.toggle("replymate-result-error", !!isError);
+    el.style.color = "";
     if (isLoading) {
       el.classList.add("replymate-loading");
       const placeholder = el.dataset.placeholder || "...";
@@ -915,6 +1731,22 @@
   async function init() {
     if (document.getElementById(TRANSLATION_ICON_ID)) return;
 
+    const panel = createPanel();
+    const savedTheme = await loadTranslationPanelTheme();
+    const usageForTheme = await fetchUsage();
+    let effectiveTheme = normalizeTranslationPanelTheme(savedTheme);
+    if (usageForTheme && !planAllowsPremiumColorThemes(usageForTheme.plan) && effectiveTheme !== DEFAULT_TRANSLATION_PANEL_THEME) {
+      effectiveTheme = DEFAULT_TRANSLATION_PANEL_THEME;
+      try {
+        if (typeof chrome !== "undefined" && chrome.storage?.local) {
+          chrome.storage.local.set({
+            [STORAGE_TRANSLATION_PANEL_THEME]: effectiveTheme,
+            [POPUP_THEME_KEY_SYNC]: effectiveTheme,
+          });
+        }
+      } catch (e) { /* ignore */ }
+    }
+
     const icon = document.createElement("div");
     icon.id = TRANSLATION_ICON_ID;
     icon.setAttribute("role", "button");
@@ -929,21 +1761,15 @@
       width: 48px;
       height: 48px;
       border-radius: 50%;
-      background: linear-gradient(135deg,#7943f1 0%,#9d6cf7 100%);
       color: #fff;
       border: none;
       cursor: grab;
       z-index: 2147483645;
-      box-shadow: 0 4px 16px rgba(121,67,241,0.4);
       display: flex;
       align-items: center;
       justify-content: center;
-      transition: box-shadow 0.2s, transform 0.2s;
       user-select: none;
     `;
-    const iconStyle = document.createElement("style");
-    iconStyle.textContent = `#replymate-translation-icon:focus-visible { outline:2px solid #7943f1;outline-offset:2px; }`;
-    document.head.appendChild(iconStyle);
 
     const defaultIconX = window.innerWidth - 24 - 48;
     const defaultIconY = window.innerHeight - 24 - 48;
@@ -955,17 +1781,6 @@
     icon.style.right = "auto";
     icon.style.bottom = "auto";
 
-    icon.addEventListener("mouseenter", () => {
-      if (icon.getAttribute("data-replymate-dragging") === "1") return;
-      icon.style.boxShadow = "0 6px 20px rgba(121,67,241,0.5)";
-      icon.style.transform = "scale(1.05)";
-    });
-    icon.addEventListener("mouseleave", () => {
-      if (icon.getAttribute("data-replymate-dragging") === "1") return;
-      icon.style.boxShadow = "0 4px 16px rgba(121,67,241,0.4)";
-      icon.style.transform = "scale(1)";
-    });
-
     let iconDidDrag = false;
     icon.addEventListener("pointerdown", () => { iconDidDrag = false; }, { capture: true });
     makeDraggable(icon, (x, y) => {
@@ -973,14 +1788,19 @@
       savePosition(STORAGE_ICON_POS, clamp(x, 0, window.innerWidth - 48), clamp(y, 0, window.innerHeight - 48));
     });
 
-    const panel = createPanel();
+    applyTranslationPanelTheme(panel, effectiveTheme);
 
-    const defaultPanelX = Math.max(0, (window.innerWidth - 400) / 2);
-    const defaultPanelY = Math.max(0, (window.innerHeight - 450) / 2);
+    const sizeRaw = await loadPanelSize(PANEL_DEFAULT_WIDTH, PANEL_DEFAULT_HEIGHT);
+    const { w: panelSavedW, h: panelSavedH } = clampPanelSize(sizeRaw.w, sizeRaw.h);
+    panel.style.width = `${panelSavedW}px`;
+    panel.style.height = `${panelSavedH}px`;
+
+    const defaultPanelX = Math.max(0, (window.innerWidth - panelSavedW) / 2);
+    const defaultPanelY = Math.max(0, (window.innerHeight - panelSavedH) / 2);
     const panelPos = await loadPosition(STORAGE_PANEL_POS, defaultPanelX, defaultPanelY);
     const panelRect = panel.getBoundingClientRect();
-    const panelW = panelRect.width || 400;
-    const panelH = panelRect.height || 450;
+    const panelW = panelRect.width || panelSavedW;
+    const panelH = panelRect.height || panelSavedH;
     const panelX = clamp(panelPos.x, 0, window.innerWidth - panelW);
     const panelY = clamp(panelPos.y, 0, window.innerHeight - panelH);
     panel.style.left = panelX + "px";
@@ -995,19 +1815,51 @@
       });
     }
 
+    const resizeHandle = document.getElementById("replymate-translate-resize");
+    if (resizeHandle) {
+      makePanelResizable(panel, resizeHandle);
+    }
+
+    /** Keep panel size/position inside viewport when the window is resized. */
+    let panelViewportResizeTimer = null;
+    window.addEventListener("resize", () => {
+      clearTimeout(panelViewportResizeTimer);
+      panelViewportResizeTimer = setTimeout(() => {
+        const p = document.getElementById(TRANSLATION_PANEL_ID);
+        if (!p) return;
+        const r = p.getBoundingClientRect();
+        const { w, h } = clampPanelSize(r.width, r.height);
+        if (Math.abs(w - r.width) > 0.5 || Math.abs(h - r.height) > 0.5) {
+          p.style.width = `${w}px`;
+          p.style.height = `${h}px`;
+          savePanelSize(w, h);
+        }
+        const r2 = p.getBoundingClientRect();
+        const px = parseFloat(p.style.left) || 0;
+        const py = parseFloat(p.style.top) || 0;
+        const nx = clamp(px, 0, window.innerWidth - r2.width);
+        const ny = clamp(py, 0, window.innerHeight - r2.height);
+        if (nx !== px || ny !== py) {
+          p.style.left = `${nx}px`;
+          p.style.top = `${ny}px`;
+          savePosition(STORAGE_PANEL_POS, nx, ny);
+        }
+      }, 150);
+    });
+
     await updatePanelLabels(panel);
 
     icon.addEventListener("click", async (e) => {
       e.stopPropagation();
       e.preventDefault();
       if (iconDidDrag) return;
-      const isVisible = panel.style.display === "block";
+      const isVisible = panel.style.display === "flex";
       if (isVisible) {
         panel.style.opacity = "0";
         panel.style.transform = "scale(0.96)";
         setTimeout(() => { panel.style.display = "none"; clearPanelState(panel); }, 200);
       } else {
-        panel.style.display = "block";
+        panel.style.display = "flex";
         requestAnimationFrame(() => {
           panel.style.opacity = "1";
           panel.style.transform = "scale(1)";
@@ -1023,6 +1875,30 @@
       }
     });
 
+    const themeToggleEl = document.getElementById("replymate-translate-theme");
+    if (themeToggleEl) {
+      themeToggleEl.addEventListener("click", async (e) => {
+        e.stopPropagation();
+        e.preventDefault();
+        const usage = await fetchUsage();
+        const lang = typeof getCurrentLanguage === "function" ? await getCurrentLanguage() : "english";
+        const t = (key) => (typeof getTranslation === "function" ? getTranslation(key, lang) : key);
+        if (!usage) {
+          showThemeUpgradeNotice(t("colorThemeUpgradePrompt"));
+          return;
+        }
+        if (!planAllowsPremiumColorThemes(usage.plan)) {
+          showThemeUpgradeNotice(t("colorThemeUpgradePrompt"));
+          return;
+        }
+        const cur = normalizeTranslationPanelTheme(panel.getAttribute("data-theme"));
+        const idx = TRANSLATION_PANEL_THEME_IDS.indexOf(cur);
+        const next = TRANSLATION_PANEL_THEME_IDS[(idx + 1) % TRANSLATION_PANEL_THEME_IDS.length];
+        applyTranslationPanelTheme(panel, next);
+        saveTranslationPanelTheme(next);
+      });
+    }
+
     document.getElementById("replymate-translate-close").addEventListener("click", () => {
       panel.style.opacity = "0";
       panel.style.transform = "scale(0.96)";
@@ -1030,7 +1906,7 @@
     });
 
     document.addEventListener("keydown", (e) => {
-      if (e.key === "Escape" && panel.style.display === "block") {
+      if (e.key === "Escape" && panel.style.display === "flex") {
         panel.style.opacity = "0";
         panel.style.transform = "scale(0.96)";
         setTimeout(() => { panel.style.display = "none"; clearPanelState(panel); }, 200);
@@ -1092,6 +1968,8 @@
     });
 
     document.body.appendChild(icon);
+    /* Icon wasn't in the document when applyTranslationPanelTheme first ran — sync data-theme now. */
+    applyTranslationPanelTheme(panel, normalizeTranslationPanelTheme(panel.getAttribute("data-theme")));
     const enabled = await getTranslationEnabled();
     setIconVisibility(enabled);
   }
@@ -1121,18 +1999,25 @@
         icon.style.bottom = "auto";
       }
     });
-    loadPosition(STORAGE_PANEL_POS, Math.max(0, (window.innerWidth - 400) / 2), Math.max(0, (window.innerHeight - 450) / 2)).then((pos) => {
+    const defaultPanelCenterX = Math.max(0, (window.innerWidth - PANEL_DEFAULT_WIDTH) / 2);
+    const defaultPanelCenterY = Math.max(0, (window.innerHeight - PANEL_DEFAULT_HEIGHT) / 2);
+    Promise.all([
+      loadPanelSize(PANEL_DEFAULT_WIDTH, PANEL_DEFAULT_HEIGHT),
+      loadPosition(STORAGE_PANEL_POS, defaultPanelCenterX, defaultPanelCenterY),
+    ]).then(([sz, pos]) => {
       const panel = document.getElementById(TRANSLATION_PANEL_ID);
-      if (panel) {
+      if (!panel) return;
+      const { w, h } = clampPanelSize(sz.w, sz.h);
+      panel.style.width = `${w}px`;
+      panel.style.height = `${h}px`;
         const r = panel.getBoundingClientRect();
-        const w = r.width || 400;
-        const h = r.height || 450;
-        const x = clamp(pos.x, 0, window.innerWidth - w);
-        const y = clamp(pos.y, 0, window.innerHeight - h);
-        panel.style.left = x + "px";
-        panel.style.top = y + "px";
+      const pw = r.width;
+      const ph = r.height;
+      const x = clamp(pos.x, 0, window.innerWidth - pw);
+      const y = clamp(pos.y, 0, window.innerHeight - ph);
+      panel.style.left = `${x}px`;
+      panel.style.top = `${y}px`;
         panel.style.transform = "none";
-      }
     });
   }
 
@@ -1141,8 +2026,18 @@
   if (typeof chrome !== "undefined" && chrome.storage?.onChanged) {
     chrome.storage.onChanged.addListener((changes, areaName) => {
       if (areaName !== "local") return;
-      if (changes[STORAGE_ICON_POS] || changes[STORAGE_PANEL_POS]) {
+      if (changes[STORAGE_ICON_POS] || changes[STORAGE_PANEL_POS] || changes[STORAGE_PANEL_SIZE]) {
         applyStoredPositions();
+      }
+      if (changes[STORAGE_TRANSLATION_PANEL_THEME]) {
+        const p = document.getElementById(TRANSLATION_PANEL_ID);
+        const v = changes[STORAGE_TRANSLATION_PANEL_THEME]?.newValue;
+        if (p && typeof v === "string") applyTranslationPanelTheme(p, v);
+      }
+      if (changes[POPUP_THEME_KEY_SYNC]) {
+        const p = document.getElementById(TRANSLATION_PANEL_ID);
+        const v = changes[POPUP_THEME_KEY_SYNC]?.newValue;
+        if (p && typeof v === "string") applyTranslationPanelTheme(p, v);
       }
       if (changes[STORAGE_TRANSLATION_ENABLED]) {
         const v = changes[STORAGE_TRANSLATION_ENABLED]?.newValue;

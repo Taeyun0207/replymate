@@ -28,6 +28,8 @@
       --accent-ring: rgba(0, 0, 0, 0.14);
       --accent-shadow: rgba(0, 0, 0, 0.07);
       --accent-glow: rgba(0, 0, 0, 0.04);
+      --save-btn-gradient: linear-gradient(180deg, #906af5 0%, #7943f1 48%, #6328d8 100%);
+      --save-btn-gradient-hover: linear-gradient(180deg, #9b7ef0 0%, #7943f1 52%, #5b21b6 100%);
     }
 
     /* Basic — neutral gray (default). Primary button stays ReplyMate purple. */
@@ -48,9 +50,11 @@
       --accent-ring: rgba(0, 0, 0, 0.14);
       --accent-shadow: rgba(0, 0, 0, 0.07);
       --accent-glow: rgba(0, 0, 0, 0.04);
+      --save-btn-gradient: linear-gradient(180deg, #906af5 0%, #7943f1 48%, #6328d8 100%);
+      --save-btn-gradient-hover: linear-gradient(180deg, #9b7ef0 0%, #7943f1 52%, #5b21b6 100%);
     }
 
-    /* Light — soft purple tint (same as previous default “light”) */
+    /* Light — soft purple tint (lavender primary, not dark violet) */
     html[data-theme="light"] {
       color-scheme: light;
       --bg: #f5f5f5;
@@ -59,7 +63,7 @@
       --border: #d0d7de;
       --select-bg: #ffffff;
       --select-text: #222222;
-      --button-bg: #7943f1;
+      --button-bg: #8b7ed4;
       --button-text: #ffffff;
       --success: #188038;
       --accent-soft: #f0ebff;
@@ -68,9 +72,11 @@
       --accent-ring: rgba(121, 67, 241, 0.22);
       --accent-shadow: rgba(121, 67, 241, 0.14);
       --accent-glow: rgba(121, 67, 241, 0.06);
+      --save-btn-gradient: linear-gradient(180deg, #c4b4f4 0%, #8b7ed4 48%, #7d6fc8 100%);
+      --save-btn-gradient-hover: linear-gradient(180deg, #d4c4fa 0%, #9d91e8 52%, #8b7ed4 100%);
     }
 
-    /* Themes: cycle via color wheel; saved immediately. Order: basic → light → sepia → rose → dark → basic-dark (last). */
+    /* Themes: cycle via color wheel; saved immediately. Order: basic → light → sepia → rose → slate → dark → basic-dark. */
     html[data-theme="dark"] {
       color-scheme: dark;
       --bg: #202124;
@@ -88,6 +94,8 @@
       --accent-ring: rgba(167, 139, 250, 0.38);
       --accent-shadow: rgba(121, 67, 241, 0.28);
       --accent-glow: rgba(121, 67, 241, 0.12);
+      --save-btn-gradient: linear-gradient(180deg, #9488d4 0%, #7d6ec8 48%, #5c4d78 100%);
+      --save-btn-gradient-hover: linear-gradient(180deg, #a898e8 0%, #8f7edc 52%, #6d5a94 100%);
     }
 
     /* Basic dark — neutral gray dark (like basic, no purple wash). Save button stays ReplyMate purple. */
@@ -108,6 +116,8 @@
       --accent-ring: rgba(255, 255, 255, 0.18);
       --accent-shadow: rgba(0, 0, 0, 0.45);
       --accent-glow: rgba(0, 0, 0, 0.25);
+      --save-btn-gradient: linear-gradient(180deg, #8e8e93 0%, #6a6a6e 45%, #4a4a4d 100%);
+      --save-btn-gradient-hover: linear-gradient(180deg, #9e9ea3 0%, #7a7a7e 52%, #5a5a5e 100%);
     }
 
     /* Sepia — warm paper (light) */
@@ -128,6 +138,8 @@
       --accent-ring: rgba(107, 80, 150, 0.28);
       --accent-shadow: rgba(121, 67, 241, 0.12);
       --accent-glow: rgba(107, 80, 150, 0.08);
+      --save-btn-gradient: linear-gradient(180deg, #b8924a 0%, #8b6914 48%, #6b4f3a 100%);
+      --save-btn-gradient-hover: linear-gradient(180deg, #c9a85c 0%, #9a7618 52%, #5c4033 100%);
     }
 
     /* Rose — soft pink / lavender (light) */
@@ -148,6 +160,30 @@
       --accent-ring: rgba(192, 132, 252, 0.35);
       --accent-shadow: rgba(167, 139, 250, 0.18);
       --accent-glow: rgba(192, 132, 252, 0.1);
+      --save-btn-gradient: linear-gradient(180deg, #f472b6 0%, #ec4899 48%, #c026d3 100%);
+      --save-btn-gradient-hover: linear-gradient(180deg, #fb9cc8 0%, #f472b6 52%, #db2777 100%);
+    }
+
+    /* Slate — cool gray-blue (light) */
+    html[data-theme="slate"] {
+      color-scheme: light;
+      --bg: #f1f5f9;
+      --text: #0f172a;
+      --muted: #64748b;
+      --border: #cbd5e1;
+      --select-bg: #ffffff;
+      --select-text: #0f172a;
+      --button-bg: #7943f1;
+      --button-text: #ffffff;
+      --success: #188038;
+      --accent-soft: #e8eef5;
+      --accent-border: #c7d2fe;
+      --accent-border-strong: #6366f1;
+      --accent-ring: rgba(99, 102, 241, 0.28);
+      --accent-shadow: rgba(79, 70, 229, 0.14);
+      --accent-glow: rgba(99, 102, 241, 0.08);
+      --save-btn-gradient: linear-gradient(180deg, #8b93fa 0%, #6670e8 48%, #4f46e5 100%);
+      --save-btn-gradient-hover: linear-gradient(180deg, #9ba3fc 0%, #7c86ed 52%, #575fde 100%);
     }
 
     * {
@@ -159,10 +195,18 @@
       overflow: hidden;
       background: var(--bg);
     }
-
+    /* Extension popups clip fixed children unless root allows overflow when toast is shown */
+    html.theme-pro-toast-open {
+      overflow: visible !important;
+    }
+    /*
+     * Popup width/height: Chrome sizes the action popup to fit content.
+     * Adjust minimum width here; optional: body { width: 360px; max-height: 600px; overflow-y: auto; }
+     * File: replymate-extension/popup/popup.html (this file).
+     */
     body {
       margin: 0;
-      min-width: 270px;
+      min-width: 275px;
       padding: 14px;
       font-family: Arial, sans-serif;
       background: linear-gradient(165deg, var(--accent-soft) 0%, var(--bg) 38%, var(--bg) 100%);
@@ -255,13 +299,14 @@ html[data-theme="dark"] option, html[data-theme="basic-dark"] option {
       color: #222222;
     }
 
+    /* Save — gradients per theme (--save-btn-* on html[data-theme]) */
     #saveButton {
-      background: linear-gradient(180deg, #906af5 0%, var(--button-bg) 48%, #6328d8 100%);
+      background: var(--save-btn-gradient);
       color: #ffffff;
     }
 
     #saveButton:hover {
-      background: linear-gradient(180deg, #9b7ef0 0%, #7943f1 52%, #5b21b6 100%);
+      background: var(--save-btn-gradient-hover);
       color: #ffffff;
       box-shadow: 0 2px 12px var(--accent-shadow);
     }
@@ -525,31 +570,32 @@ html[data-theme="dark"] option, html[data-theme="basic-dark"] option {
     .header {
       display: flex;
       align-items: center;
-      justify-content: flex-start;
-      gap: 8px;
+      justify-content: space-between;
+      gap: 10px;
       margin-bottom: 10px;
       padding-bottom: 10px;
       border-bottom: 1px solid var(--accent-border);
     }
 
-    .header-leading {
+    /* Logo + title — grows; color wheel stays on the far right in all languages */
+    .header-start {
       display: flex;
       align-items: center;
       gap: 8px;
       min-width: 0;
       flex: 1;
-      flex-wrap: nowrap;
     }
 
     /* Override global `button { width: 100%; padding: ...; background: purple }` — icon-sized hit target only */
     .header-theme-toggle {
       flex: 0 0 auto;
       flex-shrink: 0;
+      margin-left: auto;
       box-sizing: border-box;
-      width: 24px;
-      height: 24px;
-      min-width: 24px;
-      min-height: 24px;
+      width: 28px;
+      height: 28px;
+      min-width: 28px;
+      min-height: 28px;
       display: inline-flex;
       align-items: center;
       justify-content: center;
@@ -563,10 +609,12 @@ html[data-theme="dark"] option, html[data-theme="basic-dark"] option {
       font-size: 0;
     }
 
-    .header-theme-toggle:hover {
-      opacity: 0.88;
-      background: transparent;
+    .header-theme-toggle:hover,
+    .header-theme-toggle:active {
+      background: transparent !important;
+      opacity: 1;
       color: inherit;
+      box-shadow: none;
     }
 
     .header-theme-toggle:focus-visible {
@@ -576,19 +624,25 @@ html[data-theme="dark"] option, html[data-theme="basic-dark"] option {
 
     .header-theme-toggle img {
       display: block;
-      width: 24px;
-      height: 24px;
+      width: 26px;
+      height: 26px;
       object-fit: contain;
+      opacity: 0.92;
+      transition: opacity 0.15s ease, filter 0.15s ease;
+    }
+
+    .header-theme-toggle:hover img {
+      opacity: 1;
+      filter: brightness(1.12);
     }
 
     .header-icon {
-      width: 24px;
-      height: 24px;
+      width: 30px;
+      height: 30px;
       flex-shrink: 0;
       border: 1px solid #9ca3af;
       border-radius: 50%;
       object-fit: cover;
-      /* icon128 source @ 24px display = sharp on 2x/3x screens */
     }
 
     html[data-theme="dark"] .header-icon, html[data-theme="basic-dark"] .header-icon {
@@ -600,7 +654,8 @@ html[data-theme="dark"] option, html[data-theme="basic-dark"] option {
       line-height: 1.2;
       color: var(--text);
       margin: 0;
-      flex: 0 1 auto;
+      flex: 1;
+      min-width: 0;
     }
 
     /*
@@ -630,7 +685,7 @@ html[data-theme="dark"] option, html[data-theme="basic-dark"] option {
     }
 
     html[data-theme="light"] .header-brand {
-      background-image: linear-gradient(135deg, var(--button-bg) 0%, #5b21b6 52%, #7c3aed 100%);
+      background-image: linear-gradient(135deg, #b4a3ee 0%, #8b7ed4 50%, #a090e0 100%);
     }
 
     html[data-theme="sepia"] .header-brand {
@@ -639,6 +694,10 @@ html[data-theme="dark"] option, html[data-theme="basic-dark"] option {
 
     html[data-theme="rose"] .header-brand {
       background-image: linear-gradient(135deg, #a21caf 0%, #ec4899 45%, #7c3aed 100%);
+    }
+
+    html[data-theme="slate"] .header-brand {
+      background-image: linear-gradient(135deg, #6366f1 0%, #475569 48%, #7943f1 100%);
     }
 
     html[data-theme="dark"] .header-brand {
@@ -1005,17 +1064,63 @@ html[data-theme="dark"] option, html[data-theme="basic-dark"] option {
     html[data-theme="dark"] select:hover, html[data-theme="basic-dark"] select:hover {
       background: rgba(255,255,255,0.08);
     }
+
+    /* Anchored under header color wheel (position set in JS) */
+    .theme-pro-toast {
+      position: fixed;
+      z-index: 2147483647;
+      padding: 8px 10px;
+      border-radius: 12px;
+      font-size: 12px;
+      line-height: 1.35;
+      font-weight: 500;
+      color: #fff;
+      background: #2b2b2b;
+      border: none;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
+      display: inline-flex;
+      flex-direction: row;
+      flex-wrap: nowrap;
+      align-items: center;
+      gap: 8px;
+      width: max-content;
+      max-width: none;
+      white-space: nowrap;
+      box-sizing: border-box;
+      margin: 0;
+      opacity: 0;
+      transform: translateY(8px);
+      pointer-events: none;
+      transition: opacity 0.22s ease, transform 0.22s ease;
+    }
+    .theme-pro-toast.theme-pro-toast--visible {
+      opacity: 1;
+      transform: translateY(0);
+      pointer-events: none;
+    }
+    .theme-pro-toast-warn {
+      flex-shrink: 0;
+      font-size: 15px;
+      line-height: 1;
+    }
+    .theme-pro-toast-text {
+      margin: 0;
+      padding: 0;
+      color: #fff;
+      white-space: nowrap;
+      flex: 0 1 auto;
+    }
   </style>
 </head>
 <body>
   <div class="header">
-    <div class="header-leading">
-      <img class="header-icon" src="../icons/icon128.png" width="24" height="24" alt="ReplyMate Icon" decoding="async">
+    <div class="header-start">
+      <img class="header-icon" src="../icons/icon128.png" width="30" height="30" alt="ReplyMate Icon" decoding="async">
       <h2 class="header-title"><span class="header-brand">ReplyMate</span> <span class="header-settings">Settings</span></h2>
-      <button type="button" id="themeToggleBtn" class="header-theme-toggle" aria-label="Cycle color theme" title="Cycle theme (saved automatically)">
-        <img src="../icons/colorWheel.png" alt="" width="24" height="24" />
-      </button>
     </div>
+    <button type="button" id="themeToggleBtn" class="header-theme-toggle" aria-label="Cycle color theme" title="Cycle theme (saved automatically)">
+      <img src="../icons/colorWheel.png" alt="" width="26" height="26" />
+    </button>
   </div>
 
   <div id="loginSection" class="login-section">
@@ -1185,6 +1290,11 @@ html[data-theme="dark"] option, html[data-theme="basic-dark"] option {
         </button>
       </div>
     </div>
+  </div>
+
+  <div id="themeProToast" class="theme-pro-toast" role="status" aria-live="polite" hidden>
+    <span class="theme-pro-toast-warn" aria-hidden="true">⚠️</span>
+    <span class="theme-pro-toast-text" id="themeProToastText"></span>
   </div>
   
   <script src="../lib/supabase.min.js"></script>

@@ -78,11 +78,20 @@ const TRANSLATIONS = {
     translateLatestMessage: "Translate latest email", translateReply: "Translate my reply", translateManual: "Translate",
     translateInputPlaceholder: "Paste text to translate...", noReplyFound: "No reply found. Generate a reply first.",
     noMessageFound: "No message found in this thread.", translatePanelTitle: "ReplyMate Translate",
+    translateCycleTheme: "Cycle theme (saved for this panel only)",
     translatePasteLabel: "Paste text to translate", translateResultLabel: "Result", translateToLabel: "Translate to",
     systemLanguage: "System Language", translating: "Translating...", contentSame: "Same content.\nNo translation needed.",
     alreadyInYourLanguage: "Already in your selected language", translateCopy: "Copy",
     translateClose: "Close", translateError: "Translation failed: ", translateLimitReached: "You've reached your daily translation limit.",
-    noTextToTranslate: "Please paste or enter text to translate.", nothingToCopy: "Nothing to copy. Translate something first.", copied: "Copied!"
+    noTextToTranslate: "Please paste or enter text to translate.", nothingToCopy: "Nothing to copy. Translate something first.", copied: "Copied!",
+    colorThemeProOnly:
+      "Color themes are a Pro feature. Upgrade to Pro or Pro+ to unlock custom looks—in settings, the translation panel, and AI Reply buttons.",
+    colorThemePlanCheckFailed: "Could not verify your plan. Check your connection and try again.",
+    colorThemeUpgradePrompt: "Unlock Pro/Pro+",
+    colorThemeToastPlanCheck: "We couldn’t verify your plan. Check your connection and try again.",
+    signInToSeeUsage: "Sign in to use",
+    translationsToday: "translations today",
+    unlimitedTranslations: "Unlimited translations",
   },
   korean: {
     aiReply: "AI 답장", generating: "생성 중...", tryAgain: "다시 시도", limitReached: "한도 도달",
@@ -93,11 +102,20 @@ const TRANSLATIONS = {
     manageSubscription: "구독 관리", unableToExtractContent: "이메일 내용을 추출할 수 없습니다.",
     noReplyFound: "답장이 없습니다.", noMessageFound: "이 메일에서 내용을 찾을 수 없습니다.",
     translateLatestMessage: "최근 메일 번역", translateReply: "내 답장 번역", translateManual: "번역",
-    translatePanelTitle: "ReplyMate 번역", translatePasteLabel: "번역할 텍스트 붙여넣기", translateResultLabel: "번역 결과",
+    translatePanelTitle: "ReplyMate 번역", translateCycleTheme: "색 테마 (이 패널에만 저장)",
+    translatePasteLabel: "번역할 텍스트 붙여넣기", translateResultLabel: "번역 결과",
     translateToLabel: "번역 대상 언어", systemLanguage: "시스템 언어", translating: "번역 중...", contentSame: "동일한 내용입니다.",
     alreadyInYourLanguage: "선택한 언어와 같습니다", translateCopy: "복사",
     translateClose: "닫기", translateError: "번역 실패: ", translateLimitReached: "오늘의 번역 한도를 모두 사용했습니다.",
-    noTextToTranslate: "번역할 텍스트를 붙여넣거나 입력해 주세요.", nothingToCopy: "복사할 내용이 없습니다. 먼저 번역해 주세요.", copied: "복사됨!"
+    noTextToTranslate: "번역할 텍스트를 붙여넣거나 입력해 주세요.", nothingToCopy: "복사할 내용이 없습니다. 먼저 번역해 주세요.", copied: "복사됨!",
+    colorThemeProOnly:
+      "색 테마는 Pro 전용 기능입니다. Pro 또는 Pro+로 업그레이드하면 설정, 번역 패널, AI 답장 버튼 등에서 맞춤 색상을 사용할 수 있습니다.",
+    colorThemePlanCheckFailed: "플랜을 확인할 수 없습니다. 연결을 확인한 뒤 다시 시도해 주세요.",
+    colorThemeUpgradePrompt: "Pro·Pro+ 잠금 해제",
+    colorThemeToastPlanCheck: "플랜을 확인하지 못했습니다. 연결을 확인한 뒤 다시 시도해 주세요.",
+    signInToSeeUsage: "로그인하여 사용",
+    translationsToday: "오늘 번역",
+    unlimitedTranslations: "무제한 번역",
   },
   japanese: {
     aiReply: "AI Reply", generating: "返信を生成中...", tryAgain: "再試行", limitReached: "利用上限に達しました",
@@ -108,11 +126,20 @@ const TRANSLATIONS = {
     manageSubscription: "サブスクリプション管理", unableToExtractContent: "メールの内容を取得できません。",
     noReplyFound: "返信が見つかりません。", noMessageFound: "このメールに内容がありません。",
     translateLatestMessage: "直近のメールを翻訳", translateReply: "返信を翻訳", translateManual: "翻訳",
-    translatePanelTitle: "ReplyMate 翻訳", translatePasteLabel: "翻訳するテキストを貼り付け", translateResultLabel: "翻訳結果",
+    translatePanelTitle: "ReplyMate 翻訳", translateCycleTheme: "テーマを切り替え（このパネルに保存）",
+    translatePasteLabel: "翻訳するテキストを貼り付け", translateResultLabel: "翻訳結果",
     translateToLabel: "翻訳先", systemLanguage: "システム言語", translating: "翻訳中...", contentSame: "同じ内容です。",
     alreadyInYourLanguage: "選択した言語と同じです", translateCopy: "コピー",
     translateClose: "閉じる", translateError: "翻訳に失敗しました: ", translateLimitReached: "本日の翻訳上限に達しました。",
-    noTextToTranslate: "翻訳するテキストを貼り付けるか入力してください。", nothingToCopy: "コピーする内容がありません。先に翻訳してください。", copied: "コピーしました！"
+    noTextToTranslate: "翻訳するテキストを貼り付けるか入力してください。", nothingToCopy: "コピーする内容がありません。先に翻訳してください。", copied: "コピーしました！",
+    colorThemeProOnly:
+      "カラーテーマはPro向けの機能です。ProまたはPro+にアップグレードすると、設定・翻訳パネル・AI返信ボタンなどでカスタム配色が使えます。",
+    colorThemePlanCheckFailed: "プランを確認できませんでした。接続を確認してもう一度お試しください。",
+    colorThemeUpgradePrompt: "Pro／Pro+解除",
+    colorThemeToastPlanCheck: "プランを確認できませんでした。接続を確認して再度お試しください。",
+    signInToSeeUsage: "ログインしてご利用ください",
+    translationsToday: "本日の翻訳",
+    unlimitedTranslations: "無制限",
   },
   spanish: {
     aiReply: "Respuesta IA", generating: "Generando...", tryAgain: "Intentar de nuevo", limitReached: "Límite alcanzado",
@@ -123,11 +150,20 @@ const TRANSLATIONS = {
     manageSubscription: "Gestionar suscripción", unableToExtractContent: "No se puede extraer el contenido del correo.",
     noReplyFound: "No hay respuesta.", noMessageFound: "No hay contenido en este correo.",
     translateLatestMessage: "Traducir último correo", translateReply: "Traducir mi respuesta", translateManual: "Traducir",
-    translatePanelTitle: "ReplyMate Traducir", translatePasteLabel: "Pega texto para traducir", translateResultLabel: "Resultado",
+    translatePanelTitle: "ReplyMate Traducir", translateCycleTheme: "Cambiar tema (solo guardado en este panel)",
+    translatePasteLabel: "Pega texto para traducir", translateResultLabel: "Resultado",
     translateToLabel: "Traducir a", systemLanguage: "Idioma del sistema", translating: "Traduciendo...", contentSame: "Mismo contenido.",
     alreadyInYourLanguage: "Ya está en tu idioma seleccionado", translateCopy: "Copiar",
     translateClose: "Cerrar", translateError: "Error de traducción: ", translateLimitReached: "Has alcanzado el límite diario de traducción.",
-    noTextToTranslate: "Pega o escribe texto para traducir.", nothingToCopy: "Nada que copiar. Traduce algo primero.", copied: "¡Copiado!"
+    noTextToTranslate: "Pega o escribe texto para traducir.", nothingToCopy: "Nada que copiar. Traduce algo primero.", copied: "¡Copiado!",
+    colorThemeProOnly:
+      "Los temas de color son una función Pro. Mejora a Pro o Pro+ para desbloquear apariencias personalizadas en ajustes, el panel de traducción y los botones de respuesta con IA.",
+    colorThemePlanCheckFailed: "No se pudo verificar tu plan. Comprueba la conexión e inténtalo de nuevo.",
+    colorThemeUpgradePrompt: "Desbloquea Pro/Pro+",
+    colorThemeToastPlanCheck: "No pudimos verificar tu plan. Comprueba la conexión e inténtalo de nuevo.",
+    signInToSeeUsage: "Inicia sesión para usar",
+    translationsToday: "traducciones hoy",
+    unlimitedTranslations: "Traducciones ilimitadas",
   }
 };
 
@@ -429,11 +465,43 @@ async function showReplyMateMessage(message) {
   }
 }
 
-const REPLYMATE_BUTTON_COLOR_NORMAL = REPLYMATE_CONFIG.ui.colors.normal;
-const REPLYMATE_BUTTON_COLOR_HOVER = REPLYMATE_CONFIG.ui.colors.hover;
-const REPLYMATE_BUTTON_COLOR_LOADING = REPLYMATE_CONFIG.ui.colors.loading;
-const REPLYMATE_BUTTON_COLOR_ERROR = REPLYMATE_CONFIG.ui.colors.error;
-const REPLYMATE_BUTTON_TEXT_COLOR = REPLYMATE_CONFIG.ui.colors.text;
+/** AI Reply colors — follow popup color wheel (popup-theme-button.js); fallback to REPLYMATE_CONFIG. */
+function getReplyMateBtnColor(key) {
+  const fb = REPLYMATE_CONFIG.ui.colors;
+  const api = typeof window !== "undefined" && window.ReplyMatePopupThemeButton;
+  if (api && typeof api.getColors === "function") {
+    const c = api.getColors();
+    if (c && c[key] != null && c[key] !== "") return c[key];
+  }
+  return fb[key];
+}
+
+/**
+ * @param {"idle"|"hover"|"loading"|"error"} mode
+ */
+function paintReplyMateAiButton(button, mode) {
+  const api = typeof window !== "undefined" && window.ReplyMatePopupThemeButton;
+  if (api && typeof api.applyButtonStyle === "function") {
+    api.applyButtonStyle(button, mode);
+    return;
+  }
+  const set = (p, v) => {
+    try {
+      button.style.setProperty(p, v, "important");
+    } catch (_) {
+      button.style[p.replace(/-([a-z])/g, (_, x) => x.toUpperCase())] = v;
+    }
+  };
+  set("background", "none");
+  set("background-image", "none");
+  set("box-shadow", "none");
+  set("filter", "none");
+  if (mode === "hover") set("background-color", getReplyMateBtnColor("hover"));
+  else if (mode === "loading") set("background-color", getReplyMateBtnColor("loading"));
+  else if (mode === "error") set("background-color", getReplyMateBtnColor("error"));
+  else set("background-color", getReplyMateBtnColor("normal"));
+  set("color", getReplyMateBtnColor("text"));
+}
 
 async function setReplyMateButtonState(button, state) {
   const language = await getCurrentLanguage();
@@ -442,30 +510,32 @@ async function setReplyMateButtonState(button, state) {
     button.disabled = true;
     button.style.cursor = "default";
     button.textContent = getTranslation("generating", language);
-    button.style.backgroundColor = REPLYMATE_BUTTON_COLOR_LOADING;
+    paintReplyMateAiButton(button, "loading");
   } else if (state === "error") {
     button.disabled = false;
     button.style.cursor = "pointer";
     button.textContent = getTranslation("tryAgain", language);
-    button.style.backgroundColor = REPLYMATE_BUTTON_COLOR_ERROR;
+    paintReplyMateAiButton(button, "error");
   } else {
     button.disabled = false;
     button.style.cursor = "pointer";
     button.textContent = getTranslation("aiReply", language);
-    button.style.backgroundColor = REPLYMATE_BUTTON_COLOR_NORMAL;
+    paintReplyMateAiButton(button, "idle");
   }
 }
 
 function attachReplyMateButtonHoverStyles(button) {
-  button.style.color = REPLYMATE_BUTTON_TEXT_COLOR;
+  paintReplyMateAiButton(button, "idle");
   button.addEventListener("mouseenter", () => {
-    if (button.dataset.replymateState === "idle") button.style.backgroundColor = REPLYMATE_BUTTON_COLOR_HOVER;
+    if (button.dataset.replymateState === "idle") {
+      paintReplyMateAiButton(button, "hover");
+    }
   });
   button.addEventListener("mouseleave", () => {
     const state = button.dataset.replymateState || "idle";
-    if (state === "idle") button.style.backgroundColor = REPLYMATE_BUTTON_COLOR_NORMAL;
-    else if (state === "loading") button.style.backgroundColor = REPLYMATE_BUTTON_COLOR_LOADING;
-    else if (state === "error") button.style.backgroundColor = REPLYMATE_BUTTON_COLOR_ERROR;
+    if (state === "idle") paintReplyMateAiButton(button, "idle");
+    else if (state === "loading") paintReplyMateAiButton(button, "loading");
+    else if (state === "error") paintReplyMateAiButton(button, "error");
   });
 }
 
@@ -652,12 +722,11 @@ async function createReplyMateButton() {
   const button = document.createElement("button");
   button.className = "replymate-generate-button";
   button.style.padding = "6px 10px";
-  button.style.backgroundColor = REPLYMATE_BUTTON_COLOR_NORMAL;
-  button.style.color = REPLYMATE_BUTTON_TEXT_COLOR;
   button.style.border = "none";
   button.style.borderRadius = "6px";
   button.style.cursor = "pointer";
   button.style.fontSize = "12px";
+  paintReplyMateAiButton(button, "idle");
 
   const instructionInput = document.createElement("input");
   instructionInput.type = "text";
@@ -670,6 +739,17 @@ async function createReplyMateButton() {
 
   attachReplyMateButtonHoverStyles(button);
   await setReplyMateButtonState(button, "idle");
+
+  requestAnimationFrame(() => {
+    try {
+      window.ReplyMatePopupThemeButton?.refreshAllButtons?.();
+    } catch (_) {}
+  });
+  setTimeout(() => {
+    try {
+      window.ReplyMatePopupThemeButton?.refreshAllButtons?.();
+    } catch (_) {}
+  }, 400);
 
   button.addEventListener("click", async () => {
     if (button.dataset.replymateState === "loading") return;
@@ -1249,10 +1329,29 @@ async function createHoverGenerateButton(row) {
   const button = document.createElement("button");
   button.type = "button";
   button.className = REPLYMATE_HOVER_BUTTON_CLASS;
-  button.style.cssText = "padding:4px 10px;background:#7943f1;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:11px;font-weight:500;height:28px;white-space:nowrap;";
+  button.style.padding = "4px 10px";
+  button.style.border = "none";
+  button.style.borderRadius = "4px";
+  button.style.cursor = "pointer";
+  button.style.fontSize = "11px";
+  button.style.fontWeight = "500";
+  button.style.height = "28px";
+  button.style.whiteSpace = "nowrap";
+  paintReplyMateAiButton(button, "idle");
 
   attachReplyMateButtonHoverStyles(button);
   await setReplyMateButtonState(button, "idle");
+
+  requestAnimationFrame(() => {
+    try {
+      window.ReplyMatePopupThemeButton?.refreshAllButtons?.();
+    } catch (_) {}
+  });
+  setTimeout(() => {
+    try {
+      window.ReplyMatePopupThemeButton?.refreshAllButtons?.();
+    } catch (_) {}
+  }, 400);
 
   button.addEventListener("click", async (e) => {
     e.stopPropagation();
