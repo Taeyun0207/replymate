@@ -23,9 +23,9 @@
   const STORAGE_PANEL_SIZE = "replymate_translation_panel_size";
   const STORAGE_TARGET_LANG = "replymate_translation_target_lang";
 
-  /** Default panel size (matches original fixed width + typical content height). */
-  const PANEL_DEFAULT_WIDTH = 420;
-  const PANEL_DEFAULT_HEIGHT = 480;
+  /** Default panel size for first-time users (no saved size in storage). */
+  const PANEL_DEFAULT_WIDTH = 480;
+  const PANEL_DEFAULT_HEIGHT = 560;
   const PANEL_MIN_WIDTH = 300;
   const PANEL_MIN_HEIGHT = 260;
   const STORAGE_TRANSLATION_ENABLED = "replymate_translation_enabled";

@@ -75,7 +75,10 @@
 
     async isSignedIn() {
       const session = await this.getSession();
-      return !!session;
+      if (session) return true;
+      // Access token expired but refresh token may still be valid (persisted in chrome.storage.local).
+      const refreshed = await this.refreshSessionIfNeeded();
+      return !!refreshed;
     },
 
     async getUserId() {
