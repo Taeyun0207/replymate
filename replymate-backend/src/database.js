@@ -380,7 +380,7 @@ async function recordStripeEventProcessed(eventId) {
 }
 
 /**
- * Check if user can translate (does not consume). Free: 15/day. Pro: 50/day. Pro+: unlimited.
+ * Check if user can translate (does not consume). Free: 10/day. Pro: 30/day. Pro+: unlimited.
  * Returns { allowed: boolean, remaining?: number }.
  */
 async function checkTranslationLimit(userId) {

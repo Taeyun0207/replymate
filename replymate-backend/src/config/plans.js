@@ -4,8 +4,8 @@ const PLAN_LIMITS = {
   pro_plus: 1000,
 };
 
-const TRANSLATION_LIMIT_FREE = 15;   // per day
-const TRANSLATION_LIMIT_PRO = 50;    // per day
+const TRANSLATION_LIMIT_FREE = 10;   // per day
+const TRANSLATION_LIMIT_PRO = 30;    // per day
 
 function getPlanLimit(plan) {
   return PLAN_LIMITS[plan] ?? PLAN_LIMITS.free;

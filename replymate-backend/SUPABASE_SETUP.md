@@ -73,7 +73,7 @@ Values: `'monthly'`, `'annual'`, or `null` (free users).
 
 ## 2b. Translation usage columns (optional)
 
-For translation limits: free 15/day; Pro 50/day; Pro+ unlimited.
+For translation limits: free 10/day; Pro 30/day; Pro+ unlimited.
 
 ```sql
 ALTER TABLE public.users ADD COLUMN IF NOT EXISTS translation_used INTEGER DEFAULT 0;

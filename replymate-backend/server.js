@@ -432,7 +432,7 @@ app.get("/api/db-check", async (req, res) => {
   }
 });
 
-// Translate text (requires auth). Free: 15/day. Pro: 50/day. Pro+: unlimited.
+// Translate text (requires auth). Free: 10/day. Pro: 30/day. Pro+: unlimited.
 app.post("/translate", requireAuth, async (req, res) => {
   try {
     const userId = req.userId;
