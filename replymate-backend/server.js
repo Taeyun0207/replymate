@@ -405,8 +405,8 @@ app.get("/health", (req, res) => {
 });
 
 // Billing redirects after Stripe Checkout (success/cancel URLs)
-const BILLING_SUCCESS_URL = process.env.BILLING_SUCCESS_URL || "https://replymateai.app/upgrade?success=1";
-const BILLING_CANCEL_URL = process.env.BILLING_CANCEL_URL || "https://replymateai.app/upgrade?cancelled=1";
+const BILLING_SUCCESS_URL = process.env.BILLING_SUCCESS_URL || "https://replymateai.app/pricing?success=1";
+const BILLING_CANCEL_URL = process.env.BILLING_CANCEL_URL || "https://replymateai.app/pricing?cancelled=1";
 app.get("/billing/success", (req, res) => {
   const sessionId = req.query.session_id;
   const url = new URL(BILLING_SUCCESS_URL);

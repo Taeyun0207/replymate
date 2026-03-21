@@ -2,6 +2,7 @@
 /**
  * Build auth-config.js and patch manifest.json from environment variables.
  * Run: SUPABASE_URL=xxx SUPABASE_ANON_KEY=yyy GOOGLE_CLIENT_ID=zzz node scripts/build-auth-config.js
+ * Optional: REPLYMATE_UPGRADE_URL (default https://replymateai.app/pricing)
  * Or: node scripts/build-auth-config.js (reads from replymate-backend/.env if present)
  */
 const fs = require("fs");
@@ -22,12 +23,16 @@ if (fs.existsSync(backendEnv)) {
     if (trimmed.startsWith("GOOGLE_CLIENT_ID=") && !process.env.GOOGLE_CLIENT_ID) {
       process.env.GOOGLE_CLIENT_ID = trimmed.slice("GOOGLE_CLIENT_ID=".length).trim();
     }
+    if (trimmed.startsWith("REPLYMATE_UPGRADE_URL=") && !process.env.REPLYMATE_UPGRADE_URL) {
+      process.env.REPLYMATE_UPGRADE_URL = trimmed.slice("REPLYMATE_UPGRADE_URL=".length).trim();
+    }
   });
 }
 
 const url = process.env.SUPABASE_URL || "";
 const key = process.env.SUPABASE_ANON_KEY || "";
 const googleClientId = process.env.GOOGLE_CLIENT_ID || "";
+const upgradeUrl = process.env.REPLYMATE_UPGRADE_URL || "https://replymateai.app/pricing";
 
 // Supabase anon keys are JWTs (start with "eyJ"). Stripe keys start with "pk_" or "sb_publishable_".
 if (key && !key.startsWith("eyJ")) {
@@ -45,6 +50,7 @@ const content = `/**
   g.REPLYMATE_SUPABASE_URL = ${JSON.stringify(url)};
   g.REPLYMATE_SUPABASE_ANON_KEY = ${JSON.stringify(key)};
   g.REPLYMATE_GOOGLE_CLIENT_ID = ${JSON.stringify(googleClientId)};
+  g.REPLYMATE_UPGRADE_URL = ${JSON.stringify(upgradeUrl)};
 })();
 `;
 

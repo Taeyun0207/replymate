@@ -960,7 +960,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // Manage Subscription link - opens upgrade page
   const manageSubscriptionLink = document.getElementById("manageSubscriptionLink");
   if (manageSubscriptionLink) {
-    const upgradeUrl = (typeof REPLYMATE_UPGRADE_URL !== "undefined" ? REPLYMATE_UPGRADE_URL : "https://replymateai.app/upgrade");
+    const upgradeUrl = (typeof REPLYMATE_UPGRADE_URL !== "undefined" ? REPLYMATE_UPGRADE_URL : "https://replymateai.app/pricing");
     manageSubscriptionLink.href = upgradeUrl;
     manageSubscriptionLink.target = "_blank";
     manageSubscriptionLink.rel = "noopener noreferrer";

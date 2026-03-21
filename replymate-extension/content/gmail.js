@@ -66,7 +66,7 @@ const REPLYMATE_CONFIG = {
       generate: "/generate-reply",
       generateStream: "/generate-reply?stream=true"
     },
-    upgradeUrl: (typeof REPLYMATE_UPGRADE_URL !== "undefined" ? REPLYMATE_UPGRADE_URL : "https://replymateai.app/upgrade")
+    upgradeUrl: (typeof REPLYMATE_UPGRADE_URL !== "undefined" ? REPLYMATE_UPGRADE_URL : "https://replymateai.app/pricing")
   },
   // UI configuration
   ui: {

@@ -1,7 +1,7 @@
 /**
- * ReplyMate Upgrade Page - Checkout Integration
+ * ReplyMate Pricing Page - Checkout Integration
  *
- * Add this script to your upgrade page (e.g. replymateai.app/upgrade)
+ * Add this script to your pricing page (e.g. replymateai.app/pricing)
  * along with Supabase and the config below.
  *
  * Two flows land on this page with success:
@@ -16,7 +16,7 @@
  *      window.REPLYMATE_BACKEND = "https://replymate-backend-bot8.onrender.com";
  *      window.REPLYMATE_SUPABASE_URL = "https://cmmoirdihefyswerkkay.supabase.co";
  *      window.REPLYMATE_SUPABASE_ANON = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."; // same as extension
- *      window.REPLYMATE_UPGRADE_URL = "https://replymateai.app/upgrade"; // redirect after sign-in
+ *      window.REPLYMATE_UPGRADE_URL = "https://replymateai.app/pricing"; // return URL after sign-in (localhost only)
  *      window.REPLYMATE_SWITCH_VIA_PORTAL = true; // Switch opens portal; DB updated from webhook (user picks any plan)
  *    </script>
  *    <script src="upgrade-page-checkout.js"></script>
@@ -62,7 +62,7 @@
   async function signInWithGoogle() {
     const isLocalhost = /localhost|127\.0\.0\.1/i.test(window.location.hostname);
     const redirectTo = isLocalhost
-      ? (window.REPLYMATE_UPGRADE_URL || "https://replymateai.app/upgrade")
+      ? (window.REPLYMATE_UPGRADE_URL || "https://replymateai.app/pricing")
       : window.location.href;
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
@@ -108,7 +108,7 @@
       return;
     }
 
-    const upgradeUrl = window.REPLYMATE_UPGRADE_URL || "https://replymateai.app/upgrade";
+    const upgradeUrl = window.REPLYMATE_UPGRADE_URL || "https://replymateai.app/pricing";
     const returnUrl = upgradeUrl + (upgradeUrl.includes("?") ? "&" : "?") + "success=1&switch=1";
 
     const res = await fetch(`${BACKEND}/billing/create-portal-session`, {

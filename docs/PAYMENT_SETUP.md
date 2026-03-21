@@ -1,6 +1,6 @@
 # ReplyMate Payment Setup Guide
 
-This guide explains how to enable payments on your upgrade page (https://replymateai.app/upgrade).
+This guide explains how to enable payments on your pricing page (https://replymateai.app/pricing).
 
 ---
 
@@ -11,7 +11,7 @@ Your `.env` has:
 - `STRIPE_PRICE_PRO_MONTHLY`, `STRIPE_PRICE_PRO_ANNUAL`
 - `STRIPE_PRICE_PRO_PLUS_MONTHLY`, `STRIPE_PRICE_PRO_PLUS_ANNUAL`
 - `STRIPE_WEBHOOK_SECRET`
-- `BILLING_SUCCESS_URL` / `BILLING_CANCEL_URL` → your upgrade page
+- `BILLING_SUCCESS_URL` / `BILLING_CANCEL_URL` → your pricing page (`/pricing`)
 
 ---
 
@@ -28,17 +28,17 @@ Your `.env` has:
 
 1. Go to **Supabase Dashboard** → **Authentication** → **URL Configuration**
 2. Under **Redirect URLs**, add:
-   - `https://replymateai.app/upgrade`
+   - `https://replymateai.app/pricing`
    - `https://replymateai.app/**` (or the exact path)
 3. Set **Site URL** to `https://replymateai.app` (or your main domain)
 
-If localhost is listed and you get "localhost refused to connect" after sign-in, remove localhost or ensure the upgrade page is opened from the production URL.
+If localhost is listed and you get "localhost refused to connect" after sign-in, remove localhost or ensure the pricing page is opened from the production URL.
 
 ---
 
-## 4. Google OAuth for Upgrade Page
+## 4. Google OAuth for Pricing Page
 
-The upgrade page needs Google Sign-In (same Supabase project as the extension).
+The pricing page needs Google Sign-In (same Supabase project as the extension).
 
 1. Go to **Google Cloud Console** → **APIs & Services** → **Credentials**
 2. Open your OAuth 2.0 Client ID (Web application)
@@ -49,14 +49,14 @@ The upgrade page needs Google Sign-In (same Supabase project as the extension).
 
 ---
 
-## 5. Upgrade Page Integration
+## 5. Pricing Page Integration
 
-Your upgrade page must:
+Your pricing page must:
 1. **Sign in** the user with Supabase (Google)
 2. **Call the backend** to create a checkout session
 3. **Redirect** to the Stripe checkout URL
 
-### Add to your upgrade page HTML
+### Add to your pricing page HTML
 
 ```html
 <!-- Before </head> -->
@@ -71,7 +71,7 @@ Your upgrade page must:
 <script src="./upgrade-page-checkout.js"></script>
 ```
 
-Copy `docs/upgrade-page-checkout.js` from this repo into your upgrade page project (e.g. next to `upgrade/index.html` on replymateai.app) and reference it as above.
+Copy `docs/upgrade-page-checkout.js` from this repo into your site project (e.g. next to your pricing route on replymateai.app) and reference it as above.
 
 ### Add data attributes to your buttons
 
@@ -100,7 +100,7 @@ Flow: User clicks → if not logged in, Google sign-in opens → after sign-in, 
 
 ## 6. Quick Option: Open Extension Popup
 
-If you prefer not to add auth to the upgrade page, you can make the buttons open the extension popup instead:
+If you prefer not to add auth to the pricing page, you can make the buttons open the extension popup instead:
 
 ```html
 <!-- Upgrade to Pro - opens extension popup (user must have extension installed) -->
@@ -136,7 +136,7 @@ window.addEventListener("replymate-auth-ready", (e) => {
 
 ## 8. Troubleshooting: Blank Page After Sign-In
 
-If the upgrade page shows only "Cancel subscription" (or blank) after Google sign-in:
+If the pricing page shows only "Cancel subscription" (or blank) after Google sign-in:
 
 1. **Auth timing** – The page may fetch `/billing/me` before Supabase has restored the session from the OAuth hash. Wait for `replymate-auth-ready` before any auth-dependent API calls.
 
@@ -146,7 +146,7 @@ If the upgrade page shows only "Cancel subscription" (or blank) after Google sig
 
 4. **Fallback** – Show pricing by default. If the user is logged in, they can still click Upgrade (which will use the token). Avoid hiding all content until auth resolves.
 
-5. **Supabase redirect URL** – Ensure `https://replymateai.app/upgrade` (and your exact path) is in Supabase → Authentication → URL Configuration → Redirect URLs.
+5. **Supabase redirect URL** – Ensure `https://replymateai.app/pricing` (and your exact path) is in Supabase → Authentication → URL Configuration → Redirect URLs.
 
 ---
 
@@ -154,7 +154,7 @@ If the upgrade page shows only "Cancel subscription" (or blank) after Google sig
 
 If the user clicks "Switch to Pro Annual" but buys Pro+ Monthly in the Customer Portal, and the database shows Pro Annual instead of Pro+ Monthly:
 
-1. **Use the portal for Switch** – Set `window.REPLYMATE_SWITCH_VIA_PORTAL = true` in your upgrade page config. The Switch button must call `POST /billing/create-portal-session` (opens Stripe portal), not `create-checkout-session` with `subscriptionChange: true`. When using `subscriptionChange`, the backend forces the button’s plan before the user sees the portal.
+1. **Use the portal for Switch** – Set `window.REPLYMATE_SWITCH_VIA_PORTAL = true` in your pricing page config. The Switch button must call `POST /billing/create-portal-session` (opens Stripe portal), not `create-checkout-session` with `subscriptionChange: true`. When using `subscriptionChange`, the backend forces the button’s plan before the user sees the portal.
 
 2. **Switch button markup** – Use `data-replymate-switch` so the script uses the portal:
    ```html

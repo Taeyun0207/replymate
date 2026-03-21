@@ -45,7 +45,7 @@ const REPLYMATE_CONFIG = {
   backend: {
     baseUrl: "https://replymate-backend-bot8.onrender.com",
     endpoints: { usage: "/usage", generate: "/generate-reply", generateStream: "/generate-reply?stream=true" },
-    upgradeUrl: (typeof REPLYMATE_UPGRADE_URL !== "undefined" ? REPLYMATE_UPGRADE_URL : "https://replymateai.app/upgrade")
+    upgradeUrl: (typeof REPLYMATE_UPGRADE_URL !== "undefined" ? REPLYMATE_UPGRADE_URL : "https://replymateai.app/pricing")
   },
   ui: {
     colors: { normal: "#7943f1", hover: "#b794f6", loading: "#9aa0a6", error: "#d93025", text: "#ffffff" },

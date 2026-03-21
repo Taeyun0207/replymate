@@ -10,7 +10,7 @@ async function createStripeCheckout(targetPlan, billingType = "annual") {
   const token = await ReplyMateAuthShared.getAccessToken();
   if (!token) {
     console.error("[ReplyMate Background] Not logged in - cannot create checkout");
-    chrome.tabs.create({ url: (self.REPLYMATE_UPGRADE_URL || "https://replymateai.app/upgrade"), active: true });
+    chrome.tabs.create({ url: (self.REPLYMATE_UPGRADE_URL || "https://replymateai.app/pricing"), active: true });
     return false;
   }
 
@@ -53,7 +53,7 @@ async function createStripeCheckout(targetPlan, billingType = "annual") {
     // Fallback to original upgrade page
     console.log("[ReplyMate Background] Falling back to original upgrade page");
     chrome.tabs.create({
-      url: (self.REPLYMATE_UPGRADE_URL || "https://replymateai.app/upgrade"),
+      url: (self.REPLYMATE_UPGRADE_URL || "https://replymateai.app/pricing"),
       active: true
     });
     return false;
@@ -67,7 +67,7 @@ async function createStripeTopupCheckout(pack) {
   const token = await ReplyMateAuthShared.getAccessToken();
   if (!token) {
     console.error("[ReplyMate Background] Not logged in - cannot create top-up checkout");
-    chrome.tabs.create({ url: (self.REPLYMATE_UPGRADE_URL || "https://replymateai.app/upgrade"), active: true });
+    chrome.tabs.create({ url: (self.REPLYMATE_UPGRADE_URL || "https://replymateai.app/pricing"), active: true });
     return false;
   }
 
@@ -95,7 +95,7 @@ async function createStripeTopupCheckout(pack) {
     return true;
   } catch (error) {
     console.error("[ReplyMate Background] Failed to create top-up checkout:", error);
-    chrome.tabs.create({ url: (self.REPLYMATE_UPGRADE_URL || "https://replymateai.app/upgrade"), active: true });
+    chrome.tabs.create({ url: (self.REPLYMATE_UPGRADE_URL || "https://replymateai.app/pricing"), active: true });
     return false;
   }
 }

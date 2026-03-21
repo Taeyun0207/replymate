@@ -103,14 +103,14 @@
 **Implementation:**
 - Popup/content sends `CREATE_STRIPE_CHECKOUT` to background.
 - Background calls `ReplyMateAuthShared.getAccessToken()`.
-- If no token → opens upgrade page directly.
+- If no token → opens pricing page directly.
 - Backend: `requireAuth` on `/billing/create-checkout-session`, `userId` in Stripe metadata.
 
 **Test checklist:**
 - [ ] Logged in, click Upgrade to Pro → Stripe checkout opens
 - [ ] Logged in, click Upgrade to Pro+ → Stripe checkout opens
 - [ ] Logged out: upgrade buttons hidden (no direct test)
-- [ ] If token missing when message received → upgrade page opens
+- [ ] If token missing when message received → pricing page opens
 
 ---
 
