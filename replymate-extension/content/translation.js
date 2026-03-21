@@ -18,8 +18,8 @@
   const TRANSLATION_PANEL_ID = "replymate-translation-panel";
   const TRANSLATION_TOAST_ID = "replymate-translation-toast";
   const BACKEND_BASE = "https://replymate-backend-bot8.onrender.com";
-  /** Per-page (URL) + per-tab-session layout — sessionStorage, not chrome.storage. */
-  const LAYOUT_SESSION_PREFIX = "replymate_translation_layout_1_";
+  /** `chrome.storage.local` key per tab id — survives refresh & Google in-tab navigation; removed when tab closes (see background). */
+  const LAYOUT_TAB_KEY_PREFIX = "replymate_tl_";
   const STORAGE_TARGET_LANG = "replymate_translation_target_lang";
 
   /** Default when nothing valid is stored (new install / cleared). */
@@ -27,6 +27,11 @@
   const PANEL_DEFAULT_HEIGHT = 580;
   const PANEL_MIN_WIDTH = 300;
   const PANEL_MIN_HEIGHT = 260;
+
+  /** Default FAB matches icon placement: 48×48, 24px inset — panel sits above it when no saved position. */
+  const FAB_MARGIN = 24;
+  const FAB_SIZE = 48;
+  const PANEL_DEFAULT_GAP_ABOVE_FAB = 12;
 
   /** Set from loadPanelSizeState — used so we don't persist size before first user resize. */
   let panelUserSized = false;
@@ -433,65 +438,110 @@
     }
   }
 
-  function hashUrlForLayoutKey(s) {
-    let h = 5381;
-    for (let i = 0; i < s.length; i++) {
-      h = ((h << 5) + h) ^ s.charCodeAt(i);
-    }
-    return (h >>> 0).toString(36) + "_" + s.length;
-  }
+  let cachedLayoutStorageKey = null;
+  let layoutScopePromise = null;
 
-  function getLayoutSessionStorageKey() {
-    try {
-      return LAYOUT_SESSION_PREFIX + hashUrlForLayoutKey(String(location.href || ""));
-    } catch {
-      return LAYOUT_SESSION_PREFIX + "0";
-    }
-  }
-
-  function readLayoutFromSession() {
-    try {
-      if (typeof sessionStorage === "undefined") return null;
-      const raw = sessionStorage.getItem(getLayoutSessionStorageKey());
-      if (!raw) return null;
-      const o = JSON.parse(raw);
-      return o && typeof o === "object" ? o : null;
-    } catch {
-      return null;
-    }
-  }
-
-  function writeLayoutToSession(partial) {
-    try {
-      if (typeof sessionStorage === "undefined") return;
-      const key = getLayoutSessionStorageKey();
-      let prev = {};
+  function getLayoutTabIdFromBackground() {
+    return new Promise((resolve) => {
       try {
-        const raw = sessionStorage.getItem(key);
-        if (raw) prev = JSON.parse(raw);
-      } catch { /* ignore */ }
-      if (!prev || typeof prev !== "object") prev = {};
-      const next = { ...prev };
-      if (partial.icon && typeof partial.icon.x === "number" && typeof partial.icon.y === "number") {
-        next.icon = { x: partial.icon.x, y: partial.icon.y };
+        if (typeof chrome === "undefined" || !chrome.runtime?.sendMessage) {
+          resolve(null);
+          return;
+        }
+        chrome.runtime.sendMessage({ type: "REPLYMATE_GET_TAB_ID" }, (r) => {
+          if (chrome.runtime.lastError) {
+            resolve(null);
+            return;
+          }
+          const id = typeof r?.tabId === "number" ? r.tabId : null;
+          resolve(id);
+        });
+      } catch {
+        resolve(null);
       }
-      if (partial.panel && typeof partial.panel.x === "number" && typeof partial.panel.y === "number") {
-        next.panel = { x: partial.panel.x, y: partial.panel.y };
+    });
+  }
+
+  function ensureLayoutTabScope() {
+    if (layoutScopePromise) return layoutScopePromise;
+    layoutScopePromise = (async () => {
+      const id = await getLayoutTabIdFromBackground();
+      cachedLayoutStorageKey = id != null ? LAYOUT_TAB_KEY_PREFIX + id : null;
+    })();
+    return layoutScopePromise;
+  }
+
+  function readLayoutFromStorage() {
+    return ensureLayoutTabScope().then(() => {
+      try {
+        const area = chrome.storage?.local;
+        const key = cachedLayoutStorageKey;
+        if (!area || !key) return Promise.resolve(null);
+        return new Promise((resolve) => {
+          area.get([key], (r) => {
+            if (chrome.runtime.lastError) {
+              resolve(null);
+              return;
+            }
+            const v = r?.[key];
+            if (!v || typeof v !== "object") {
+              resolve(null);
+              return;
+            }
+            resolve(v);
+          });
+        });
+      } catch {
+        return Promise.resolve(null);
       }
-      if (partial.size && typeof partial.size.w === "number" && typeof partial.size.h === "number") {
-        next.size = { w: partial.size.w, h: partial.size.h };
-      }
-      if (typeof partial.userSized === "boolean") next.userSized = partial.userSized;
-      sessionStorage.setItem(key, JSON.stringify(next));
-    } catch { /* ignore */ }
+    });
+  }
+
+  function writeLayoutToStorage(partial) {
+    void ensureLayoutTabScope()
+      .then(() => {
+        const area = chrome.storage?.local;
+        const key = cachedLayoutStorageKey;
+        if (!area || !key) return null;
+        return new Promise((resolve) => {
+          area.get([key], (r) => {
+            if (chrome.runtime.lastError) {
+              resolve(null);
+              return;
+            }
+            let prev = r?.[key];
+            if (!prev || typeof prev !== "object") prev = {};
+            const next = { ...prev };
+            if (partial.icon && typeof partial.icon.x === "number" && typeof partial.icon.y === "number") {
+              next.icon = { x: partial.icon.x, y: partial.icon.y };
+            }
+            if (partial.panel && typeof partial.panel.x === "number" && typeof partial.panel.y === "number") {
+              next.panel = { x: partial.panel.x, y: partial.panel.y };
+            }
+            if (partial.size && typeof partial.size.w === "number" && typeof partial.size.h === "number") {
+              next.size = { w: partial.size.w, h: partial.size.h };
+            }
+            if (typeof partial.userSized === "boolean") next.userSized = partial.userSized;
+            resolve(next);
+          });
+        });
+      })
+      .then((next) => {
+        if (!next) return;
+        const area = chrome.storage?.local;
+        const key = cachedLayoutStorageKey;
+        if (!area || !key) return;
+        area.set({ [key]: next }, () => { /* ignore lastError */ });
+      })
+      .catch(() => {});
   }
 
   function saveIconPosition(x, y) {
-    writeLayoutToSession({ icon: { x, y } });
+    writeLayoutToStorage({ icon: { x, y } });
   }
 
   function savePanelPosition(x, y) {
-    writeLayoutToSession({ panel: { x, y } });
+    writeLayoutToStorage({ panel: { x, y } });
   }
 
   function isValidStoredPos(v) {
@@ -505,25 +555,23 @@
   }
 
   function loadIconPosition(defaultX, defaultY) {
-    return new Promise((resolve) => {
+    return readLayoutFromStorage().then((L) => {
       try {
-        const L = readLayoutFromSession();
         const v = L?.icon;
-        resolve(isValidStoredPos(v) ? { x: v.x, y: v.y } : { x: defaultX, y: defaultY });
+        return isValidStoredPos(v) ? { x: v.x, y: v.y } : { x: defaultX, y: defaultY };
       } catch {
-        resolve({ x: defaultX, y: defaultY });
+        return { x: defaultX, y: defaultY };
       }
     });
   }
 
   function loadPanelPosition(defaultX, defaultY) {
-    return new Promise((resolve) => {
+    return readLayoutFromStorage().then((L) => {
       try {
-        const L = readLayoutFromSession();
         const v = L?.panel;
-        resolve(isValidStoredPos(v) ? { x: v.x, y: v.y } : { x: defaultX, y: defaultY });
+        return isValidStoredPos(v) ? { x: v.x, y: v.y } : { x: defaultX, y: defaultY };
       } catch {
-        resolve({ x: defaultX, y: defaultY });
+        return { x: defaultX, y: defaultY };
       }
     });
   }
@@ -538,6 +586,17 @@
       w: clamp(w, PANEL_MIN_WIDTH, maxW),
       h: clamp(h, PANEL_MIN_HEIGHT, maxH),
     };
+  }
+
+  /** Right-aligned with FAB, stacked above the floating button (first-time default). */
+  function getDefaultPanelAnchorPosition(panelW, panelH) {
+    const { w, h } = clampPanelSize(panelW, panelH);
+    const x = Math.max(0, window.innerWidth - FAB_MARGIN - w);
+    const y = Math.max(
+      0,
+      window.innerHeight - FAB_MARGIN - FAB_SIZE - PANEL_DEFAULT_GAP_ABOVE_FAB - h
+    );
+    return { x, y };
   }
 
   /** When `display: none`, layout size is 0×0 — never treat that as real dimensions. */
@@ -575,22 +634,18 @@
   function savePanelSize(w, h, markUserSized) {
     const c = clampPanelSize(w, h);
     if (markUserSized) panelUserSized = true;
-    writeLayoutToSession({
+    writeLayoutToStorage({
       size: { w: c.w, h: c.h },
       ...(markUserSized ? { userSized: true } : {}),
     });
   }
 
-  /** Load panel size for the current URL in this tab session (sessionStorage). */
+  /** Load panel size from per-tab local storage. */
   function loadPanelSizeState() {
     const fallback = { w: PANEL_DEFAULT_WIDTH, h: PANEL_DEFAULT_HEIGHT, userSized: false };
-    return new Promise((resolve) => {
+    return readLayoutFromStorage().then((L) => {
       try {
-        const L = readLayoutFromSession();
-        if (!L) {
-          resolve(fallback);
-          return;
-        }
+        if (!L) return fallback;
         const v = L.size;
         const flag = L.userSized;
         const rw = v != null ? Number(v.w) : NaN;
@@ -598,17 +653,15 @@
         const ok = v && Number.isFinite(rw) && Number.isFinite(rh) && rw > 0 && rh > 0;
         if (isTruthyUserSizedFlag(flag) && ok) {
           const c = clampPanelSize(rw, rh);
-          resolve({ w: c.w, h: c.h, userSized: true });
-          return;
+          return { w: c.w, h: c.h, userSized: true };
         }
         if (ok) {
           const c = clampPanelSize(rw, rh);
-          resolve({ w: c.w, h: c.h, userSized: !!isTruthyUserSizedFlag(flag) });
-          return;
+          return { w: c.w, h: c.h, userSized: !!isTruthyUserSizedFlag(flag) };
         }
-        resolve(fallback);
+        return fallback;
       } catch {
-        resolve(fallback);
+        return fallback;
       }
     });
   }
@@ -2095,8 +2148,11 @@
     if (document.getElementById(TRANSLATION_ICON_ID)) return;
 
     const panel = createPanel();
-    const savedTheme = await loadTranslationPanelTheme();
-    const usageForTheme = await getCachedUsageFromStorage();
+    const [savedTheme, usageForTheme, enabled] = await Promise.all([
+      loadTranslationPanelTheme(),
+      getCachedUsageFromStorage(),
+      getTranslationEnabled(),
+    ]);
     const effectiveTheme = getEffectiveTranslationPanelTheme(savedTheme, usageForTheme);
 
     const icon = document.createElement("div");
@@ -2123,15 +2179,42 @@
       user-select: none;
     `;
 
-    const defaultIconX = window.innerWidth - 24 - 48;
-    const defaultIconY = window.innerHeight - 24 - 48;
-    const iconPos = await loadIconPosition(defaultIconX, defaultIconY);
+    const defaultIconX = window.innerWidth - FAB_MARGIN - FAB_SIZE;
+    const defaultIconY = window.innerHeight - FAB_MARGIN - FAB_SIZE;
+    const [iconPos, sizeState] = await Promise.all([
+      loadIconPosition(defaultIconX, defaultIconY),
+      loadPanelSizeState(),
+    ]);
     const iconX = clamp(iconPos.x, 0, window.innerWidth - 48);
     const iconY = clamp(iconPos.y, 0, window.innerHeight - 48);
     icon.style.left = iconX + "px";
     icon.style.top = iconY + "px";
     icon.style.right = "auto";
     icon.style.bottom = "auto";
+
+    panelUserSized = sizeState.userSized;
+    const { w: panelSavedW, h: panelSavedH } = clampPanelSize(sizeState.w, sizeState.h);
+    panel.style.width = `${panelSavedW}px`;
+    panel.style.height = `${panelSavedH}px`;
+
+    const defaultPanelAnchor = getDefaultPanelAnchorPosition(panelSavedW, panelSavedH);
+    const panelPos = await loadPanelPosition(defaultPanelAnchor.x, defaultPanelAnchor.y);
+    const panelRect = panel.getBoundingClientRect();
+    const panelW = panelRect.width || panelSavedW;
+    const panelH = panelRect.height || panelSavedH;
+    const panelX = clamp(panelPos.x, 0, window.innerWidth - panelW);
+    const panelY = clamp(panelPos.y, 0, window.innerHeight - panelH);
+    panel.style.left = panelX + "px";
+    panel.style.top = panelY + "px";
+    panel.style.transform = "none";
+
+    applyTranslationPanelTheme(panel, effectiveTheme);
+
+    document.body.appendChild(icon);
+    setIconVisibility(enabled);
+    bindFullscreenHideForTranslationUi();
+    applyTranslationPanelTheme(panel, normalizeTranslationPanelTheme(panel.getAttribute("data-theme")));
+    void updatePanelLabels(panel).catch(() => {});
 
     let iconDidDrag = false;
     icon.addEventListener("pointerdown", () => { iconDidDrag = false; }, { capture: true });
@@ -2144,26 +2227,6 @@
         saveIconPosition(clamp(x, 0, window.innerWidth - 48), clamp(y, 0, window.innerHeight - 48));
       }
     );
-
-    applyTranslationPanelTheme(panel, effectiveTheme);
-
-    const sizeState = await loadPanelSizeState();
-    panelUserSized = sizeState.userSized;
-    const { w: panelSavedW, h: panelSavedH } = clampPanelSize(sizeState.w, sizeState.h);
-    panel.style.width = `${panelSavedW}px`;
-    panel.style.height = `${panelSavedH}px`;
-
-    const defaultPanelX = Math.max(0, (window.innerWidth - panelSavedW) / 2);
-    const defaultPanelY = Math.max(0, (window.innerHeight - panelSavedH) / 2);
-    const panelPos = await loadPanelPosition(defaultPanelX, defaultPanelY);
-    const panelRect = panel.getBoundingClientRect();
-    const panelW = panelRect.width || panelSavedW;
-    const panelH = panelRect.height || panelSavedH;
-    const panelX = clamp(panelPos.x, 0, window.innerWidth - panelW);
-    const panelY = clamp(panelPos.y, 0, window.innerHeight - panelH);
-    panel.style.left = panelX + "px";
-    panel.style.top = panelY + "px";
-    panel.style.transform = "none";
 
     const header = document.getElementById("replymate-translate-header");
     if (header) {
@@ -2221,8 +2284,6 @@
         }
       } catch (e) { /* ignore */ }
     });
-
-    await updatePanelLabels(panel);
 
     icon.addEventListener("click", async (e) => {
       e.stopPropagation();
@@ -2366,12 +2427,6 @@
       showToast(t("copied"), true);
     });
 
-    document.body.appendChild(icon);
-    bindFullscreenHideForTranslationUi();
-    /* Icon wasn't in the document when applyTranslationPanelTheme first ran — sync data-theme now. */
-    applyTranslationPanelTheme(panel, normalizeTranslationPanelTheme(panel.getAttribute("data-theme")));
-    const enabled = await getTranslationEnabled();
-    setIconVisibility(enabled);
   }
 
   // Expose for tests / reuse
@@ -2383,69 +2438,6 @@
     copyToClipboard,
     showToast
   };
-
-  /**
-   * Apply layout for the current URL from this tab’s sessionStorage (also after SPA navigations).
-   */
-  function applyStoredPositions() {
-    loadIconPosition(window.innerWidth - 24 - 48, window.innerHeight - 24 - 48).then((pos) => {
-      const icon = document.getElementById(TRANSLATION_ICON_ID);
-      if (icon) {
-        const x = clamp(pos.x, 0, window.innerWidth - 48);
-        const y = clamp(pos.y, 0, window.innerHeight - 48);
-        icon.style.left = x + "px";
-        icon.style.top = y + "px";
-        icon.style.right = "auto";
-        icon.style.bottom = "auto";
-      }
-    });
-    const defaultPanelCenterX = Math.max(0, (window.innerWidth - PANEL_DEFAULT_WIDTH) / 2);
-    const defaultPanelCenterY = Math.max(0, (window.innerHeight - PANEL_DEFAULT_HEIGHT) / 2);
-    Promise.all([
-      loadPanelSizeState(),
-      loadPanelPosition(defaultPanelCenterX, defaultPanelCenterY),
-    ]).then(([sz, pos]) => {
-      const panel = document.getElementById(TRANSLATION_PANEL_ID);
-      if (!panel) return;
-      panelUserSized = sz.userSized;
-      const { w, h } = clampPanelSize(sz.w, sz.h);
-      panel.style.width = `${w}px`;
-      panel.style.height = `${h}px`;
-      const br = panel.getBoundingClientRect();
-      const pw = br.width > 8 ? br.width : w;
-      const ph = br.height > 8 ? br.height : h;
-      const x = clamp(pos.x, 0, window.innerWidth - pw);
-      const y = clamp(pos.y, 0, window.innerHeight - ph);
-      panel.style.left = `${x}px`;
-      panel.style.top = `${y}px`;
-      panel.style.transform = "none";
-    });
-  }
-
-  /** Gmail/Outlook SPA: URL can change without reload — re-apply per-page session layout. */
-  let lastTranslationLayoutHref = "";
-  function installTranslationLayoutUrlListener() {
-    lastTranslationLayoutHref = location.href;
-    const onUrlChange = () => {
-      if (location.href === lastTranslationLayoutHref) return;
-      lastTranslationLayoutHref = location.href;
-      applyStoredPositions();
-    };
-    const origPush = history.pushState;
-    const origReplace = history.replaceState;
-    history.pushState = function (...args) {
-      const r = origPush.apply(this, args);
-      queueMicrotask(onUrlChange);
-      return r;
-    };
-    history.replaceState = function (...args) {
-      const r = origReplace.apply(this, args);
-      queueMicrotask(onUrlChange);
-      return r;
-    };
-    window.addEventListener("popstate", () => queueMicrotask(onUrlChange));
-    window.addEventListener("hashchange", () => queueMicrotask(onUrlChange));
-  }
 
   // Show/hide icon when ReplyMate Translate is toggled in popup; theme/usage from storage
   if (typeof chrome !== "undefined" && chrome.storage?.onChanged) {
@@ -2475,12 +2467,14 @@
 
   // Initialize when DOM is ready (no artificial delay — FAB should appear quickly)
   function scheduleInit() {
+    const run = () => {
+      void init().catch(() => {});
+    };
     if (document.readyState === "loading") {
-      document.addEventListener("DOMContentLoaded", () => setTimeout(init, 0), { once: true });
+      document.addEventListener("DOMContentLoaded", run, { once: true });
     } else {
-      setTimeout(init, 0);
+      run();
     }
   }
-  installTranslationLayoutUrlListener();
   scheduleInit();
 })();

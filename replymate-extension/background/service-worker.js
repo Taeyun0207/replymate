@@ -128,7 +128,18 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   } else if (message.type === "OPEN_PRICING_PAGE") {
     chrome.tabs.create({ url: (self.REPLYMATE_UPGRADE_URL || "https://replymateai.app/pricing"), active: true });
     sendResponse({ success: true });
+  } else if (message.type === "REPLYMATE_GET_TAB_ID") {
+    const tabId = sender.tab?.id;
+    sendResponse({ tabId: typeof tabId === "number" ? tabId : null });
   }
+});
+
+/** Drop translate FAB layout for a closed tab (must match `LAYOUT_TAB_KEY_PREFIX` in translation.js). */
+const REPLYMATE_LAYOUT_TAB_PREFIX = "replymate_tl_";
+chrome.tabs.onRemoved.addListener((tabId) => {
+  try {
+    chrome.storage.local.remove(REPLYMATE_LAYOUT_TAB_PREFIX + tabId, () => {});
+  } catch (_) { /* ignore */ }
 });
 
 chrome.runtime.onInstalled.addListener(() => {

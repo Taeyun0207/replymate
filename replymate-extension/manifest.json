@@ -65,7 +65,7 @@
         "content/translation-common.js",
         "content/translation.js"
       ],
-      "run_at": "document_idle",
+      "run_at": "document_end",
       "all_frames": true
     },
     {
@@ -90,7 +90,7 @@
         "content/translation-common.js",
         "content/translation.js"
       ],
-      "run_at": "document_idle"
+      "run_at": "document_end"
     }
   ],
   "action": {
