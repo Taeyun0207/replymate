@@ -345,8 +345,19 @@ app.post(
         // status === "active" (or past_due etc): sync period, cancel_at_period_end, plan
         const periodEnd = subscription.current_period_end ?? subscription.items?.data?.[0]?.current_period_end;
         const periodStart = subscription.current_period_start ?? subscription.items?.data?.[0]?.current_period_start;
-        const cancelAtPeriodEnd = !!subscription.cancel_at_period_end;
-        const periodEndAt = periodEnd ? new Date(periodEnd * 1000).toISOString() : null;
+        const cancelAtTs =
+          typeof subscription.cancel_at === "number" && subscription.cancel_at > 0
+            ? subscription.cancel_at
+            : null;
+        // Flexible billing / Customer Portal often sets cancel_at + cancellation_requested while cancel_at_period_end stays false
+        const cancelScheduled =
+          !!subscription.cancel_at_period_end ||
+          subscription.cancellation_details?.reason === "cancellation_requested" ||
+          (cancelAtTs != null && ["active", "past_due", "trialing"].includes(status));
+        const endTsForScheduled =
+          cancelScheduled ? cancelAtTs ?? periodEnd : periodEnd;
+        const periodEndAt =
+          endTsForScheduled != null ? new Date(endTsForScheduled * 1000).toISOString() : null;
         const item = subscription.items?.data?.[0];
         const interval = item?.plan?.interval ?? item?.price?.recurring?.interval;
         const billingInterval = interval === "year" ? "annual" : interval === "month" ? "monthly" : null;
@@ -356,15 +367,16 @@ app.post(
         if (periodEnd && periodStart) {
           const periodStartIso = new Date(periodStart * 1000).toISOString();
           const periodEndIso = new Date(periodEnd * 1000).toISOString();
-          console.log("[Stripe] subscription.updated sync: sub:", subId, "status:", status, "cancelAtPeriodEnd:", cancelAtPeriodEnd, "periodEnd:", periodEndAt, "plan:", plan, "billing:", billingInterval);
-          const updated = await syncPeriodBySubscriptionId(subId, periodStartIso, periodEndIso, cancelAtPeriodEnd, periodEndAt, billingInterval, plan, customerId);
+          console.log("[Stripe] subscription.updated sync: sub:", subId, "status:", status, "cancelScheduled:", cancelScheduled, "cancel_at:", cancelAtTs, "stripe.cancel_at_period_end:", subscription.cancel_at_period_end, "periodEndAt:", periodEndAt, "plan:", plan, "billing:", billingInterval);
+          const updated = await syncPeriodBySubscriptionId(subId, periodStartIso, periodEndIso, cancelScheduled, periodEndAt, billingInterval, plan, customerId);
           if (updated) {
             console.log("[Stripe] DB updated for user:", updated.user_id);
           } else {
             console.warn("[Stripe] subscription.updated: No user found for sub:", subId, "customer:", customerId, "- tried subscription_id and customer_id");
           }
-        } else if (periodEnd && cancelAtPeriodEnd) {
-          const periodEndIso = new Date(periodEnd * 1000).toISOString();
+        } else if (periodEnd && cancelScheduled) {
+          const periodEndIso =
+            cancelAtTs != null ? new Date(cancelAtTs * 1000).toISOString() : new Date(periodEnd * 1000).toISOString();
           console.warn("[Stripe] subscription.updated: Missing periodStart; syncing cancel flags only. sub:", subId, "customer:", customerId);
           const updated = await syncCancelAtPeriodEndBySubscriptionOrCustomer(subId, customerId, true, periodEndIso);
           if (updated) {
