@@ -270,7 +270,7 @@ async function clearUserCancelScheduled(userId) {
   if (error) throw error;
 }
 
-async function syncPeriodBySubscriptionId(subscriptionId, periodStartIso, periodEndIso, cancelAtPeriodEnd = null, periodEndAt = null, billingInterval = null, plan = null) {
+async function syncPeriodBySubscriptionId(subscriptionId, periodStartIso, periodEndIso, cancelAtPeriodEnd = null, periodEndAt = null, billingInterval = null, plan = null, stripeCustomerId = null) {
   const now = new Date().toISOString();
   const updates = {
     billing_cycle_start: periodStartIso,
@@ -285,17 +285,64 @@ async function syncPeriodBySubscriptionId(subscriptionId, periodStartIso, period
   }
   // Reset usage only when the billing period actually changed (renewal, plan switch).
   // Do NOT reset when: cancel_at_period_end only, or reactivation (undo cancel) - same period.
-  const { data: existing } = await supabase
+  let { data: existing } = await supabase
     .from(TABLE_NAME)
     .select("billing_cycle_start")
     .eq("stripe_subscription_id", subscriptionId)
     .maybeSingle();
+  if (!existing && stripeCustomerId) {
+    const byCust = await supabase
+      .from(TABLE_NAME)
+      .select("billing_cycle_start")
+      .eq("stripe_customer_id", stripeCustomerId)
+      .maybeSingle();
+    existing = byCust.data;
+  }
   const periodChanged = !existing || !existing.billing_cycle_start || existing.billing_cycle_start !== periodStartIso;
   if (periodChanged && cancelAtPeriodEnd !== true) {
     updates.used = 0;
     updates.translation_used = 0;
   }
-  const { data, error } = await supabase
+  let { data, error } = await supabase
+    .from(TABLE_NAME)
+    .update(updates)
+    .eq("stripe_subscription_id", subscriptionId)
+    .select("user_id")
+    .maybeSingle();
+  if (error) throw error;
+  if (!data && stripeCustomerId) {
+    const fallback = { ...updates, stripe_subscription_id: subscriptionId };
+    const r2 = await supabase
+      .from(TABLE_NAME)
+      .update(fallback)
+      .eq("stripe_customer_id", stripeCustomerId)
+      .select("user_id")
+      .maybeSingle();
+    if (r2.error) throw r2.error;
+    data = r2.data;
+    if (data) {
+      console.log("[DB] Period synced from Stripe (matched stripe_customer_id; fixed subscription id) user:", data.user_id);
+    }
+  }
+  if (data) {
+    const action = cancelAtPeriodEnd === true ? "cancel scheduled, usage preserved" : periodChanged ? "new period, usage reset" : "same period, usage preserved";
+    console.log("[DB] Period synced from Stripe for user:", data.user_id, "(" + action + ")");
+  }
+  return data;
+}
+
+/**
+ * When Stripe omits current_period_start on subscription.updated, still persist portal cancel flags.
+ * Also retries by stripe_customer_id if stripe_subscription_id does not match the DB row.
+ */
+async function syncCancelAtPeriodEndBySubscriptionOrCustomer(subscriptionId, stripeCustomerId, cancelAtPeriodEnd, periodEndAtIso) {
+  const now = new Date().toISOString();
+  const updates = {
+    cancel_at_period_end: !!cancelAtPeriodEnd,
+    period_end_at: cancelAtPeriodEnd ? periodEndAtIso : null,
+    updated_at: now,
+  };
+  let { data, error } = await supabase
     .from(TABLE_NAME)
     .update(updates)
     .eq("stripe_subscription_id", subscriptionId)
@@ -303,10 +350,17 @@ async function syncPeriodBySubscriptionId(subscriptionId, periodStartIso, period
     .maybeSingle();
   if (error) throw error;
   if (data) {
-    const action = cancelAtPeriodEnd === true ? "cancel scheduled, usage preserved" : periodChanged ? "new period, usage reset" : "same period, usage preserved";
-    console.log("[DB] Period synced from Stripe for user:", data.user_id, "(" + action + ")");
+    console.log("[DB] Cancel flags synced (by subscription) user:", data.user_id);
+    return data;
   }
-  return data;
+  if (!stripeCustomerId) return null;
+  const withSub = { ...updates, stripe_subscription_id: subscriptionId };
+  const r2 = await supabase.from(TABLE_NAME).update(withSub).eq("stripe_customer_id", stripeCustomerId).select("user_id").maybeSingle();
+  if (r2.error) throw r2.error;
+  if (r2.data) {
+    console.log("[DB] Cancel flags synced (by customer) user:", r2.data.user_id);
+  }
+  return r2.data;
 }
 
 async function downgradeUserBySubscriptionId(subscriptionId) {
@@ -481,6 +535,7 @@ module.exports = {
   clearUserCancelScheduled,
   downgradeUserBySubscriptionId,
   syncPeriodBySubscriptionId,
+  syncCancelAtPeriodEndBySubscriptionOrCustomer,
   isStripeEventProcessed,
   recordStripeEventProcessed,
 };

@@ -4,7 +4,7 @@ require("dotenv").config();
 const OpenAI = require("openai");
 const { createClient } = require("@supabase/supabase-js");
 const { PLAN_LIMITS } = require("./src/config/plans");
-const { getUser, updateUserPlan, recordUsage, checkTranslationLimit, recordTranslationUsage, testConnection, updateUserCancelScheduled, clearUserCancelScheduled, downgradeUserBySubscriptionId, syncPeriodBySubscriptionId, isStripeEventProcessed, recordStripeEventProcessed } = require("./src/database");
+const { getUser, updateUserPlan, recordUsage, checkTranslationLimit, recordTranslationUsage, testConnection, updateUserCancelScheduled, clearUserCancelScheduled, downgradeUserBySubscriptionId, syncPeriodBySubscriptionId, syncCancelAtPeriodEndBySubscriptionOrCustomer, isStripeEventProcessed, recordStripeEventProcessed } = require("./src/database");
 const { getTotalTopupRemaining, createTopup } = require("./src/topup");
 const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 
@@ -357,11 +357,20 @@ app.post(
           const periodStartIso = new Date(periodStart * 1000).toISOString();
           const periodEndIso = new Date(periodEnd * 1000).toISOString();
           console.log("[Stripe] subscription.updated sync: sub:", subId, "status:", status, "cancelAtPeriodEnd:", cancelAtPeriodEnd, "periodEnd:", periodEndAt, "plan:", plan, "billing:", billingInterval);
-          const updated = await syncPeriodBySubscriptionId(subId, periodStartIso, periodEndIso, cancelAtPeriodEnd, periodEndAt, billingInterval, plan);
+          const updated = await syncPeriodBySubscriptionId(subId, periodStartIso, periodEndIso, cancelAtPeriodEnd, periodEndAt, billingInterval, plan, customerId);
           if (updated) {
             console.log("[Stripe] DB updated for user:", updated.user_id);
           } else {
-            console.warn("[Stripe] subscription.updated: No user found for sub:", subId, "customer:", customerId, "- lookup by stripe_subscription_id failed");
+            console.warn("[Stripe] subscription.updated: No user found for sub:", subId, "customer:", customerId, "- tried subscription_id and customer_id");
+          }
+        } else if (periodEnd && cancelAtPeriodEnd) {
+          const periodEndIso = new Date(periodEnd * 1000).toISOString();
+          console.warn("[Stripe] subscription.updated: Missing periodStart; syncing cancel flags only. sub:", subId, "customer:", customerId);
+          const updated = await syncCancelAtPeriodEndBySubscriptionOrCustomer(subId, customerId, true, periodEndIso);
+          if (updated) {
+            console.log("[Stripe] DB cancel flags updated for user:", updated.user_id);
+          } else {
+            console.warn("[Stripe] subscription.updated: Cancel-only sync found no user. sub:", subId, "customer:", customerId);
           }
         } else {
           console.warn("[Stripe] subscription.updated: Missing periodEnd or periodStart, skipping sync. sub:", subId, "periodEnd:", periodEnd, "periodStart:", periodStart);
