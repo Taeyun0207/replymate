@@ -156,6 +156,7 @@ async function checkUsageLimit(userId) {
     cancelScheduled: !!usage.cancelAtPeriodEnd,
     periodEndDate: usage.periodEndAt || null,
     nextResetAt: usage.nextResetAt || null,
+    translationUsedThisPeriod: usage.translationUsedThisPeriod ?? 0,
   };
 }
 

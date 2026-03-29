@@ -41,6 +41,7 @@ function toRow(obj) {
     updatedAt: obj.updated_at ?? obj.updatedAt,
     translationUsed: obj.translation_used ?? 0,
     translationResetAt: obj.translation_reset_at ?? null,
+    translationUsedThisPeriod: obj.translation_used_this_period ?? 0,
   };
 }
 
@@ -93,6 +94,7 @@ async function getUser(userId) {
           used: 0,
           billing_cycle_start: newCycleStart,
           next_reset_at: nextReset,
+          translation_used_this_period: 0,
           updated_at: now,
         })
         .eq("user_id", userId)
@@ -156,6 +158,7 @@ async function updateUserPlan(
     used: 0,
     billing_cycle_start: billingCycleStart,
     next_reset_at: nextReset,
+    translation_used_this_period: 0,
     stripe_customer_id: stripeCustomerId ?? existingUser.stripeCustomerId,
     stripe_subscription_id: stripeSubscriptionId ?? existingUser.stripeSubscriptionId,
     cancel_at_period_end: false,
@@ -302,6 +305,7 @@ async function syncPeriodBySubscriptionId(subscriptionId, periodStartIso, period
   if (periodChanged && cancelAtPeriodEnd !== true) {
     updates.used = 0;
     updates.translation_used = 0;
+    updates.translation_used_this_period = 0;
   }
   let { data, error } = await supabase
     .from(TABLE_NAME)
@@ -373,6 +377,7 @@ async function downgradeUserBySubscriptionId(subscriptionId) {
       used: 0,
       translation_used: 0,
       translation_reset_at: null,
+      translation_used_this_period: 0,
       billing_cycle_start: now,
       next_reset_at: nextReset,
       stripe_subscription_id: null,
@@ -478,23 +483,39 @@ async function checkTranslationLimit(userId) {
 
 /**
  * Consume one translation for the user. Call only after successful translation.
+ * Increments translation_used_this_period (resets with reply quota — see getUser / Stripe period sync).
  */
 async function recordTranslationUsage(userId) {
+  await getUser(userId);
+
   const { getTranslationLimit, getTranslationResetType } = require("./config/plans");
 
   const { data: row, error: fetchErr } = await supabase
     .from(TABLE_NAME)
-    .select("plan, translation_used, translation_reset_at, next_reset_at")
+    .select("plan, translation_used, translation_reset_at, next_reset_at, translation_used_this_period")
     .eq("user_id", userId)
     .single();
 
   if (fetchErr || !row) throw fetchErr || new Error("User not found");
 
+  const now = new Date();
+  const nowIso = now.toISOString();
+  const periodCount = (row.translation_used_this_period ?? 0) + 1;
+
   const plan = row.plan ?? "free";
   const limit = getTranslationLimit(plan);
-  if (limit === null) return;
+  if (limit === null) {
+    const { error: updateErr } = await supabase
+      .from(TABLE_NAME)
+      .update({
+        translation_used_this_period: periodCount,
+        updated_at: nowIso,
+      })
+      .eq("user_id", userId);
+    if (updateErr) throw updateErr;
+    return;
+  }
 
-  const now = new Date();
   const nowMs = now.getTime();
   let translationUsed = row.translation_used ?? 0;
   let translationResetAt = row.translation_reset_at;
@@ -516,7 +537,8 @@ async function recordTranslationUsage(userId) {
     .update({
       translation_used: translationUsed + 1,
       translation_reset_at: translationResetAt,
-      updated_at: now.toISOString(),
+      translation_used_this_period: periodCount,
+      updated_at: nowIso,
     })
     .eq("user_id", userId);
 

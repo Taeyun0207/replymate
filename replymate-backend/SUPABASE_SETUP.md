@@ -80,6 +80,14 @@ ALTER TABLE public.users ADD COLUMN IF NOT EXISTS translation_used INTEGER DEFAU
 ALTER TABLE public.users ADD COLUMN IF NOT EXISTS translation_reset_at TIMESTAMPTZ;
 ```
 
+### Translation count per reply-billing period (analytics)
+
+Tracks how many translations the user has done in the **current reply quota period** (same rollover as `used` / `next_reset_at`: `getUser` reset, Stripe period change, plan upgrade, or downgrade). Not used for daily translation limits (`translation_used` / `translation_reset_at`).
+
+```sql
+ALTER TABLE public.users ADD COLUMN IF NOT EXISTS translation_used_this_period INTEGER NOT NULL DEFAULT 0;
+```
+
 ## 2c. Top-up credits table (optional)
 
 For one-time reply packs (100 / 500 replies). One row per user; expiry extends to 1 year from each purchase.
