@@ -462,7 +462,7 @@ app.post("/translate", requireAuth, async (req, res) => {
     if (!usageCheck.allowed) {
       return res.status(403).json({
         error: "translation_limit_reached",
-        message: "Daily translation limit reached. Upgrade to Pro for unlimited translations.",
+        message: "Daily translation limit reached. Upgrade your plan for more usage.",
       });
     }
 
@@ -512,7 +512,7 @@ app.post("/translate-stream", requireAuth, async (req, res) => {
     if (!usageCheck.allowed) {
       return res.status(403).json({
         error: "translation_limit_reached",
-        message: "Daily translation limit reached. Upgrade to Pro for unlimited translations.",
+        message: "Daily translation limit reached. Upgrade your plan for more usage.",
       });
     }
 

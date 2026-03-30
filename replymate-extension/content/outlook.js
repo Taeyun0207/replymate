@@ -75,14 +75,14 @@ const TRANSLATIONS = {
     unexpectedResponseFormat: "Unexpected response format.",
     unableToExtractContent: "Unable to extract email content. Please try refreshing the page.",
     extensionContextInvalidated: "ReplyMate was updated. Please refresh this page to continue.",
-    translateLatestMessage: "Translate latest email", translateReply: "Translate my reply", translateManual: "Translate",
-    translateInputPlaceholder: "Paste text to translate...", noReplyFound: "No reply found. Generate a reply first.",
+    translateLatestMessage: "Translate latest email", translateReply: "Translate my reply", translateManual: "Translate", translateClear: "Clear",
+    translateInputPlaceholder: "Paste or type text to translate...", noReplyFound: "No reply found. Generate a reply first.",
     noMessageFound: "No message found in this thread.", translatePanelTitle: "ReplyMate Translate",
     translateCycleTheme: "Cycle theme (saved for this panel only)",
-    translatePasteLabel: "Paste text to translate", translateResultLabel: "Result", translateToLabel: "Translate to",
+    translatePasteLabel: "Paste or type text to translate", translateResultLabel: "Result", translateToLabel: "Translate to",
     systemLanguage: "System Language", translating: "Translating...", contentSame: "Same content.\nNo translation needed.",
     alreadyInYourLanguage: "Already in your selected language", translateCopy: "Copy",
-    translateClose: "Close", translateError: "Translation failed: ", translateLimitReached: "You've reached your daily translation limit.",
+    translateClose: "Close", translateError: "Translation failed: ", translateLimitReached: "Daily limit reached. Upgrade below for more translations.",
     noTextToTranslate: "Please paste or enter text to translate.", nothingToCopy: "Nothing to copy. Translate something first.", copied: "Copied!",
     colorThemeProOnly:
       "Color themes are a Pro feature. Upgrade to Pro or Pro+ to unlock custom looks—in settings, the translation panel, and AI Reply buttons.",
@@ -92,7 +92,6 @@ const TRANSLATIONS = {
     signInToSeeUsage: "Sign in to use",
     translationsToday: "translations today",
     translationUsageDaily: "{remaining} / {limit} left today",
-    translationViewPlansCta: "View plans",
     unlimitedTranslations: "Unlimited translations",
   },
   korean: {
@@ -103,12 +102,13 @@ const TRANSLATIONS = {
     instructionPlaceholder: "추가 정보 입력 (선택 사항)", upgradeToPro: "Pro로 업그레이드", upgradeToProPlus: "Pro+로 업그레이드",
     manageSubscription: "구독 관리", unableToExtractContent: "이메일 내용을 추출할 수 없습니다.",
     noReplyFound: "답장이 없습니다.", noMessageFound: "이 메일에서 내용을 찾을 수 없습니다.",
-    translateLatestMessage: "최근 메일 번역", translateReply: "내 답장 번역", translateManual: "번역",
+    translateLatestMessage: "최근 메일 번역", translateReply: "내 답장 번역", translateManual: "번역", translateClear: "지우기",
+    translateInputPlaceholder: "번역할 텍스트를 붙여넣거나 입력하세요...",
     translatePanelTitle: "ReplyMate 번역", translateCycleTheme: "색 테마 (이 패널에만 저장)",
-    translatePasteLabel: "번역할 텍스트 붙여넣기", translateResultLabel: "번역 결과",
+    translatePasteLabel: "번역할 텍스트 붙여넣기 또는 입력", translateResultLabel: "번역 결과",
     translateToLabel: "번역 대상 언어", systemLanguage: "시스템 언어", translating: "번역 중...", contentSame: "동일한 내용입니다.",
     alreadyInYourLanguage: "선택한 언어와 같습니다", translateCopy: "복사",
-    translateClose: "닫기", translateError: "번역 실패: ", translateLimitReached: "오늘의 번역 한도를 모두 사용했습니다.",
+    translateClose: "닫기", translateError: "번역 실패: ", translateLimitReached: "오늘 한도에 도달했습니다. 아래에서 업그레이드하면 더 사용할 수 있어요.",
     noTextToTranslate: "번역할 텍스트를 붙여넣거나 입력해 주세요.", nothingToCopy: "복사할 내용이 없습니다. 먼저 번역해 주세요.", copied: "복사됨!",
     colorThemeProOnly:
       "색 테마는 Pro 전용 기능입니다. Pro 또는 Pro+로 업그레이드하면 설정, 번역 패널, AI 답장 버튼 등에서 맞춤 색상을 사용할 수 있습니다.",
@@ -118,7 +118,6 @@ const TRANSLATIONS = {
     signInToSeeUsage: "로그인하여 사용",
     translationsToday: "오늘 번역",
     translationUsageDaily: "오늘 {remaining} / {limit}회 남음",
-    translationViewPlansCta: "요금제 보기",
     unlimitedTranslations: "무제한 번역",
   },
   japanese: {
@@ -129,12 +128,13 @@ const TRANSLATIONS = {
     instructionPlaceholder: "追加情報（任意）", upgradeToPro: "Proにアップグレード", upgradeToProPlus: "Pro+にアップグレード",
     manageSubscription: "サブスクリプション管理", unableToExtractContent: "メールの内容を取得できません。",
     noReplyFound: "返信が見つかりません。", noMessageFound: "このメールに内容がありません。",
-    translateLatestMessage: "直近のメールを翻訳", translateReply: "返信を翻訳", translateManual: "翻訳",
+    translateLatestMessage: "直近のメールを翻訳", translateReply: "返信を翻訳", translateManual: "翻訳", translateClear: "クリア",
+    translateInputPlaceholder: "翻訳するテキストを貼り付けまたは入力...",
     translatePanelTitle: "ReplyMate 翻訳", translateCycleTheme: "テーマを切り替え（このパネルに保存）",
-    translatePasteLabel: "翻訳するテキストを貼り付け", translateResultLabel: "翻訳結果",
+    translatePasteLabel: "翻訳するテキストを貼り付けまたは入力", translateResultLabel: "翻訳結果",
     translateToLabel: "翻訳先", systemLanguage: "システム言語", translating: "翻訳中...", contentSame: "同じ内容です。",
     alreadyInYourLanguage: "選択した言語と同じです", translateCopy: "コピー",
-    translateClose: "閉じる", translateError: "翻訳に失敗しました: ", translateLimitReached: "本日の翻訳上限に達しました。",
+    translateClose: "閉じる", translateError: "翻訳に失敗しました: ", translateLimitReached: "本日の上限に達しました。下からプランをアップグレードすると続けて使えます。",
     noTextToTranslate: "翻訳するテキストを貼り付けるか入力してください。", nothingToCopy: "コピーする内容がありません。先に翻訳してください。", copied: "コピーしました！",
     colorThemeProOnly:
       "カラーテーマはPro向けの機能です。ProまたはPro+にアップグレードすると、設定・翻訳パネル・AI返信ボタンなどでカスタム配色が使えます。",
@@ -144,7 +144,6 @@ const TRANSLATIONS = {
     signInToSeeUsage: "ログインしてご利用ください",
     translationsToday: "本日の翻訳",
     translationUsageDaily: "本日 残り {remaining} / {limit} 回",
-    translationViewPlansCta: "料金・プラン",
     unlimitedTranslations: "無制限",
   },
   spanish: {
@@ -155,12 +154,13 @@ const TRANSLATIONS = {
     instructionPlaceholder: "Detalles adicionales (opcional)", upgradeToPro: "Actualizar a Pro", upgradeToProPlus: "Actualizar a Pro+",
     manageSubscription: "Gestionar suscripción", unableToExtractContent: "No se puede extraer el contenido del correo.",
     noReplyFound: "No hay respuesta.", noMessageFound: "No hay contenido en este correo.",
-    translateLatestMessage: "Traducir último correo", translateReply: "Traducir mi respuesta", translateManual: "Traducir",
+    translateLatestMessage: "Traducir último correo", translateReply: "Traducir mi respuesta", translateManual: "Traducir", translateClear: "Borrar",
+    translateInputPlaceholder: "Pega o escribe el texto a traducir...",
     translatePanelTitle: "ReplyMate Traducir", translateCycleTheme: "Cambiar tema (solo guardado en este panel)",
-    translatePasteLabel: "Pega texto para traducir", translateResultLabel: "Resultado",
+    translatePasteLabel: "Pega o escribe el texto a traducir", translateResultLabel: "Resultado",
     translateToLabel: "Traducir a", systemLanguage: "Idioma del sistema", translating: "Traduciendo...", contentSame: "Mismo contenido.",
     alreadyInYourLanguage: "Ya está en tu idioma seleccionado", translateCopy: "Copiar",
-    translateClose: "Cerrar", translateError: "Error de traducción: ", translateLimitReached: "Has alcanzado el límite diario de traducción.",
+    translateClose: "Cerrar", translateError: "Error de traducción: ", translateLimitReached: "Has alcanzado el límite diario. Mejora tu plan abajo para seguir traduciendo.",
     noTextToTranslate: "Pega o escribe texto para traducir.", nothingToCopy: "Nada que copiar. Traduce algo primero.", copied: "¡Copiado!",
     colorThemeProOnly:
       "Los temas de color son una función Pro. Mejora a Pro o Pro+ para desbloquear apariencias personalizadas en ajustes, el panel de traducción y los botones de respuesta con IA.",
@@ -170,7 +170,6 @@ const TRANSLATIONS = {
     signInToSeeUsage: "Inicia sesión para usar",
     translationsToday: "traducciones hoy",
     translationUsageDaily: "Quedan {remaining} / {limit} hoy",
-    translationViewPlansCta: "Ver planes",
     unlimitedTranslations: "Traducciones ilimitadas",
   }
 };
@@ -330,8 +329,24 @@ function formatUsageDisplay(plan, remaining, limit, language) {
 async function updateUsageDisplayFromData(usageData) {
   if (!usageData) return;
   const language = await getCurrentLanguage();
-  const display = formatUsageDisplay(usageData.plan || "free", usageData.remaining ?? 0, usageData.limit ?? 0, language);
+  const { plan, remaining, limit } = usageData;
+  const display = formatUsageDisplay(plan || "free", remaining ?? 0, limit ?? 0, language);
   document.querySelectorAll(".replymate-usage-display").forEach((el) => { el.textContent = display; });
+
+  document.querySelectorAll(".replymate-upgrade-container").forEach((container) => {
+    if (!container) return;
+    container.innerHTML = "";
+    if (remaining === 0) {
+      container.style.display = "flex";
+      container.appendChild(createManageSubscriptionLink(language));
+    } else {
+      container.style.display = "none";
+    }
+  });
+
+  try {
+    chrome.runtime.sendMessage({ type: "USAGE_UPDATED", data: usageData });
+  } catch (_) { /* ignore */ }
 }
 
 async function updateUsageDisplay(usageDisplay) {
@@ -358,6 +373,21 @@ async function refreshReplyMateOutlookUIAfterAuth() {
       document.querySelectorAll(".replymate-usage-display").forEach((el) => {
         el.textContent = formatUsageDisplay("free", 0, 0, language);
       });
+    }
+    const loggedIn = await isLoggedIn();
+    for (const upgradeContainer of document.querySelectorAll(".replymate-upgrade-container")) {
+      upgradeContainer.innerHTML = "";
+      upgradeContainer.style.display = "flex";
+      if (!loggedIn) {
+        upgradeContainer.style.display = "none";
+        continue;
+      }
+      const ud = await getUsageData();
+      if (ud && ud.remaining === 0) {
+        upgradeContainer.appendChild(createManageSubscriptionLink(language));
+      } else {
+        upgradeContainer.style.display = "none";
+      }
     }
   } catch (_) {}
 }
@@ -711,6 +741,45 @@ function findEditorForButton(button) {
   return editor || null;
 }
 
+/** Same gold Manage Subscription control as Gmail (lighter hover). */
+function createManageSubscriptionLink(language) {
+  const link = document.createElement("a");
+  link.className = "replymate-upgrade-link";
+  link.href = REPLYMATE_CONFIG.backend.upgradeUrl;
+  link.target = "_blank";
+  link.rel = "noopener noreferrer";
+  link.textContent = getTranslation("manageSubscription", language);
+  link.style.fontSize = "10px";
+  link.style.textDecoration = "none";
+  link.style.display = "inline-block";
+  link.style.padding = "3px 6px";
+  link.style.border = "1px solid #FFFF99";
+  link.style.borderRadius = "3px";
+  link.style.background = "linear-gradient(135deg, #FFD700 0%, #FFD700 50%, #FFFF99 100%)";
+  link.style.color = "#2C1810";
+  link.style.textAlign = "center";
+  link.style.fontWeight = "600";
+  link.style.boxShadow = "0 2px 4px rgba(212, 175, 55, 0.3)";
+  link.style.transition = "all 0.2s ease";
+  link.style.whiteSpace = "nowrap";
+  link.style.lineHeight = "1.2";
+  link.addEventListener("mouseenter", () => {
+    link.style.background = "linear-gradient(135deg, #FFD700 0%, #FFD700 50%, #FFED4E 100%)";
+    link.style.boxShadow = "0 4px 8px rgba(212, 175, 55, 0.4)";
+    link.style.transform = "translateY(-1px)";
+  });
+  link.addEventListener("mouseleave", () => {
+    link.style.background = "linear-gradient(135deg, #FFD700 0%, #FFD700 50%, #FFFF99 100%)";
+    link.style.boxShadow = "0 2px 4px rgba(212, 175, 55, 0.3)";
+    link.style.transform = "translateY(0)";
+  });
+  link.addEventListener("click", (e) => {
+    e.stopPropagation();
+    window.open(REPLYMATE_CONFIG.backend.upgradeUrl, "_blank");
+  });
+  return link;
+}
+
 // --- Create ReplyMate button and inject ---
 
 async function createReplyMateButton() {
@@ -861,6 +930,32 @@ async function createReplyMateButton() {
       usageDisplay.textContent = formatUsageDisplay("free", 0, 0, await getCurrentLanguage());
     }
   })();
+
+  const upgradeContainer = document.createElement("div");
+  upgradeContainer.className = "replymate-upgrade-container";
+  upgradeContainer.style.marginTop = "6px";
+  upgradeContainer.style.display = "flex";
+  upgradeContainer.style.gap = "8px";
+  upgradeContainer.style.alignItems = "center";
+  (async () => {
+    try {
+      if (!(await isLoggedIn())) {
+        upgradeContainer.style.display = "none";
+        return;
+      }
+      const usageData = await getUsageData();
+      if (usageData && usageData.remaining === 0) {
+        const lang = await getCurrentLanguage();
+        upgradeContainer.appendChild(createManageSubscriptionLink(lang));
+      } else {
+        upgradeContainer.style.display = "none";
+      }
+    } catch (e) {
+      console.error("[ReplyMate Outlook] Failed to load usage for upgrade UI:", e);
+      upgradeContainer.style.display = "none";
+    }
+  })();
+  container.appendChild(upgradeContainer);
 
   return container;
 }

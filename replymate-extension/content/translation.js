@@ -1576,6 +1576,54 @@
         outline: 2px solid rgba(255, 255, 255, 0.85);
         outline-offset: 2px;
       }
+      #replymate-translation-panel .replymate-translate-actions {
+        display: flex;
+        flex-direction: row;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+        margin-top: 6px;
+      }
+      #replymate-translation-panel .replymate-translate-clear {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 36px;
+        height: 32px;
+        padding: 0;
+        flex-shrink: 0;
+        background: var(--tp-copy-bg);
+        color: var(--tp-copy-text);
+        border: 1px solid var(--tp-copy-border, var(--tp-border));
+        border-radius: 6px;
+        cursor: pointer;
+        font-family: inherit;
+        transition: background 0.2s, border-color 0.2s, box-shadow 0.2s, color 0.18s ease;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+      }
+      #replymate-translation-panel .replymate-translate-clear .replymate-translate-clear-icon {
+        width: 18px;
+        height: 18px;
+        display: block;
+        pointer-events: none;
+      }
+      #replymate-translation-panel .replymate-translate-clear .replymate-translate-clear-icon path {
+        fill: currentColor;
+      }
+      #replymate-translation-panel .replymate-translate-clear:hover {
+        background: var(--tp-copy-hover);
+        border-color: var(--tp-border);
+        color: var(--tp-error);
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+      }
+      #replymate-translation-panel .replymate-translate-clear:disabled {
+        opacity: 0.55;
+        cursor: not-allowed;
+      }
+      #replymate-translation-panel .replymate-translate-clear:focus-visible {
+        outline: 2px solid var(--tp-primary);
+        outline-offset: 2px;
+      }
       #replymate-translation-panel .replymate-translate-copy {
         padding: 6px 12px;
         background: var(--tp-copy-bg);
@@ -1594,11 +1642,15 @@
         box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
       }
       #replymate-translation-panel[data-theme="dark"] .replymate-translate-copy,
-      #replymate-translation-panel[data-theme="basic-dark"] .replymate-translate-copy {
+      #replymate-translation-panel[data-theme="basic-dark"] .replymate-translate-copy,
+      #replymate-translation-panel[data-theme="dark"] .replymate-translate-clear,
+      #replymate-translation-panel[data-theme="basic-dark"] .replymate-translate-clear {
         box-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
       }
       #replymate-translation-panel[data-theme="dark"] .replymate-translate-copy:hover,
-      #replymate-translation-panel[data-theme="basic-dark"] .replymate-translate-copy:hover {
+      #replymate-translation-panel[data-theme="basic-dark"] .replymate-translate-copy:hover,
+      #replymate-translation-panel[data-theme="dark"] .replymate-translate-clear:hover,
+      #replymate-translation-panel[data-theme="basic-dark"] .replymate-translate-clear:hover {
         box-shadow: 0 2px 4px rgba(0, 0, 0, 0.55);
       }
       #replymate-translation-panel .replymate-translate-copy:active {
@@ -1619,7 +1671,7 @@
         justify-content: flex-end;
         gap: 8px;
       }
-      /* Same gold CTA as popup Manage Subscription (.upgrade-link.upgrade-pro-plus) */
+      /* Gold CTA: lighter hover (same as Gmail reply bar); popup uses darker gold hover */
       #replymate-translation-panel .replymate-translate-pricing-cta {
         display: inline-flex;
         align-items: center;
@@ -1637,26 +1689,20 @@
         color: #2c1810 !important;
         box-shadow: 0 2px 4px rgba(212, 175, 55, 0.3);
         white-space: nowrap;
-        transition: background 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+        transition: all 0.2s ease;
       }
       #replymate-translation-panel .replymate-translate-pricing-cta:hover {
-        background: linear-gradient(135deg, #ffd700 0%, #b8860b 50%, #8b6914 100%) !important;
+        background: linear-gradient(135deg, #ffd700 0%, #ffd700 50%, #ffed4e 100%) !important;
         color: #2c1810 !important;
         box-shadow: 0 4px 8px rgba(212, 175, 55, 0.4);
         transform: translateY(-1px);
       }
       #replymate-translation-panel .replymate-translate-pricing-cta:focus-visible {
-        outline: 2px solid #8b6914;
+        outline: 2px solid #c9a227;
         outline-offset: 2px;
       }
       #replymate-translation-panel .replymate-translate-pricing-cta[hidden] {
         display: none !important;
-      }
-      #replymate-translate-result .replymate-translate-pricing-cta--in-result {
-        width: 100%;
-        padding: 8px 12px;
-        font-size: 12px;
-        box-sizing: border-box;
       }
       #replymate-translate-close:hover { background:rgba(255,255,255,0.4) !important; }
       #replymate-translate-close:focus-visible { outline:2px solid rgba(255,255,255,0.8);outline-offset:2px; }
@@ -1754,9 +1800,16 @@
             </select>
           </div>
           <div style="flex-shrink:0;">
-            <label id="replymate-translate-paste-label" style="font-size:11px;margin-bottom:3px;display:block;">Paste text to translate</label>
-            <textarea id="replymate-translate-input" placeholder="Paste text to translate..." rows="5" style="width:100%;min-height:112px;padding:10px;border:1px solid;border-radius:6px;font-size:13px;box-sizing:border-box;resize:vertical;font-family:inherit;"></textarea>
-            <button id="replymate-translate-manual" class="replymate-translate-manual" style="margin-top:6px;">Translate</button>
+            <label id="replymate-translate-paste-label" style="font-size:11px;margin-bottom:3px;display:block;">Paste or type text to translate</label>
+            <textarea id="replymate-translate-input" placeholder="Paste or type text to translate..." rows="5" style="width:100%;min-height:112px;padding:10px;border:1px solid;border-radius:6px;font-size:13px;box-sizing:border-box;resize:vertical;font-family:inherit;"></textarea>
+            <div class="replymate-translate-actions">
+              <button type="button" id="replymate-translate-manual" class="replymate-translate-manual">Translate</button>
+              <button type="button" id="replymate-translate-clear" class="replymate-translate-clear" aria-label="Clear" title="Clear">
+                <svg class="replymate-translate-clear-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M6 7v12a2 2 0 002 2h8a2 2 0 002-2V7H6zm3 2h2v9H9V9zm4 0h2v9h-2V9zm5-4h-3.5l-1-1h-5l-1 1H5v2h14V5z"/>
+                </svg>
+              </button>
+            </div>
           </div>
           <div class="replymate-translate-result-section">
             <label id="replymate-translate-result-label" style="font-size:11px;margin-bottom:3px;display:block;flex-shrink:0;">Result</label>
@@ -1766,7 +1819,7 @@
         <div id="replymate-translate-footer">
           <button id="replymate-translate-copy" class="replymate-translate-copy">Copy</button>
           <div id="replymate-translate-usage-wrap">
-            <button type="button" id="replymate-translate-pricing-cta" class="replymate-translate-pricing-cta" hidden>View plans</button>
+            <button type="button" id="replymate-translate-pricing-cta" class="replymate-translate-pricing-cta" hidden>Manage Subscription</button>
             <span id="replymate-translate-usage" style="font-size:11px;"></span>
           </div>
       </div>
@@ -1847,7 +1900,7 @@
     }
     const pricingCta = panel && panel.querySelector("#replymate-translate-pricing-cta");
     if (pricingCta) {
-      pricingCta.textContent = t("translationViewPlansCta");
+      pricingCta.textContent = t("manageSubscription");
       let showPricing = false;
       if (usage && usage.translationLimit != null) {
         let rem = usage.translationRemaining;
@@ -1920,6 +1973,7 @@
       latest: document.getElementById("replymate-translate-latest"),
       reply: document.getElementById("replymate-translate-reply"),
       manual: document.getElementById("replymate-translate-manual"),
+      clear: document.getElementById("replymate-translate-clear"),
       input: document.getElementById("replymate-translate-input"),
       copy: document.getElementById("replymate-translate-copy"),
       close: document.getElementById("replymate-translate-close")
@@ -1928,6 +1982,11 @@
     if (els.latest) els.latest.textContent = t("translateLatestMessage");
     if (els.reply) els.reply.textContent = t("translateReply");
     if (els.manual) els.manual.textContent = t("translateManual");
+    if (els.clear) {
+      const clearLabel = t("translateClear");
+      els.clear.setAttribute("aria-label", clearLabel);
+      els.clear.title = clearLabel;
+    }
     if (els.input) els.input.placeholder = t("translateInputPlaceholder");
     if (els.copy) els.copy.textContent = t("translateCopy");
     if (els.close) els.close.title = t("translateClose");
@@ -1963,26 +2022,24 @@
     el.innerHTML = "";
     const wrap = document.createElement("div");
     wrap.style.display = "flex";
-    wrap.style.flexDirection = "column";
-    wrap.style.gap = "10px";
-    wrap.style.alignItems = "stretch";
+    wrap.style.flexDirection = "row";
+    wrap.style.gap = "8px";
+    wrap.style.alignItems = "flex-start";
+    const icon = document.createElement("span");
+    icon.setAttribute("aria-hidden", "true");
+    icon.textContent = "\u26A0\uFE0F";
+    icon.style.flexShrink = "0";
+    icon.style.lineHeight = "1.45";
     const msg = document.createElement("p");
     msg.style.margin = "0";
     msg.style.lineHeight = "1.45";
     msg.style.whiteSpace = "pre-wrap";
     msg.style.wordBreak = "break-word";
+    msg.style.flex = "1";
+    msg.style.minWidth = "0";
     msg.textContent = messageText;
-    const btn = document.createElement("button");
-    btn.type = "button";
-    btn.className = "replymate-translate-pricing-cta replymate-translate-pricing-cta--in-result";
-    btn.textContent = t("translationViewPlansCta");
-    btn.addEventListener("click", (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      openPricingPage();
-    });
+    wrap.appendChild(icon);
     wrap.appendChild(msg);
-    wrap.appendChild(btn);
     el.appendChild(wrap);
     el.scrollTop = el.scrollHeight;
   }
@@ -2405,6 +2462,16 @@
         return;
       }
       await runTranslateFlow(text, panel);
+    });
+
+    document.getElementById("replymate-translate-clear").addEventListener("click", () => {
+      if (translateAbortController) {
+        try {
+          translateAbortController.abort();
+        } catch (_) { /* ignore */ }
+      }
+      setTranslateButtonsDisabled(panel, false);
+      clearPanelState(panel);
     });
 
     const targetSelectEl = document.getElementById("replymate-translate-target");

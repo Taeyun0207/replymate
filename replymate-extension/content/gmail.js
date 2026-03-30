@@ -130,20 +130,21 @@ const TRANSLATIONS = {
     translateLatestMessage: "Translate latest email",
     translateReply: "Translate my reply",
     translateManual: "Translate",
-    translateInputPlaceholder: "Paste text to translate...",
+    translateClear: "Clear",
+    translateInputPlaceholder: "Paste or type text to translate...",
     alreadyInYourLanguage: "Already in your selected language",
     noReplyFound: "No reply found. Generate a reply first.",
     copied: "Copied!",
     translateClose: "Close",
     translateCopy: "Copy",
     translateError: "Translation failed: ",
-    translateLimitReached: "You've reached your daily translation limit (10/day).\nUpgrade to Pro for unlimited translations.",
+    translateLimitReached: "Daily limit reached. Upgrade below for more translations.",
     noMessageFound: "No message found in this thread.",
     noTextToTranslate: "Please paste or enter text to translate.",
     nothingToCopy: "Nothing to copy. Translate something first.",
     translatePanelTitle: "ReplyMate Translate",
     translateCycleTheme: "Cycle theme (saved for this panel only)",
-    translatePasteLabel: "Paste text to translate",
+    translatePasteLabel: "Paste or type text to translate",
     translateResultLabel: "Result",
     translateToLabel: "Translate to",
     systemLanguage: "System Language",
@@ -157,7 +158,6 @@ const TRANSLATIONS = {
     signInToSeeUsage: "Sign in to use",
     translationsToday: "translations today",
     translationUsageDaily: "{remaining} / {limit} left today",
-    translationViewPlansCta: "View plans",
     unlimitedTranslations: "Unlimited translations",
   },
     korean: {
@@ -190,20 +190,21 @@ const TRANSLATIONS = {
     translateLatestMessage: "최근 메일 번역",
     translateReply: "내 답장 번역",
     translateManual: "번역",
-    translateInputPlaceholder: "번역할 텍스트를 붙여넣으세요...",
+    translateClear: "지우기",
+    translateInputPlaceholder: "번역할 텍스트를 붙여넣거나 입력하세요...",
     alreadyInYourLanguage: "선택한 언어와 같습니다",
     noReplyFound: "답장이 없습니다. 먼저 답장을 생성해 주세요.",
     copied: "복사됨!",
     translateClose: "닫기",
     translateCopy: "복사",
     translateError: "번역 실패: ",
-    translateLimitReached: "오늘의 번역 한도(10회)를 모두 사용했습니다.\nPro로 업그레이드하면 무제한입니다.",
+    translateLimitReached: "오늘 한도에 도달했습니다. 아래에서 업그레이드하면 더 사용할 수 있어요.",
     noMessageFound: "이 메일에서 내용을 찾을 수 없습니다.",
     noTextToTranslate: "번역할 텍스트를 붙여넣거나 입력해 주세요.",
     nothingToCopy: "복사할 내용이 없습니다. 먼저 번역해 주세요.",
     translatePanelTitle: "ReplyMate 번역",
     translateCycleTheme: "색 테마 (이 패널에만 저장)",
-    translatePasteLabel: "번역할 텍스트 붙여넣기",
+    translatePasteLabel: "번역할 텍스트 붙여넣기 또는 입력",
     translateResultLabel: "번역 결과",
     translateToLabel: "번역 대상 언어",
     systemLanguage: "시스템 언어",
@@ -217,7 +218,6 @@ const TRANSLATIONS = {
     signInToSeeUsage: "로그인하여 사용",
     translationsToday: "오늘 번역",
     translationUsageDaily: "오늘 {remaining} / {limit}회 남음",
-    translationViewPlansCta: "요금제 보기",
     unlimitedTranslations: "무제한 번역",
   },
   japanese: {
@@ -250,20 +250,21 @@ const TRANSLATIONS = {
     translateLatestMessage: "直近のメールを翻訳",
     translateReply: "返信を翻訳",
     translateManual: "翻訳",
-    translateInputPlaceholder: "翻訳するテキストを貼り付けてください...",
+    translateClear: "クリア",
+    translateInputPlaceholder: "翻訳するテキストを貼り付けまたは入力...",
     alreadyInYourLanguage: "選択した言語と同じです",
     noReplyFound: "返信が見つかりません。先に返信を生成してください。",
     copied: "コピーしました！",
     translateClose: "閉じる",
     translateCopy: "コピー",
     translateError: "翻訳に失敗しました: ",
-    translateLimitReached: "本日の翻訳上限（10回）に達しました。\nProにアップグレードで無制限に。",
+    translateLimitReached: "本日の上限に達しました。下からプランをアップグレードすると続けて使えます。",
     noMessageFound: "このメールに内容がありません。",
     noTextToTranslate: "翻訳するテキストを貼り付けるか入力してください。",
     nothingToCopy: "コピーする内容がありません。先に翻訳してください。",
     translatePanelTitle: "ReplyMate 翻訳",
     translateCycleTheme: "テーマを切り替え（このパネルに保存）",
-    translatePasteLabel: "翻訳するテキストを貼り付け",
+    translatePasteLabel: "翻訳するテキストを貼り付けまたは入力",
     translateResultLabel: "翻訳結果",
     translateToLabel: "翻訳先",
     systemLanguage: "システム言語",
@@ -277,7 +278,6 @@ const TRANSLATIONS = {
     signInToSeeUsage: "ログインしてご利用ください",
     translationsToday: "本日の翻訳",
     translationUsageDaily: "本日 残り {remaining} / {limit} 回",
-    translationViewPlansCta: "料金・プラン",
     unlimitedTranslations: "無制限",
   },
   spanish: {
@@ -310,20 +310,21 @@ const TRANSLATIONS = {
     translateLatestMessage: "Traducir último correo",
     translateReply: "Traducir mi respuesta",
     translateManual: "Traducir",
-    translateInputPlaceholder: "Pega texto para traducir...",
+    translateClear: "Borrar",
+    translateInputPlaceholder: "Pega o escribe el texto a traducir...",
     alreadyInYourLanguage: "Ya está en tu idioma seleccionado",
     noReplyFound: "No hay respuesta. Genera una respuesta primero.",
     copied: "¡Copiado!",
     translateClose: "Cerrar",
     translateCopy: "Copiar",
     translateError: "Error de traducción: ",
-    translateLimitReached: "Has alcanzado el límite diario (10/día).\nActualiza a Pro para traducciones ilimitadas.",
+    translateLimitReached: "Has alcanzado el límite diario. Mejora tu plan abajo para seguir traduciendo.",
     noMessageFound: "No hay contenido en este correo.",
     noTextToTranslate: "Pega o escribe texto para traducir.",
     nothingToCopy: "Nada que copiar. Traduce algo primero.",
     translatePanelTitle: "ReplyMate Traducir",
     translateCycleTheme: "Cambiar tema (solo guardado en este panel)",
-    translatePasteLabel: "Pega texto para traducir",
+    translatePasteLabel: "Pega o escribe el texto a traducir",
     translateResultLabel: "Resultado",
     translateToLabel: "Traducir a",
     systemLanguage: "Idioma del sistema",
@@ -337,7 +338,6 @@ const TRANSLATIONS = {
     signInToSeeUsage: "Inicia sesión para usar",
     translationsToday: "traducciones hoy",
     translationUsageDaily: "Quedan {remaining} / {limit} hoy",
-    translationViewPlansCta: "Ver planes",
     unlimitedTranslations: "Traducciones ilimitadas",
   }
 };
@@ -1709,6 +1709,7 @@ function createManageSubscriptionLink(language) {
   link.style.transition = "all 0.2s ease";
   link.style.whiteSpace = "nowrap";
   link.style.lineHeight = "1.2";
+  // Lighter hover on page (popup Manage Subscription uses darker gold hover)
   link.addEventListener("mouseenter", () => {
     link.style.background = "linear-gradient(135deg, #FFD700 0%, #FFD700 50%, #FFED4E 100%)";
     link.style.boxShadow = "0 4px 8px rgba(212, 175, 55, 0.4)";
@@ -1717,7 +1718,7 @@ function createManageSubscriptionLink(language) {
   link.addEventListener("mouseleave", () => {
     link.style.background = "linear-gradient(135deg, #FFD700 0%, #FFD700 50%, #FFFF99 100%)";
     link.style.boxShadow = "0 2px 4px rgba(212, 175, 55, 0.3)";
-    link.style.transform = "translateY(0px)";
+    link.style.transform = "translateY(0)";
   });
   link.addEventListener("click", (e) => {
     e.stopPropagation();
