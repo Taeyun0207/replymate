@@ -6,17 +6,22 @@
   const AUTH_STORAGE_KEY = "replymate_supabase_session";
   const AUTH_USER_KEY = "replymate_auth_user";
 
+  let supabaseClientSingleton = null;
+  let refreshInFlight = null;
+
   function getSupabaseClient() {
+    if (supabaseClientSingleton) return supabaseClientSingleton;
     const url = window.REPLYMATE_SUPABASE_URL;
     const key = window.REPLYMATE_SUPABASE_ANON_KEY;
     if (!url || !key || typeof supabase === "undefined") return null;
-    return supabase.createClient(url, key, {
+    supabaseClientSingleton = supabase.createClient(url, key, {
       auth: {
         persistSession: false,
         detectSessionInUrl: false,
         lock: async function(_name, _timeout, fn) { return fn(); }
       }
     });
+    return supabaseClientSingleton;
   }
 
   function getStorage() {
@@ -198,40 +203,53 @@
     },
 
     async refreshSessionIfNeeded() {
-      // Read raw session from storage (getSession returns null when expired, but we need refresh_token)
-      const storage = getStorage();
-      if (!storage) return null;
-      const raw = await storage.getItem(AUTH_STORAGE_KEY);
-      if (!raw) return null;
-      let session;
-      try {
-        session = JSON.parse(raw);
-      } catch (_) {
-        return null;
-      }
-      if (!session || !session.refresh_token) return null;
-      const client = getSupabaseClient();
-      if (!client) return null;
-      const { data, error } = await client.auth.refreshSession({
-        refresh_token: session.refresh_token,
-      });
-      if (error || !data?.session) return null;
-      const sessionData = {
-        access_token: data.session.access_token,
-        refresh_token: data.session.refresh_token || session.refresh_token,
-        expires_at: data.session.expires_at || Math.floor(Date.now() / 1000) + (data.session.expires_in || 3600),
-      };
-      await storage.setItem(AUTH_STORAGE_KEY, JSON.stringify(sessionData));
-      if (data.user) {
-        await storage.setItem(
-          AUTH_USER_KEY,
-          JSON.stringify({
-            id: data.user.id,
-            email: data.user.email || "",
-          })
-        );
-      }
-      return sessionData;
+      if (refreshInFlight) return refreshInFlight;
+      refreshInFlight = (async () => {
+        try {
+          return await doRefreshSession();
+        } finally {
+          refreshInFlight = null;
+        }
+      })();
+      return refreshInFlight;
     },
   };
+
+  async function doRefreshSession() {
+    // Read raw session from storage (getSession returns null when expired, but we need refresh_token)
+    const storage = getStorage();
+    if (!storage) return null;
+    const raw = await storage.getItem(AUTH_STORAGE_KEY);
+    if (!raw) return null;
+    let session;
+    try {
+      session = JSON.parse(raw);
+    } catch (_) {
+      return null;
+    }
+    if (!session || !session.refresh_token) return null;
+    const client = getSupabaseClient();
+    if (!client) return null;
+    const { data, error } = await client.auth.refreshSession({
+      refresh_token: session.refresh_token,
+    });
+    if (error || !data?.session) return null;
+    const sessionData = {
+      access_token: data.session.access_token,
+      refresh_token: data.session.refresh_token || session.refresh_token,
+      expires_at: data.session.expires_at || Math.floor(Date.now() / 1000) + (data.session.expires_in || 3600),
+    };
+    await storage.setItem(AUTH_STORAGE_KEY, JSON.stringify(sessionData));
+    if (data.user) {
+      await storage.setItem(
+        AUTH_USER_KEY,
+        JSON.stringify({
+          id: data.user.id,
+          email: data.user.email || "",
+        })
+      );
+    }
+    return sessionData;
+  }
+
 })();
